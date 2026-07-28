@@ -4,6 +4,98 @@ from pathlib import Path
 from datetime import datetime
 import pandas as pd
 
+import os
+import json
+from pathlib import Path
+from sqlalchemy import create_engine, text
+
+# ---------------------------------------------------------
+# Database Engine & Connection Setup
+# ---------------------------------------------------------
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# Fix Render URL compatibility (SQLAlchemy requires postgresql:// instead of postgres://)
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+def get_engine():
+    """Creates database engine if DATABASE_URL is set."""
+    if DATABASE_URL:
+        return create_engine(DATABASE_URL, pool_pre_ping=True)
+    return None
+
+def init_db():
+    """Ensures the app_state table exists in PostgreSQL."""
+    engine = get_engine()
+    if engine:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS app_state (
+                    id INT PRIMARY KEY,
+                    data JSONB
+                );
+            """))
+
+# ---------------------------------------------------------
+# Memory Persistence Functions (PostgreSQL with Local Fallback)
+# ---------------------------------------------------------
+MEMORY_FILE = Path("creativestudios_db.json")
+
+def load_memory():
+    """Loads state from Render PostgreSQL. Falls back to local JSON if no DB URL."""
+    engine = get_engine()
+    
+    # --- Local JSON Fallback (for offline testing) ---
+    if not engine:
+        if MEMORY_FILE.exists():
+            try:
+                return json.loads(MEMORY_FILE.read_text())
+            except Exception:
+                pass
+        return DEFAULT_MEMORY.copy()
+
+    # --- PostgreSQL Storage ---
+    try:
+        init_db()
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT data FROM app_state WHERE id = 1;")).fetchone()
+            if result and result[0]:
+                data = result[0]
+                return json.loads(data) if isinstance(data, str) else data
+        
+        # Initialize default memory in DB if table is empty
+        save_memory(DEFAULT_MEMORY)
+        return DEFAULT_MEMORY.copy()
+    except Exception as e:
+        st.error(f"Database Read Error: {e}")
+        return DEFAULT_MEMORY.copy()
+
+def save_memory(mem):
+    """Saves state to Render PostgreSQL. Falls back to local JSON if no DB URL."""
+    engine = get_engine()
+
+    # --- Local JSON Fallback (for offline testing) ---
+    if not engine:
+        MEMORY_FILE.write_text(json.dumps(mem, indent=2))
+        return
+
+    # --- PostgreSQL Storage ---
+    try:
+        init_db()
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO app_state (id, data)
+                    VALUES (1, :data::jsonb)
+                    ON CONFLICT (id) DO UPDATE
+                    SET data = EXCLUDED.data;
+                """),
+                {"data": json.dumps(mem)}
+            )
+    except Exception as e:
+        st.error(f"Database Write Error: {e}")
+
+
 # Look for this line near the top of streamlit_app.py:
 # MEMORY_FILE = Path("creativestudios_db.json")
 
