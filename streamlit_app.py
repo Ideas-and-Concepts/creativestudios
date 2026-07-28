@@ -1,5 +1,6 @@
 import os
 import json
+import hashlib
 import pandas as pd
 import streamlit as st
 from pathlib import Path
@@ -16,14 +17,29 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# Database Connection & Engine Caching (Prevents DB Connection Leaks)
+# Helper Functions for Security & Passwords
+# ---------------------------------------------------------
+def hash_password(password: str) -> str:
+    """Hashes passwords using SHA-256 for secure comparison."""
+    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+
+# Default default user credentials
+DEFAULT_USERS = [
+    {"username": "admin", "password_hash": hash_password("admin123"), "name": "System Admin", "role": "Admin"},
+    {"username": "jane_arch", "password_hash": hash_password("arch123"), "name": "Arch. Jane Doe", "role": "Architect"},
+    {"username": "john_struct", "password_hash": hash_password("struct123"), "name": "Eng. John Smith", "role": "Structural Engineer"},
+    {"username": "mark_mep", "password_hash": hash_password("mep123"), "name": "Eng. Mark Miller", "role": "MEP Engineer"},
+    {"username": "sam_proc", "password_hash": hash_password("proc123"), "name": "Sam Procurement", "role": "Procurement Officer"}
+]
+
+# ---------------------------------------------------------
+# Database Connection & Engine Caching
 # ---------------------------------------------------------
 @st.cache_resource
 def get_engine():
     """Creates a cached, pooled database connection engine."""
     db_url = os.environ.get("DATABASE_URL")
     if db_url:
-        # Fix Render compatibility (SQLAlchemy 1.4+ requires postgresql://)
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
         return create_engine(db_url, pool_pre_ping=True, pool_size=5, max_overflow=10)
@@ -47,6 +63,7 @@ def init_db():
 MEMORY_FILE = Path("creativestudios_db.json")
 
 DEFAULT_MEMORY = {
+    "users": DEFAULT_USERS,
     "projects": [
         {
             "id": "PRJ-001",
@@ -88,10 +105,13 @@ DEFAULT_MEMORY = {
             "project_id": "PRJ-001",
             "item_name": "Main Electrical Panel & Transformers",
             "arch_status": "Approved",
+            "arch_approved_by": "Arch. Jane Doe",
             "eng_status": "Approved",
-            "mep_status": "Approved",
-            "procurement_status": "Ready for Release",
-            "notes": "Electrical load calculations verified by MEP engineer."
+            "eng_approved_by": "Eng. John Smith",
+            "mep_status": "Pending",
+            "mep_approved_by": None,
+            "procurement_status": "Locked",
+            "notes": "Awaiting MEP sign-off on breaker panel ratings."
         }
     ],
     "boq": [
@@ -109,47 +129,45 @@ DEFAULT_MEMORY = {
 }
 
 def load_memory():
-    """Loads JSON data from PostgreSQL or local disk with robust error handling."""
+    """Loads state from PostgreSQL or local JSON file."""
     engine = get_engine()
     
-    # Offline Local JSON Fallback
     if not engine:
         if MEMORY_FILE.exists():
             try:
-                return json.loads(MEMORY_FILE.read_text())
+                data = json.loads(MEMORY_FILE.read_text())
+                if "users" not in data:
+                    data["users"] = DEFAULT_USERS
+                return data
             except Exception:
                 pass
         return DEFAULT_MEMORY.copy()
 
-    # PostgreSQL Reader
     try:
         init_db()
         with engine.connect() as conn:
             result = conn.execute(text("SELECT data FROM app_state WHERE id = 1;")).fetchone()
             if result and result[0] is not None:
                 data = result[0]
-                if isinstance(data, dict):
-                    return data
-                elif isinstance(data, str):
-                    return json.loads(data)
+                data_dict = data if isinstance(data, dict) else json.loads(data)
+                if "users" not in data_dict:
+                    data_dict["users"] = DEFAULT_USERS
+                return data_dict
         
-        # Save default if database table is brand new
         save_memory(DEFAULT_MEMORY)
         return DEFAULT_MEMORY.copy()
     except Exception as e:
-        st.warning(f"Database connection warning: {e}. Falling back to default memory.")
+        st.warning(f"Database connection warning: {e}. Falling back to default state.")
         return DEFAULT_MEMORY.copy()
 
 def save_memory(mem):
-    """Persists state to PostgreSQL or local JSON storage."""
+    """Persists state to PostgreSQL or local disk."""
     engine = get_engine()
 
-    # Offline Local Storage
     if not engine:
         MEMORY_FILE.write_text(json.dumps(mem, indent=2))
         return
 
-    # PostgreSQL Writer
     try:
         init_db()
         with engine.begin() as conn:
@@ -168,11 +186,11 @@ def save_memory(mem):
 db = load_memory()
 
 def get_project_name(project_id):
-    proj = next((p for p in db["projects"] if p["id"] == project_id), None)
+    proj = next((p for p in db.get("projects", []) if p["id"] == project_id), None)
     return proj["name"] if proj else "Unknown"
 
 def safe_dataframe(data_list, preferred_columns):
-    """Safely builds a pandas DataFrame avoiding missing column KeyError exceptions."""
+    """Safely builds a pandas DataFrame avoiding missing column exceptions."""
     if not data_list:
         return pd.DataFrame()
     df = pd.DataFrame(data_list)
@@ -180,10 +198,78 @@ def safe_dataframe(data_list, preferred_columns):
     return df[available_cols]
 
 # ---------------------------------------------------------
-# Sidebar Navigation
+# AUTHENTICATION & SESSION MANAGEMENT
 # ---------------------------------------------------------
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+    st.session_state["user"] = None
+
+def login(username, password):
+    user = next((u for u in db.get("users", []) if u["username"].lower() == username.lower()), None)
+    if user and user["password_hash"] == hash_password(password):
+        st.session_state["authenticated"] = True
+        st.session_state["user"] = user
+        return True
+    return False
+
+def logout():
+    st.session_state["authenticated"] = False
+    st.session_state["user"] = None
+    st.rerun()
+
+# --- LOGIN SCREEN ---
+if not st.session_state["authenticated"]:
+    st.title("🔐 Creative Studios Login")
+    st.markdown("Sign in to access Architectural, Structural, and MEP workflows.")
+
+    col_login, col_demo = st.columns([1, 1])
+
+    with col_login:
+        with st.form("login_form"):
+            user_input = st.text_input("Username")
+            pass_input = st.text_input("Password", type="password")
+            submit_btn = st.form_submit_button("Sign In")
+
+            if submit_btn:
+                if login(user_input, pass_input):
+                    st.success("Authentication successful!")
+                    st.rerun()
+                else:
+                    st.error("Invalid username or password.")
+
+    with col_demo:
+        st.subheader("💡 Demo Accounts Quick Switch")
+        st.caption("Click any account below to pre-fill credentials for testing:")
+        
+        for u in db.get("users", []):
+            role_badge = f"**{u['name']}** ({u['role']})"
+            if st.button(f"Login as {u['name']} [{u['role']}]", key=f"quick_{u['username']}"):
+                # Password mapping for demo
+                pwd_map = {
+                    "admin": "admin123",
+                    "jane_arch": "arch123",
+                    "john_struct": "struct123",
+                    "mark_mep": "mep123",
+                    "sam_proc": "proc123"
+                }
+                login(u['username'], pwd_map.get(u['username'], "admin123"))
+                st.rerun()
+
+    st.stop()  # Stop execution here until logged in
+
+# ---------------------------------------------------------
+# SIDEBAR PROFILE & NAVIGATION
+# ---------------------------------------------------------
+current_user = st.session_state["user"]
+
 st.sidebar.title("📐 Creative Studios")
-st.sidebar.caption("Architectural, Structural & MEP System")
+st.sidebar.markdown(f"👤 **{current_user['name']}**")
+st.sidebar.caption(f"Role: `{current_user['role']}`")
+
+if st.sidebar.button("🚪 Sign Out"):
+    logout()
+
+st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigation",
@@ -206,7 +292,7 @@ st.sidebar.caption(f"Vault Drawings: {len(db.get('drawings', []))}")
 # ---------------------------------------------------------
 if page == "Dashboard":
     st.title("📊 Executive Dashboard")
-    st.markdown("Real-time project tracking across Architectural, Structural, and MEP engineering.")
+    st.markdown(f"Welcome back, **{current_user['name']}**.")
 
     col1, col2, col3, col4 = st.columns(4)
     total_budget = sum(p.get("budget", 0) for p in db.get("projects", []))
@@ -263,40 +349,43 @@ elif page == "Project Directory":
 
     with tab2:
         st.subheader("Register a Project")
-        with st.form("new_project_form"):
-            p_name = st.text_input("Project Title")
-            p_type = st.selectbox("Project Classification", [
-                "New Construction", 
-                "Renovation / MEP Overhaul", 
-                "Structural Upgrade",
-                "Fit-out & MEP Retrofit"
-            ])
-            p_status = st.selectbox("Initial Status", ["Planning", "In Review", "Active Execution", "Completed"])
-            p_budget = st.number_input("Estimated Budget ($)", min_value=0.0, step=1000.0)
-            p_desc = st.text_area("Scope & Description")
+        if current_user["role"] in ["Admin", "Architect", "Procurement Officer"]:
+            with st.form("new_project_form"):
+                p_name = st.text_input("Project Title")
+                p_type = st.selectbox("Project Classification", [
+                    "New Construction", 
+                    "Renovation / MEP Overhaul", 
+                    "Structural Upgrade",
+                    "Fit-out & MEP Retrofit"
+                ])
+                p_status = st.selectbox("Initial Status", ["Planning", "In Review", "Active Execution", "Completed"])
+                p_budget = st.number_input("Estimated Budget ($)", min_value=0.0, step=1000.0)
+                p_desc = st.text_area("Scope & Description")
 
-            submitted = st.form_submit_button("Create Project Entry")
-            if submitted and p_name:
-                new_id = f"PRJ-{len(db['projects']) + 1:03d}"
-                db["projects"].append({
-                    "id": new_id,
-                    "name": p_name,
-                    "type": p_type,
-                    "status": p_status,
-                    "created": datetime.now().isoformat(),
-                    "budget": p_budget,
-                    "description": p_desc
-                })
-                save_memory(db)
-                st.success(f"Project '{p_name}' successfully created with ID: {new_id}")
-                st.rerun()
+                submitted = st.form_submit_button("Create Project Entry")
+                if submitted and p_name:
+                    new_id = f"PRJ-{len(db['projects']) + 1:03d}"
+                    db["projects"].append({
+                        "id": new_id,
+                        "name": p_name,
+                        "type": p_type,
+                        "status": p_status,
+                        "created": datetime.now().isoformat(),
+                        "budget": p_budget,
+                        "description": p_desc
+                    })
+                    save_memory(db)
+                    st.success(f"Project '{p_name}' created with ID: {new_id}")
+                    st.rerun()
+        else:
+            st.warning("🔒 Only Project Managers, Architects, or Procurement Officers can register new projects.")
 
 # ---------------------------------------------------------
 # MODULE 3: DRAWING VAULT (ARCH & MEP)
 # ---------------------------------------------------------
 elif page == "Drawing Vault (Arch & MEP)":
     st.title("📐 Drawing Vault & Version Control")
-    st.markdown("Central storage for Architectural, Structural, and Mechanical/Electrical/Plumbing (MEP) plans.")
+    st.markdown("Central storage for Architectural, Structural, and MEP plans.")
 
     if not db.get("projects"):
         st.warning("Please create at least one project before managing drawings.")
@@ -342,7 +431,7 @@ elif page == "Drawing Vault (Arch & MEP)":
                 ])
                 title = st.text_input("Drawing Title (e.g., HVAC Duct Schematic / Electrical Riser)")
                 version = st.text_input("Version Tag", value="v1.0")
-                uploaded_by = st.text_input("Uploaded By", value="Lead Engineer / Architect")
+                uploaded_by = st.text_input("Uploaded By", value=current_user["name"], disabled=True)
                 uploaded_file = st.file_uploader("Upload Drawing File (PDF, DWG, PNG)", type=["pdf", "dwg", "png", "jpg"])
 
                 submitted = st.form_submit_button("Record Drawing in Vault")
@@ -357,7 +446,7 @@ elif page == "Drawing Vault (Arch & MEP)":
                         "version": version,
                         "file_name": file_name,
                         "status": "Pending Review",
-                        "uploaded_by": uploaded_by,
+                        "uploaded_by": current_user["name"],
                         "uploaded_at": datetime.now().isoformat()
                     })
                     save_memory(db)
@@ -365,11 +454,11 @@ elif page == "Drawing Vault (Arch & MEP)":
                     st.rerun()
 
 # ---------------------------------------------------------
-# MODULE 4: PROCUREMENT & APPROVAL WORKFLOW
+# MODULE 4: PROCUREMENT & APPROVAL WORKFLOW (RBAC ENFORCED)
 # ---------------------------------------------------------
 elif page == "Procurement & Approvals":
     st.title("🛡 Approval & Procurement Engine")
-    st.markdown("Multi-stage approval pipeline requiring **Architectural**, **Structural**, and **MEP Engineering** sign-offs.")
+    st.markdown("Role-enforced sign-off matrix across **Architectural**, **Structural**, and **MEP Engineering**.")
 
     if not db.get("projects"):
         st.warning("Please create a project first.")
@@ -377,7 +466,7 @@ elif page == "Procurement & Approvals":
         tab1, tab2 = st.tabs(["Active Sign-off Pipeline", "Initiate Approval Request"])
 
         with tab1:
-            st.subheader("Tri-Discipline Sign-off Matrix")
+            st.subheader("Role-Gated Sign-off Matrix")
             approvals = db.get("procurement_approvals", [])
             if approvals:
                 for item in approvals:
@@ -385,37 +474,61 @@ elif page == "Procurement & Approvals":
                     with st.expander(f"📦 {item.get('item_name', 'Item')} (Project: {item.get('project_id')})"):
                         col1, col2, col3, col4 = st.columns(4)
 
-                        # Architectural Sign-off
+                        # --- 1. Architectural Sign-off ---
                         with col1:
                             st.markdown("**1. Architectural**")
-                            st.caption(f"Status: {item.get('arch_status', 'Pending')}")
-                            if item.get('arch_status') != "Approved":
-                                if st.button("Approve (Arch)", key=f"arch_{item_id}"):
+                            arch_status = item.get('arch_status', 'Pending')
+                            st.caption(f"Status: `{arch_status}`")
+                            if item.get('arch_approved_by'):
+                                st.caption(f"By: {item['arch_approved_by']}")
+                            
+                            if arch_status != "Approved":
+                                can_approve_arch = current_user["role"] in ["Architect", "Admin"]
+                                if st.button("Approve (Arch)", key=f"arch_{item_id}", disabled=not can_approve_arch):
                                     item['arch_status'] = "Approved"
+                                    item['arch_approved_by'] = current_user["name"]
                                     save_memory(db)
                                     st.rerun()
+                                if not can_approve_arch:
+                                    st.caption("🔒 Requires Architect role")
 
-                        # Structural Sign-off
+                        # --- 2. Structural Sign-off ---
                         with col2:
                             st.markdown("**2. Structural**")
-                            st.caption(f"Status: {item.get('eng_status', 'Pending')}")
-                            if item.get('eng_status') != "Approved":
-                                if st.button("Approve (Struct)", key=f"eng_{item_id}"):
+                            eng_status = item.get('eng_status', 'Pending')
+                            st.caption(f"Status: `{eng_status}`")
+                            if item.get('eng_approved_by'):
+                                st.caption(f"By: {item['eng_approved_by']}")
+
+                            if eng_status != "Approved":
+                                can_approve_struct = current_user["role"] in ["Structural Engineer", "Admin"]
+                                if st.button("Approve (Struct)", key=f"eng_{item_id}", disabled=not can_approve_struct):
                                     item['eng_status'] = "Approved"
+                                    item['eng_approved_by'] = current_user["name"]
                                     save_memory(db)
                                     st.rerun()
+                                if not can_approve_struct:
+                                    st.caption("🔒 Requires Structural Eng. role")
 
-                        # MEP Sign-off
+                        # --- 3. MEP Sign-off ---
                         with col3:
                             st.markdown("**3. MEP Engineering**")
-                            st.caption(f"Status: {item.get('mep_status', 'Pending')}")
-                            if item.get('mep_status') != "Approved":
-                                if st.button("Approve (MEP)", key=f"mep_{item_id}"):
+                            mep_status = item.get('mep_status', 'Pending')
+                            st.caption(f"Status: `{mep_status}`")
+                            if item.get('mep_approved_by'):
+                                st.caption(f"By: {item['mep_approved_by']}")
+
+                            if mep_status != "Approved":
+                                can_approve_mep = current_user["role"] in ["MEP Engineer", "Admin"]
+                                if st.button("Approve (MEP)", key=f"mep_{item_id}", disabled=not can_approve_mep):
                                     item['mep_status'] = "Approved"
+                                    item['mep_approved_by'] = current_user["name"]
                                     save_memory(db)
                                     st.rerun()
+                                if not can_approve_mep:
+                                    st.caption("🔒 Requires MEP Eng. role")
 
-                        # Procurement Release Status
+                        # --- 4. Final Procurement Release ---
                         with col4:
                             st.markdown("**4. Procurement Release**")
                             arch_ok = item.get('arch_status') == "Approved"
@@ -427,7 +540,7 @@ elif page == "Procurement & Approvals":
                                 st.success("✅ Fully Approved")
                             else:
                                 item['procurement_status'] = "Locked"
-                                st.warning("🔒 Pending Approvals")
+                                st.warning("🔒 Sign-offs Pending")
 
                         st.write(f"**Technical Notes:** {item.get('notes', 'N/A')}")
             else:
@@ -452,8 +565,11 @@ elif page == "Procurement & Approvals":
                         "project_id": proj_id,
                         "item_name": item_name,
                         "arch_status": "Pending",
+                        "arch_approved_by": None,
                         "eng_status": "Pending",
+                        "eng_approved_by": None,
                         "mep_status": "Pending",
+                        "mep_approved_by": None,
                         "procurement_status": "Locked",
                         "notes": notes
                     })
@@ -462,7 +578,7 @@ elif page == "Procurement & Approvals":
                     st.rerun()
 
 # ---------------------------------------------------------
-# MODULE 5: BILL OF QUANTITIES (BOQ) INCLUDING MEP
+# MODULE 5: BILL OF QUANTITIES (BOQ)
 # ---------------------------------------------------------
 elif page == "BoQ (Materials, Labor & MEP)":
     st.title("🧱 Bill of Quantities (BoQ)")
@@ -495,40 +611,41 @@ elif page == "BoQ (Materials, Labor & MEP)":
 
         with tab2:
             st.subheader("Add Material, MEP, or Labor Entry")
-            with st.form("boq_form"):
-                p_id = st.selectbox(
-                    "Project Target",
-                    options=[p["id"] for p in db["projects"]],
-                    format_func=lambda x: f"{x} - {get_project_name(x)}"
-                )
-                category = st.selectbox("Category", [
-                    "Mechanical (HVAC)",
-                    "Electrical & Wiring",
-                    "Plumbing & Fixtures",
-                    "Civil & Structural Materials",
-                    "Architectural Finishes",
-                    "MEP Labor & Subcontractors",
-                    "General Labor"
-                ])
-                item = st.text_input("Item Description (e.g., 100A Busbars, 2-inch Copper Pipes, Ductwork)")
-                quantity = st.number_input("Quantity", min_value=0.1, value=1.0)
-                unit = st.text_input("Unit of Measure (e.g., Meters, Units, Hours, Sq Ft)", value="Units")
-                unit_cost = st.number_input("Cost per Unit ($)", min_value=0.0, value=10.0)
+            if current_user["role"] in ["Procurement Officer", "Admin", "Architect", "MEP Engineer", "Structural Engineer"]:
+                with st.form("boq_form"):
+                    p_id = st.selectbox(
+                        "Project Target",
+                        options=[p["id"] for p in db["projects"]],
+                        format_func=lambda x: f"{x} - {get_project_name(x)}"
+                    )
+                    category = st.selectbox("Category", [
+                        "Mechanical (HVAC)",
+                        "Electrical & Wiring",
+                        "Plumbing & Fixtures",
+                        "Civil & Structural Materials",
+                        "Architectural Finishes",
+                        "MEP Labor & Subcontractors",
+                        "General Labor"
+                    ])
+                    item = st.text_input("Item Description (e.g., 100A Busbars, 2-inch Copper Pipes, Ductwork)")
+                    quantity = st.number_input("Quantity", min_value=0.1, value=1.0)
+                    unit = st.text_input("Unit of Measure (e.g., Meters, Units, Hours, Sq Ft)", value="Units")
+                    unit_cost = st.number_input("Cost per Unit ($)", min_value=0.0, value=10.0)
 
-                submitted = st.form_submit_button("Add to BoQ Ledger")
-                if submitted and item:
-                    boq_id = f"BOQ-{len(db['boq']) + 1:03d}"
-                    total = quantity * unit_cost
-                    db["boq"].append({
-                        "id": boq_id,
-                        "project_id": p_id,
-                        "category": category,
-                        "item": item,
-                        "quantity": quantity,
-                        "unit": unit,
-                        "unit_cost": unit_cost,
-                        "total": total
-                    })
-                    save_memory(db)
-                    st.success(f"Added '{item}' to BoQ with calculated total of ${total:,.2f}")
-                    st.rerun()
+                    submitted = st.form_submit_button("Add to BoQ Ledger")
+                    if submitted and item:
+                        boq_id = f"BOQ-{len(db['boq']) + 1:03d}"
+                        total = quantity * unit_cost
+                        db["boq"].append({
+                            "id": boq_id,
+                            "project_id": p_id,
+                            "category": category,
+                            "item": item,
+                            "quantity": quantity,
+                            "unit": unit,
+                            "unit_cost": unit_cost,
+                            "total": total
+                        })
+                        save_memory(db)
+                        st.success(f"Added '{item}' to BoQ with calculated total of ${total:,.2f}")
+                        st.rerun()
