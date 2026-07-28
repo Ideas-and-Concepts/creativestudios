@@ -1,11 +1,16 @@
-services:
-  - type: web
-    name: creativestudios
-    env: python
-    plan: starter # Disks require Starter plan or higher
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
-    disk:
-      name: creativestudios-data
-      mountPath: /var/data
-      sizeGB: 1
+# Exported from Render on 2026-07-28T06:09:29Z
+version: "1"
+projects:
+- name: Creative Studios
+  environments:
+  - name: creative.studios
+    databases:
+    - name: creative.studios
+      databaseName: creative_studios
+      user: creative_studios_user
+      plan: free
+      region: singapore
+      ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+      postgresMajorVersion: "18"
