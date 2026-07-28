@@ -8,7 +8,7 @@ import pandas as pd
 # Page Configuration & Memory Initialization
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Creative Studios - Architectural Management System",
+    page_title="Creative Studios - Architectural & MEP Management System",
     page_icon="📐",
     layout="wide"
 )
@@ -42,46 +42,69 @@ DEFAULT_MEMORY = {
         {
             "id": "DWG-102",
             "project_id": "PRJ-001",
-            "discipline": "Engineering",
-            "title": "Foundation & Structural Beams",
+            "discipline": "Mechanical (HVAC)",
+            "title": "HVAC Duct Layout & Chiller Specs",
             "version": "v1.0",
-            "file_name": "S-101_Foundation.pdf",
+            "file_name": "M-101_HVAC_Ducts.pdf",
             "status": "Pending Review",
-            "uploaded_by": "Eng. John Smith",
-            "uploaded_at": "2026-01-20T14:15:00"
+            "uploaded_by": "Eng. Mark Miller",
+            "uploaded_at": "2026-01-21T11:00:00"
+        },
+        {
+            "id": "DWG-103",
+            "project_id": "PRJ-001",
+            "discipline": "Electrical",
+            "title": "Single-Line Diagram & Circuit Distribution",
+            "version": "v1.0",
+            "file_name": "E-101_Electrical_SLD.pdf",
+            "status": "Approved",
+            "uploaded_by": "Eng. Sarah Watts",
+            "uploaded_at": "2026-01-22T09:45:00"
+        },
+        {
+            "id": "DWG-104",
+            "project_id": "PRJ-001",
+            "discipline": "Plumbing",
+            "title": "Drainage, Waste & Vent (DWV) System",
+            "version": "v1.1",
+            "file_name": "P-101_Plumbing_Riser.pdf",
+            "status": "Pending Review",
+            "uploaded_by": "Eng. Alex Rivers",
+            "uploaded_at": "2026-01-23T16:20:00"
         }
     ],
     "procurement_approvals": [
         {
             "id": "APP-001",
             "project_id": "PRJ-001",
-            "item_name": "Concrete Foundation Phase 1",
+            "item_name": "Main Electrical Panel & Transformers",
             "arch_status": "Approved",
-            "eng_status": "Pending",
-            "procurement_status": "Locked",
-            "notes": "Awaiting structural engineer validation on rebar load specs."
+            "mep_status": "Approved",
+            "eng_status": "Approved",
+            "procurement_status": "Ready for Release",
+            "notes": "Electrical load calculations verified by MEP engineer."
         }
     ],
     "boq": [
         {
             "id": "BOQ-001",
             "project_id": "PRJ-001",
-            "category": "Materials",
-            "item": "Ready-Mix Concrete (30 MPa)",
-            "quantity": 150.0,
-            "unit": "m³",
-            "unit_cost": 120.0,
-            "total": 18000.0
+            "category": "Plumbing",
+            "item": "PEX Water Supply Piping & Valves",
+            "quantity": 500.0,
+            "unit": "Meters",
+            "unit_cost": 18.5,
+            "total": 9250.0
         },
         {
             "id": "BOQ-002",
             "project_id": "PRJ-001",
-            "category": "Labor",
-            "item": "Structural Steelworkers",
-            "quantity": 320.0,
-            "unit": "Hours",
-            "unit_cost": 45.0,
-            "total": 14400.0
+            "category": "Mechanical (HVAC)",
+            "item": "Central Air Handling Unit (AHU) 15 TON",
+            "quantity": 2.0,
+            "unit": "Units",
+            "unit_cost": 8500.0,
+            "total": 17000.0
         }
     ]
 }
@@ -99,25 +122,24 @@ def save_memory(mem):
 
 db = load_memory()
 
-# Helper function to find project name by ID
 def get_project_name(project_id):
     proj = next((p for p in db["projects"] if p["id"] == project_id), None)
     return proj["name"] if proj else "Unknown"
 
 # ---------------------------------------------------------
-# Sidebar Navigation & Quick Metrics
+# Sidebar Navigation
 # ---------------------------------------------------------
 st.sidebar.title("📐 Creative Studios")
-st.sidebar.caption("Architectural & Construction Management System")
+st.sidebar.caption("Architectural, Structural & MEP Management")
 
 page = st.sidebar.radio(
     "Navigation",
     [
         "Dashboard",
         "Project Directory",
-        "Drawing Vault",
+        "Drawing Vault (Arch & MEP)",
         "Procurement & Approvals",
-        "BoQ (Materials & Labor)"
+        "BoQ (Materials, Labor & MEP)"
     ]
 )
 
@@ -131,13 +153,13 @@ st.sidebar.caption(f"Vault Drawings: {len(db['drawings'])}")
 # ---------------------------------------------------------
 if page == "Dashboard":
     st.title("📊 Executive Dashboard")
-    st.markdown("Real-time summary of drawings, active approvals, and budget allocations.")
+    st.markdown("Real-time project tracking across Architectural, Structural, and MEP engineering.")
 
     col1, col2, col3, col4 = st.columns(4)
     total_budget = sum(p.get("budget", 0) for p in db["projects"])
     pending_approvals = sum(
         1 for a in db["procurement_approvals"] 
-        if a["procurement_status"] != "Approved"
+        if a.get("procurement_status") != "Ready for Release"
     )
 
     col1.metric("Total Projects", len(db["projects"]))
@@ -146,21 +168,20 @@ if page == "Dashboard":
     col4.metric("Total Portfolio Budget", f"${total_budget:,.2f}")
 
     st.markdown("---")
-
     col_a, col_b = st.columns(2)
 
     with col_a:
-        st.subheader("Project Type Overview")
-        if db["projects"]:
-            df_p = pd.DataFrame(db["projects"])
-            type_counts = df_p["type"].value_counts().reset_index()
-            type_counts.columns = ["Project Type", "Count"]
-            st.dataframe(type_counts, use_container_width=True)
+        st.subheader("Drawings by Discipline")
+        if db["drawings"]:
+            df_d = pd.DataFrame(db["drawings"])
+            discipline_counts = df_d["discipline"].value_counts().reset_index()
+            discipline_counts.columns = ["Discipline", "Count"]
+            st.dataframe(discipline_counts, use_container_width=True)
         else:
-            st.info("No project data available.")
+            st.info("No drawings available.")
 
     with col_b:
-        st.subheader("Latest Vault Uploads")
+        st.subheader("Latest Vault Submissions")
         if db["drawings"]:
             df_d = pd.DataFrame(db["drawings"])[["discipline", "title", "version", "status", "uploaded_at"]]
             st.dataframe(df_d.tail(5), use_container_width=True)
@@ -172,7 +193,7 @@ if page == "Dashboard":
 # ---------------------------------------------------------
 elif page == "Project Directory":
     st.title("📁 Project Directory")
-    st.markdown("Manage both **New Construction** and **Renovation/Retrofit** initiatives.")
+    st.markdown("Manage both **New Builds** and **Renovations / Retrofits**.")
 
     tab1, tab2 = st.tabs(["View Projects", "Register New Project"])
 
@@ -190,7 +211,12 @@ elif page == "Project Directory":
         st.subheader("Register a Project")
         with st.form("new_project_form"):
             p_name = st.text_input("Project Title")
-            p_type = st.selectbox("Project Classification", ["New Construction", "Renovation / Restructuring", "Structural Upgrade"])
+            p_type = st.selectbox("Project Classification", [
+                "New Construction", 
+                "Renovation / MEP Overhaul", 
+                "Structural Upgrade",
+                "Fit-out & MEP Retrofit"
+            ])
             p_status = st.selectbox("Initial Status", ["Planning", "In Review", "Active Execution", "Completed"])
             p_budget = st.number_input("Estimated Budget ($)", min_value=0.0, step=1000.0)
             p_desc = st.text_area("Scope & Description")
@@ -212,11 +238,11 @@ elif page == "Project Directory":
                 st.rerun()
 
 # ---------------------------------------------------------
-# MODULE 3: DRAWING VAULT
+# MODULE 3: DRAWING VAULT (ARCH & MEP)
 # ---------------------------------------------------------
-elif page == "Drawing Vault":
+elif page == "Drawing Vault (Arch & MEP)":
     st.title("📐 Drawing Vault & Version Control")
-    st.markdown("Central repository for **Architectural** and **Engineering** drawings.")
+    st.markdown("Central storage for Architectural, Structural, and Mechanical/Electrical/Plumbing (MEP) plans.")
 
     if not db["projects"]:
         st.warning("Please create at least one project before managing drawings.")
@@ -251,15 +277,23 @@ elif page == "Drawing Vault":
                     options=[p["id"] for p in db["projects"]],
                     format_func=lambda x: f"{x} - {get_project_name(x)}"
                 )
-                discipline = st.selectbox("Discipline", ["Architectural", "Structural Engineering", "MEP Engineering", "Civil/Site Plan"])
-                title = st.text_input("Drawing Title (e.g., Section A-A Elevation)")
+                discipline = st.selectbox("Discipline Classification", [
+                    "Architectural",
+                    "Structural Engineering",
+                    "Mechanical (HVAC)",
+                    "Electrical & Power",
+                    "Plumbing & Sanitation",
+                    "Fire Protection & Life Safety",
+                    "Civil / Site Plan"
+                ])
+                title = st.text_input("Drawing Title (e.g., HVAC Duct Schematic / Electrical Riser)")
                 version = st.text_input("Version Tag", value="v1.0")
-                uploaded_by = st.text_input("Uploaded By", value="Architect/Engineer Name")
-                uploaded_file = st.file_uploader("Upload File (PDF, DWG, PNG)", type=["pdf", "dwg", "png", "jpg"])
+                uploaded_by = st.text_input("Uploaded By", value="Lead Engineer / Architect")
+                uploaded_file = st.file_uploader("Upload Drawing File (PDF, DWG, PNG)", type=["pdf", "dwg", "png", "jpg"])
 
-                submitted = st.form_submit_button("Record Drawing")
+                submitted = st.form_submit_button("Record Drawing in Vault")
                 if submitted and title:
-                    file_name = uploaded_file.name if uploaded_file else "Simulated_Drawing.pdf"
+                    file_name = uploaded_file.name if uploaded_file else "Drawing_Plan.pdf"
                     dwg_id = f"DWG-{len(db['drawings']) + 1:03d}"
                     db["drawings"].append({
                         "id": dwg_id,
@@ -281,53 +315,67 @@ elif page == "Drawing Vault":
 # ---------------------------------------------------------
 elif page == "Procurement & Approvals":
     st.title("🛡 Approval & Procurement Engine")
-    st.markdown("Dual sign-off chain required before procurement releases materials or labor.")
+    st.markdown("Multi-stage approval pipeline requiring **Architectural**, **Structural**, and **MEP Engineering** sign-offs.")
 
     if not db["projects"]:
         st.warning("Please create a project first.")
     else:
-        tab1, tab2 = tab1, tab2 = st.tabs(["Active Sign-off Pipeline", "Initiate Approval Request"])
+        tab1, tab2 = st.tabs(["Active Sign-off Pipeline", "Initiate Approval Request"])
 
         with tab1:
-            st.subheader("Sign-off Management Matrix")
+            st.subheader("Tri-Discipline Sign-off Matrix")
             if db["procurement_approvals"]:
                 for idx, item in enumerate(db["procurement_approvals"]):
                     with st.expander(f"📦 {item['item_name']} (Project: {item['project_id']})"):
-                        col1, col2, col3 = st.columns(3)
+                        col1, col2, col3, col4 = st.columns(4)
 
-                        # Architectural Sign-off
+                        # 1. Architectural Sign-off
                         with col1:
-                            st.markdown("**1. Architectural Sign-off**")
-                            st.caption(f"Status: {item['arch_status']}")
-                            if item['arch_status'] != "Approved":
-                                if st.button("Approve (Architect)", key=f"arch_{idx}"):
+                            st.markdown("**1. Architectural**")
+                            st.caption(f"Status: {item.get('arch_status', 'Pending')}")
+                            if item.get('arch_status') != "Approved":
+                                if st.button("Approve (Arch)", key=f"arch_{idx}"):
                                     item['arch_status'] = "Approved"
                                     save_memory(db)
                                     st.rerun()
 
-                        # Engineering Sign-off
+                        # 2. Structural Sign-off
                         with col2:
-                            st.markdown("**2. Engineering Sign-off**")
-                            st.caption(f"Status: {item['eng_status']}")
-                            if item['eng_status'] != "Approved":
-                                if st.button("Approve (Engineer)", key=f"eng_{idx}"):
+                            st.markdown("**2. Structural**")
+                            st.caption(f"Status: {item.get('eng_status', 'Pending')}")
+                            if item.get('eng_status') != "Approved":
+                                if st.button("Approve (Struct)", key=f"eng_{idx}"):
                                     item['eng_status'] = "Approved"
                                     save_memory(db)
                                     st.rerun()
 
-                        # Procurement Status Update
+                        # 3. MEP Sign-off
                         with col3:
-                            st.markdown("**3. Procurement Authorization**")
-                            if item['arch_status'] == "Approved" and item['eng_status'] == "Approved":
+                            st.markdown("**3. MEP Engineering**")
+                            st.caption(f"Status: {item.get('mep_status', 'Pending')}")
+                            if item.get('mep_status') != "Approved":
+                                if st.button("Approve (MEP)", key=f"mep_{idx}"):
+                                    item['mep_status'] = "Approved"
+                                    save_memory(db)
+                                    st.rerun()
+
+                        # 4. Procurement Release Status
+                        with col4:
+                            st.markdown("**4. Procurement Release**")
+                            arch_ok = item.get('arch_status') == "Approved"
+                            eng_ok = item.get('eng_status') == "Approved"
+                            mep_ok = item.get('mep_status') == "Approved"
+
+                            if arch_ok and eng_ok and mep_ok:
                                 item['procurement_status'] = "Ready for Release"
-                                st.success("✅ Fully Approved for Procurement")
+                                st.success("✅ Fully Approved")
                             else:
-                                item['procurement_status'] = "Locked (Awaiting Approvals)"
-                                st.warning("🔒 Sign-offs Pending")
+                                item['procurement_status'] = "Locked"
+                                st.warning("🔒 Pending Approvals")
 
                         st.write(f"**Technical Notes:** {item.get('notes', 'N/A')}")
             else:
-                st.info("No approval requests currently in pipeline.")
+                st.info("No procurement approval requests currently in pipeline.")
 
         with tab2:
             st.subheader("Request Sign-off for Procurement Item")
@@ -337,10 +385,10 @@ elif page == "Procurement & Approvals":
                     options=[p["id"] for p in db["projects"]],
                     format_func=lambda x: f"{x} - {get_project_name(x)}"
                 )
-                item_name = st.text_input("Item / Phase Description (e.g., Roof Truss Structural Steel)")
-                notes = st.text_area("Specification Notes for Reviewers")
+                item_name = st.text_input("Item Description (e.g., Main Distribution Panel, Chillers, DWV Pipe Batch)")
+                notes = st.text_area("Engineering & Design Compliance Notes")
 
-                submitted = st.form_submit_button("Submit into Pipeline")
+                submitted = st.form_submit_button("Submit into Approval Pipeline")
                 if submitted and item_name:
                     app_id = f"APP-{len(db['procurement_approvals']) + 1:03d}"
                     db["procurement_approvals"].append({
@@ -349,6 +397,7 @@ elif page == "Procurement & Approvals":
                         "item_name": item_name,
                         "arch_status": "Pending",
                         "eng_status": "Pending",
+                        "mep_status": "Pending",
                         "procurement_status": "Locked",
                         "notes": notes
                     })
@@ -357,16 +406,16 @@ elif page == "Procurement & Approvals":
                     st.rerun()
 
 # ---------------------------------------------------------
-# MODULE 5: BILL OF QUANTITIES (BOQ) & RESOURCE ESTIMATOR
+# MODULE 5: BILL OF QUANTITIES (BOQ) INCLUDING MEP
 # ---------------------------------------------------------
-elif page == "BoQ (Materials & Labor)":
+elif page == "BoQ (Materials, Labor & MEP)":
     st.title("🧱 Bill of Quantities (BoQ)")
-    st.markdown("Track estimated and actual expenditures for **Materials** and **Labor**.")
+    st.markdown("Track costs for Architectural, Structural, and **Mechanical, Electrical, & Plumbing (MEP)** assets.")
 
     if not db["projects"]:
         st.warning("Please create a project first.")
     else:
-        tab1, tab2 = st.tabs(["Project BoQ Ledger", "Add Line Item"])
+        tab1, tab2 = st.tabs(["Project BoQ Ledger", "Add BoQ Line Item"])
 
         with tab1:
             proj_id = st.selectbox(
@@ -389,20 +438,28 @@ elif page == "BoQ (Materials & Labor)":
                 st.info("No items in BoQ for this project yet.")
 
         with tab2:
-            st.subheader("Add Material / Labor Entry")
+            st.subheader("Add Material, MEP, or Labor Entry")
             with st.form("boq_form"):
                 p_id = st.selectbox(
                     "Project Target",
                     options=[p["id"] for p in db["projects"]],
                     format_func=lambda x: f"{x} - {get_project_name(x)}"
                 )
-                category = st.selectbox("Category", ["Materials", "Labor", "Equipment Rental", "Permits & Legal"])
-                item = st.text_input("Item / Role Description")
+                category = st.selectbox("Category", [
+                    "Mechanical (HVAC)",
+                    "Electrical & Wiring",
+                    "Plumbing & Fixtures",
+                    "Civil & Structural Materials",
+                    "Architectural Finishes",
+                    "MEP Labor & Subcontractors",
+                    "General Labor"
+                ])
+                item = st.text_input("Item Description (e.g., 100A Busbars, 2-inch Copper Pipes, Ductwork)")
                 quantity = st.number_input("Quantity", min_value=0.1, value=1.0)
-                unit = st.text_input("Unit of Measure (e.g., m³, Hours, Bags, Sq Ft)", value="Units")
+                unit = st.text_input("Unit of Measure (e.g., Meters, Units, Hours, Sq Ft)", value="Units")
                 unit_cost = st.number_input("Cost per Unit ($)", min_value=0.0, value=10.0)
 
-                submitted = st.form_submit_button("Add to BoQ")
+                submitted = st.form_submit_button("Add to BoQ Ledger")
                 if submitted and item:
                     boq_id = f"BOQ-{len(db['boq']) + 1:03d}"
                     total = quantity * unit_cost
