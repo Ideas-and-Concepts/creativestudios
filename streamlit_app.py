@@ -1,31 +1,36 @@
-import streamlit as st
-import json, uuid
-from pathlib import Path
-from datetime import datetime
-import pandas as pd
-
 import os
 import json
+import pandas as pd
+import streamlit as st
 from pathlib import Path
+from datetime import datetime
 from sqlalchemy import create_engine, text
 
 # ---------------------------------------------------------
-# Database Engine & Connection Setup
+# Page Configuration
 # ---------------------------------------------------------
-DATABASE_URL = os.environ.get("DATABASE_URL")
+st.set_page_config(
+    page_title="Creative Studios - Architectural & MEP Management",
+    page_icon="📐",
+    layout="wide"
+)
 
-# Fix Render URL compatibility (SQLAlchemy requires postgresql:// instead of postgres://)
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
+# ---------------------------------------------------------
+# Database Connection & Engine Caching (Prevents DB Connection Leaks)
+# ---------------------------------------------------------
+@st.cache_resource
 def get_engine():
-    """Creates database engine if DATABASE_URL is set."""
-    if DATABASE_URL:
-        return create_engine(DATABASE_URL, pool_pre_ping=True)
+    """Creates a cached, pooled database connection engine."""
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        # Fix Render compatibility (SQLAlchemy 1.4+ requires postgresql://)
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        return create_engine(db_url, pool_pre_ping=True, pool_size=5, max_overflow=10)
     return None
 
 def init_db():
-    """Ensures the app_state table exists in PostgreSQL."""
+    """Initializes PostgreSQL table schema if missing."""
     engine = get_engine()
     if engine:
         with engine.begin() as conn:
@@ -37,83 +42,8 @@ def init_db():
             """))
 
 # ---------------------------------------------------------
-# Memory Persistence Functions (PostgreSQL with Local Fallback)
+# Memory Persistence Engine (PostgreSQL with Local Fallback)
 # ---------------------------------------------------------
-MEMORY_FILE = Path("creativestudios_db.json")
-
-def load_memory():
-    """Loads state from Render PostgreSQL. Falls back to local JSON if no DB URL."""
-    engine = get_engine()
-    
-    # --- Local JSON Fallback (for offline testing) ---
-    if not engine:
-        if MEMORY_FILE.exists():
-            try:
-                return json.loads(MEMORY_FILE.read_text())
-            except Exception:
-                pass
-        return DEFAULT_MEMORY.copy()
-
-    # --- PostgreSQL Storage ---
-    try:
-        init_db()
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT data FROM app_state WHERE id = 1;")).fetchone()
-            if result and result[0]:
-                data = result[0]
-                return json.loads(data) if isinstance(data, str) else data
-        
-        # Initialize default memory in DB if table is empty
-        save_memory(DEFAULT_MEMORY)
-        return DEFAULT_MEMORY.copy()
-    except Exception as e:
-        st.error(f"Database Read Error: {e}")
-        return DEFAULT_MEMORY.copy()
-
-def save_memory(mem):
-    """Saves state to Render PostgreSQL. Falls back to local JSON if no DB URL."""
-    engine = get_engine()
-
-    # --- Local JSON Fallback (for offline testing) ---
-    if not engine:
-        MEMORY_FILE.write_text(json.dumps(mem, indent=2))
-        return
-
-    # --- PostgreSQL Storage ---
-    try:
-        init_db()
-        with engine.begin() as conn:
-            conn.execute(
-                text("""
-                    INSERT INTO app_state (id, data)
-                    VALUES (1, :data::jsonb)
-                    ON CONFLICT (id) DO UPDATE
-                    SET data = EXCLUDED.data;
-                """),
-                {"data": json.dumps(mem)}
-            )
-    except Exception as e:
-        st.error(f"Database Write Error: {e}")
-
-
-# Look for this line near the top of streamlit_app.py:
-# MEMORY_FILE = Path("creativestudios_db.json")
-
-# Replace it with:
-MEMORY_DIR = Path("/var/data")
-MEMORY_DIR.mkdir(parents=True, exist_ok=True)  # Creates directory if it doesn't exist
-MEMORY_FILE = MEMORY_DIR / "creativestudios_db.json"
-
-
-# ---------------------------------------------------------
-# Page Configuration & Memory Initialization
-# ---------------------------------------------------------
-st.set_page_config(
-    page_title="Creative Studios - Architectural & MEP Management System",
-    page_icon="📐",
-    layout="wide"
-)
-
 MEMORY_FILE = Path("creativestudios_db.json")
 
 DEFAULT_MEMORY = {
@@ -150,28 +80,6 @@ DEFAULT_MEMORY = {
             "status": "Pending Review",
             "uploaded_by": "Eng. Mark Miller",
             "uploaded_at": "2026-01-21T11:00:00"
-        },
-        {
-            "id": "DWG-103",
-            "project_id": "PRJ-001",
-            "discipline": "Electrical",
-            "title": "Single-Line Diagram & Circuit Distribution",
-            "version": "v1.0",
-            "file_name": "E-101_Electrical_SLD.pdf",
-            "status": "Approved",
-            "uploaded_by": "Eng. Sarah Watts",
-            "uploaded_at": "2026-01-22T09:45:00"
-        },
-        {
-            "id": "DWG-104",
-            "project_id": "PRJ-001",
-            "discipline": "Plumbing",
-            "title": "Drainage, Waste & Vent (DWV) System",
-            "version": "v1.1",
-            "file_name": "P-101_Plumbing_Riser.pdf",
-            "status": "Pending Review",
-            "uploaded_by": "Eng. Alex Rivers",
-            "uploaded_at": "2026-01-23T16:20:00"
         }
     ],
     "procurement_approvals": [
@@ -180,8 +88,8 @@ DEFAULT_MEMORY = {
             "project_id": "PRJ-001",
             "item_name": "Main Electrical Panel & Transformers",
             "arch_status": "Approved",
-            "mep_status": "Approved",
             "eng_status": "Approved",
+            "mep_status": "Approved",
             "procurement_status": "Ready for Release",
             "notes": "Electrical load calculations verified by MEP engineer."
         }
@@ -190,36 +98,72 @@ DEFAULT_MEMORY = {
         {
             "id": "BOQ-001",
             "project_id": "PRJ-001",
-            "category": "Plumbing",
+            "category": "Plumbing & Fixtures",
             "item": "PEX Water Supply Piping & Valves",
             "quantity": 500.0,
             "unit": "Meters",
             "unit_cost": 18.5,
             "total": 9250.0
-        },
-        {
-            "id": "BOQ-002",
-            "project_id": "PRJ-001",
-            "category": "Mechanical (HVAC)",
-            "item": "Central Air Handling Unit (AHU) 15 TON",
-            "quantity": 2.0,
-            "unit": "Units",
-            "unit_cost": 8500.0,
-            "total": 17000.0
         }
     ]
 }
 
 def load_memory():
-    if MEMORY_FILE.exists():
-        try:
-            return json.loads(MEMORY_FILE.read_text())
-        except Exception:
-            pass
-    return DEFAULT_MEMORY.copy()
+    """Loads JSON data from PostgreSQL or local disk with robust error handling."""
+    engine = get_engine()
+    
+    # Offline Local JSON Fallback
+    if not engine:
+        if MEMORY_FILE.exists():
+            try:
+                return json.loads(MEMORY_FILE.read_text())
+            except Exception:
+                pass
+        return DEFAULT_MEMORY.copy()
+
+    # PostgreSQL Reader
+    try:
+        init_db()
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT data FROM app_state WHERE id = 1;")).fetchone()
+            if result and result[0] is not None:
+                data = result[0]
+                if isinstance(data, dict):
+                    return data
+                elif isinstance(data, str):
+                    return json.loads(data)
+        
+        # Save default if database table is brand new
+        save_memory(DEFAULT_MEMORY)
+        return DEFAULT_MEMORY.copy()
+    except Exception as e:
+        st.warning(f"Database connection warning: {e}. Falling back to default memory.")
+        return DEFAULT_MEMORY.copy()
 
 def save_memory(mem):
-    MEMORY_FILE.write_text(json.dumps(mem, indent=2))
+    """Persists state to PostgreSQL or local JSON storage."""
+    engine = get_engine()
+
+    # Offline Local Storage
+    if not engine:
+        MEMORY_FILE.write_text(json.dumps(mem, indent=2))
+        return
+
+    # PostgreSQL Writer
+    try:
+        init_db()
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO app_state (id, data)
+                    VALUES (1, :data::jsonb)
+                    ON CONFLICT (id) DO UPDATE
+                    SET data = EXCLUDED.data;
+                """),
+                {"data": json.dumps(mem)}
+            )
+    except Exception as e:
+        st.error(f"Failed to save changes to Database: {e}")
 
 db = load_memory()
 
@@ -227,11 +171,19 @@ def get_project_name(project_id):
     proj = next((p for p in db["projects"] if p["id"] == project_id), None)
     return proj["name"] if proj else "Unknown"
 
+def safe_dataframe(data_list, preferred_columns):
+    """Safely builds a pandas DataFrame avoiding missing column KeyError exceptions."""
+    if not data_list:
+        return pd.DataFrame()
+    df = pd.DataFrame(data_list)
+    available_cols = [col for col in preferred_columns if col in df.columns]
+    return df[available_cols]
+
 # ---------------------------------------------------------
 # Sidebar Navigation
 # ---------------------------------------------------------
 st.sidebar.title("📐 Creative Studios")
-st.sidebar.caption("Architectural, Structural & MEP Management")
+st.sidebar.caption("Architectural, Structural & MEP System")
 
 page = st.sidebar.radio(
     "Navigation",
@@ -245,9 +197,9 @@ page = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.write("**System Quick Summary**")
-st.sidebar.caption(f"Active Projects: {len(db['projects'])}")
-st.sidebar.caption(f"Vault Drawings: {len(db['drawings'])}")
+st.sidebar.write("**System Status**")
+st.sidebar.caption(f"Active Projects: {len(db.get('projects', []))}")
+st.sidebar.caption(f"Vault Drawings: {len(db.get('drawings', []))}")
 
 # ---------------------------------------------------------
 # MODULE 1: DASHBOARD
@@ -257,14 +209,14 @@ if page == "Dashboard":
     st.markdown("Real-time project tracking across Architectural, Structural, and MEP engineering.")
 
     col1, col2, col3, col4 = st.columns(4)
-    total_budget = sum(p.get("budget", 0) for p in db["projects"])
+    total_budget = sum(p.get("budget", 0) for p in db.get("projects", []))
     pending_approvals = sum(
-        1 for a in db["procurement_approvals"] 
+        1 for a in db.get("procurement_approvals", []) 
         if a.get("procurement_status") != "Ready for Release"
     )
 
-    col1.metric("Total Projects", len(db["projects"]))
-    col2.metric("Total Vault Documents", len(db["drawings"]))
+    col1.metric("Total Projects", len(db.get("projects", [])))
+    col2.metric("Vault Documents", len(db.get("drawings", [])))
     col3.metric("Pending Approvals", pending_approvals)
     col4.metric("Total Portfolio Budget", f"${total_budget:,.2f}")
 
@@ -273,19 +225,20 @@ if page == "Dashboard":
 
     with col_a:
         st.subheader("Drawings by Discipline")
-        if db["drawings"]:
+        if db.get("drawings"):
             df_d = pd.DataFrame(db["drawings"])
-            discipline_counts = df_d["discipline"].value_counts().reset_index()
-            discipline_counts.columns = ["Discipline", "Count"]
-            st.dataframe(discipline_counts, use_container_width=True)
+            if "discipline" in df_d.columns:
+                discipline_counts = df_d["discipline"].value_counts().reset_index()
+                discipline_counts.columns = ["Discipline", "Count"]
+                st.dataframe(discipline_counts, use_container_width=True)
         else:
-            st.info("No drawings available.")
+            st.info("No drawing entries registered.")
 
     with col_b:
-        st.subheader("Latest Vault Submissions")
-        if db["drawings"]:
-            df_d = pd.DataFrame(db["drawings"])[["discipline", "title", "version", "status", "uploaded_at"]]
-            st.dataframe(df_d.tail(5), use_container_width=True)
+        st.subheader("Recent Vault Submissions")
+        if db.get("drawings"):
+            df_recent = safe_dataframe(db["drawings"], ["discipline", "title", "version", "status", "uploaded_at"])
+            st.dataframe(df_recent.tail(5), use_container_width=True)
         else:
             st.info("No drawings uploaded yet.")
 
@@ -299,12 +252,12 @@ elif page == "Project Directory":
     tab1, tab2 = st.tabs(["View Projects", "Register New Project"])
 
     with tab1:
-        if db["projects"]:
-            df_projects = pd.DataFrame(db["projects"])
-            st.dataframe(
-                df_projects[["id", "name", "type", "status", "budget", "created", "description"]],
-                use_container_width=True
+        if db.get("projects"):
+            df_projects = safe_dataframe(
+                db["projects"], 
+                ["id", "name", "type", "status", "budget", "created", "description"]
             )
+            st.dataframe(df_projects, use_container_width=True)
         else:
             st.info("No active projects found.")
 
@@ -345,7 +298,7 @@ elif page == "Drawing Vault (Arch & MEP)":
     st.title("📐 Drawing Vault & Version Control")
     st.markdown("Central storage for Architectural, Structural, and Mechanical/Electrical/Plumbing (MEP) plans.")
 
-    if not db["projects"]:
+    if not db.get("projects"):
         st.warning("Please create at least one project before managing drawings.")
     else:
         tab1, tab2 = st.tabs(["Document Repository", "Upload New Drawing / Revision"])
@@ -357,16 +310,16 @@ elif page == "Drawing Vault (Arch & MEP)":
                 format_func=lambda x: "All Projects" if x == "All" else f"{x} - {get_project_name(x)}"
             )
 
-            drawings_list = db["drawings"]
+            drawings_list = db.get("drawings", [])
             if project_filter != "All":
-                drawings_list = [d for d in drawings_list if d["project_id"] == project_filter]
+                drawings_list = [d for d in drawings_list if d.get("project_id") == project_filter]
 
             if drawings_list:
-                df_drawings = pd.DataFrame(drawings_list)
-                st.dataframe(
-                    df_drawings[["id", "project_id", "discipline", "title", "version", "status", "file_name", "uploaded_by"]],
-                    use_container_width=True
+                df_drawings = safe_dataframe(
+                    drawings_list, 
+                    ["id", "project_id", "discipline", "title", "version", "status", "file_name", "uploaded_by"]
                 )
+                st.dataframe(df_drawings, use_container_width=True)
             else:
                 st.info("No drawings recorded for this selection.")
 
@@ -418,49 +371,51 @@ elif page == "Procurement & Approvals":
     st.title("🛡 Approval & Procurement Engine")
     st.markdown("Multi-stage approval pipeline requiring **Architectural**, **Structural**, and **MEP Engineering** sign-offs.")
 
-    if not db["projects"]:
+    if not db.get("projects"):
         st.warning("Please create a project first.")
     else:
         tab1, tab2 = st.tabs(["Active Sign-off Pipeline", "Initiate Approval Request"])
 
         with tab1:
             st.subheader("Tri-Discipline Sign-off Matrix")
-            if db["procurement_approvals"]:
-                for idx, item in enumerate(db["procurement_approvals"]):
-                    with st.expander(f"📦 {item['item_name']} (Project: {item['project_id']})"):
+            approvals = db.get("procurement_approvals", [])
+            if approvals:
+                for item in approvals:
+                    item_id = item.get("id", "APP-UNKNOWN")
+                    with st.expander(f"📦 {item.get('item_name', 'Item')} (Project: {item.get('project_id')})"):
                         col1, col2, col3, col4 = st.columns(4)
 
-                        # 1. Architectural Sign-off
+                        # Architectural Sign-off
                         with col1:
                             st.markdown("**1. Architectural**")
                             st.caption(f"Status: {item.get('arch_status', 'Pending')}")
                             if item.get('arch_status') != "Approved":
-                                if st.button("Approve (Arch)", key=f"arch_{idx}"):
+                                if st.button("Approve (Arch)", key=f"arch_{item_id}"):
                                     item['arch_status'] = "Approved"
                                     save_memory(db)
                                     st.rerun()
 
-                        # 2. Structural Sign-off
+                        # Structural Sign-off
                         with col2:
                             st.markdown("**2. Structural**")
                             st.caption(f"Status: {item.get('eng_status', 'Pending')}")
                             if item.get('eng_status') != "Approved":
-                                if st.button("Approve (Struct)", key=f"eng_{idx}"):
+                                if st.button("Approve (Struct)", key=f"eng_{item_id}"):
                                     item['eng_status'] = "Approved"
                                     save_memory(db)
                                     st.rerun()
 
-                        # 3. MEP Sign-off
+                        # MEP Sign-off
                         with col3:
                             st.markdown("**3. MEP Engineering**")
                             st.caption(f"Status: {item.get('mep_status', 'Pending')}")
                             if item.get('mep_status') != "Approved":
-                                if st.button("Approve (MEP)", key=f"mep_{idx}"):
+                                if st.button("Approve (MEP)", key=f"mep_{item_id}"):
                                     item['mep_status'] = "Approved"
                                     save_memory(db)
                                     st.rerun()
 
-                        # 4. Procurement Release Status
+                        # Procurement Release Status
                         with col4:
                             st.markdown("**4. Procurement Release**")
                             arch_ok = item.get('arch_status') == "Approved"
@@ -513,7 +468,7 @@ elif page == "BoQ (Materials, Labor & MEP)":
     st.title("🧱 Bill of Quantities (BoQ)")
     st.markdown("Track costs for Architectural, Structural, and **Mechanical, Electrical, & Plumbing (MEP)** assets.")
 
-    if not db["projects"]:
+    if not db.get("projects"):
         st.warning("Please create a project first.")
     else:
         tab1, tab2 = st.tabs(["Project BoQ Ledger", "Add BoQ Line Item"])
@@ -525,15 +480,15 @@ elif page == "BoQ (Materials, Labor & MEP)":
                 format_func=lambda x: f"{x} - {get_project_name(x)}"
             )
 
-            boq_items = [b for b in db["boq"] if b["project_id"] == proj_id]
+            boq_items = [b for b in db.get("boq", []) if b.get("project_id") == proj_id]
 
             if boq_items:
-                df_boq = pd.DataFrame(boq_items)
-                st.dataframe(
-                    df_boq[["id", "category", "item", "quantity", "unit", "unit_cost", "total"]],
-                    use_container_width=True
+                df_boq = safe_dataframe(
+                    boq_items,
+                    ["id", "category", "item", "quantity", "unit", "unit_cost", "total"]
                 )
-                total_cost = df_boq["total"].sum()
+                st.dataframe(df_boq, use_container_width=True)
+                total_cost = sum(b.get("total", 0) for b in boq_items)
                 st.metric("Total Calculated BoQ Cost", f"${total_cost:,.2f}")
             else:
                 st.info("No items in BoQ for this project yet.")
