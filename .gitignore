@@ -1,13 +1,9 @@
-# Local database cache
+# Local Database
 creativestudios_db.json
 
-# Python cache
+# Python environment & cache
 __pycache__/
 *.py[cod]
-*$py.class
 .venv/
 env/
 venv/
-
-# Streamlit runtime cache
-.streamlit/secret.toml
