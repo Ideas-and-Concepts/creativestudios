@@ -2,8 +2,10 @@ services:
   - type: web
     name: creativestudios
     env: python
+    plan: starter # Disks require Starter plan or higher
     buildCommand: pip install -r requirements.txt
     startCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
+    disk:
+      name: creativestudios-data
+      mountPath: /var/data
+      sizeGB: 1
