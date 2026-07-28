@@ -4,6 +4,15 @@ from pathlib import Path
 from datetime import datetime
 import pandas as pd
 
+# Look for this line near the top of streamlit_app.py:
+# MEMORY_FILE = Path("creativestudios_db.json")
+
+# Replace it with:
+MEMORY_DIR = Path("/var/data")
+MEMORY_DIR.mkdir(parents=True, exist_ok=True)  # Creates directory if it doesn't exist
+MEMORY_FILE = MEMORY_DIR / "creativestudios_db.json"
+
+
 # ---------------------------------------------------------
 # Page Configuration & Memory Initialization
 # ---------------------------------------------------------
