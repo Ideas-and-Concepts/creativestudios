@@ -9,7 +9,19 @@ from modules.approvals import render_approvals_module
 from modules.boq import render_boq_module
 from modules.rfi import render_rfi_module
 from modules.site_logs import render_site_logs_module
+import streamlit as st
+from pathlib import Path
+from modules.utils import ensure_logo_svg, get_logo_html, LOGO_FILE
+from modules.database import load_memory
+from modules.auth import login_user, require_auth
+from modules.projects import render_projects_module
+from modules.drawings import render_drawings_module
+from modules.approvals import render_approvals_module
+from modules.boq import render_boq_module
+from modules.rfi import render_rfi_module
+from modules.site_logs import render_site_logs_module
 
+# Ensure the logo SVG exists before setting page config
 ensure_logo_svg()
 
 st.set_page_config(
@@ -25,13 +37,15 @@ if "authenticated" not in st.session_state:
     st.session_state["user"] = None
 
 if not st.session_state["authenticated"]:
+    # -------- LOGIN PAGE --------
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
+        # Main logo on login page only
         st.markdown(get_logo_html(width=130), unsafe_allow_html=True)
         st.markdown("<h2 style='text-align: center; color: #0F172A; font-weight: 700;'>Creative Studios</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #64748B;'>Architectural, Engineering & Construction Collaboration</p><br>", unsafe_allow_html=True)
-        
+
         with st.form("login_form"):
             user_input = st.text_input("Username")
             pass_input = st.text_input("Password", type="password")
@@ -43,7 +57,7 @@ if not st.session_state["authenticated"]:
                     st.rerun()
                 else:
                     st.error("Invalid username or password.")
-        
+
         with st.expander("Default Test Credentials"):
             st.markdown("""
             * **Lead Architect**: `arch_lead` / `arch123`
@@ -53,33 +67,35 @@ if not st.session_state["authenticated"]:
             * **System Admin**: `admin` / `admin123`
             """)
 else:
+    # -------- AUTHENTICATED APP --------
     require_auth()
-    
-    st.sidebar.markdown("### 🧭 Navigation")
-    app_mode = st.sidebar.radio(
-        "Select Module",
-        [
-            "🏗️ Project Directory", 
-            "📐 Drawing Repository", 
-            "✍️ Sign-Off & Approvals", 
-            "📊 Bill of Quantities (BOQ)",
-            "💬 RFI & Technical Queries",
-            "📝 Daily Site Logs"
-        ],
-        label_visibility="collapsed"
-    )
-    
-    st.sidebar.markdown("---")
-    
-    if app_mode == "🏗️ Project Directory":
+
+    # -------- SIDEBAR (NO LOGO) --------
+    with st.sidebar:
+        st.markdown("Navigation")
+        app_mode = st.radio(
+            "Select Module",
+            [
+                "Project Directory",
+                "Drawing Repository",
+                "Sign-Off & Approvals",
+                "Bill of Quantities (BOQ)",
+                "RFI & Technical Queries",
+                "Daily Site Logs"
+            ],
+            label_visibility="collapsed"
+        )
+
+    # -------- MAIN CONTENT --------
+    if app_mode == "Project Directory":
         render_projects_module(db)
-    elif app_mode == "📐 Drawing Repository":
+    elif app_mode == "Drawing Repository":
         render_drawings_module(db)
-    elif app_mode == "✍️ Sign-Off & Approvals":
+    elif app_mode == "Sign-Off & Approvals":
         render_approvals_module(db)
-    elif app_mode == "📊 Bill of Quantities (BOQ)":
+    elif app_mode == "Bill of Quantities (BOQ)":
         render_boq_module(db)
-    elif app_mode == "💬 RFI & Technical Queries":
+    elif app_mode == "RFI & Technical Queries":
         render_rfi_module(db)
-    elif app_mode == "📝 Daily Site Logs":
+    elif app_mode == "Daily Site Logs":
         render_site_logs_module(db)
