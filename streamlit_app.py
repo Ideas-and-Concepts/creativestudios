@@ -12,7 +12,7 @@ ensure_logo_svg()
 
 st.set_page_config(
     page_title="Creative Studios — AEC Platform",
-    page_icon=LOGO_FILE if Path(LOGO_FILE).exists() else "📐",
+    page_icon=LOGO_FILE if Path(LOGO_FILE).exists() else,
     layout="wide"
 )
 
@@ -53,7 +53,7 @@ if not st.session_state["authenticated"]:
 else:
     require_auth()
     
-    st.sidebar.markdown("### 🧭 Navigation")
+    st.sidebar.markdown("###  Navigation")
     app_mode = st.sidebar.radio(
         "Select Module",
         [
