@@ -25,7 +25,7 @@ LOGO_FILE = BASE_DIR / "logo.svg"
 
 st.set_page_config(
     page_title="Creative Studios — AEC Platform",
-    page_icon="🏗️",
+    page_icon=str(LOGO_FILE) if LOGO_FILE.exists() else None,   # logo, no emoji
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -394,6 +394,33 @@ st.markdown(
 
         margin-top: 4px;
     }
+
+
+    /* ----------  ADDED: missing classes used in the project card HTML ---------- */
+
+    .project-title {
+        color: #FFFFFF;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+
+    .project-meta {
+        color: #60A5FA;
+        font-size: 11px;
+        margin-top: 4px;
+    }
+
+
+    .status-badge {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 8px;
+        font-weight: 850;
+        white-space: nowrap;
+    }
+    /* -------------------------------------------------------------------------- */
 
 
     .project-phase {
