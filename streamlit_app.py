@@ -1,8 +1,8 @@
 import streamlit as st
-from utils import load_memory, hash_password
+from utils import load_memory, hash_password, render_sidebar_logo
 
 st.set_page_config(
-    page_title="Creative Studios - Architectural & MEP",
+    page_title="Architectural & MEP Management System",
     page_icon="📐",
     layout="wide"
 )
@@ -22,8 +22,16 @@ def login(username, password):
     return False
 
 if not st.session_state["authenticated"]:
-    st.title("🔐 Creative Studios System Portal")
-    st.markdown("Sign in to access project blueprints, approval pipelines, and BoQs.")
+    # Display Logo on Login Page
+    col_logo, col_text = st.columns([1, 3])
+    with col_logo:
+        try:
+            st.image("logo.jpg", width=120)
+        except Exception:
+            st.warning("Logo image 'logo.jpg' not found in root directory.")
+    with col_text:
+        st.title("System Portal")
+        st.markdown("Sign in to access project blueprints, approval pipelines, and BoQs.")
 
     col_login, col_demo = st.columns([1, 1])
 
@@ -52,8 +60,11 @@ if not st.session_state["authenticated"]:
                 login(u['username'], pwd_map.get(u['username'], "admin123"))
                 st.rerun()
 else:
+    # Render sidebar logo for logged-in users on root page too
+    render_sidebar_logo()
+    
     user = st.session_state["user"]
-    st.title("📐 Creative Studios Management System")
+    st.title("Management System Dashboard")
     st.success(f"Welcome, **{user['name']}** ({user['role']}). Use the sidebar menu to open pages.")
     
     st.sidebar.markdown(f"👤 **{user['name']}**")
