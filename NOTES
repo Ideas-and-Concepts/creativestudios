@@ -42,3 +42,19 @@ creative-studios/
     ├── drawings.py
     ├── approvals.py
     └── boq.py
+
+
+streamlit_app.py
+       │
+       ├── Authentication
+       │
+       ├── Global layout / branding
+       │
+       └── Navigation
+             │
+             ├── Projects
+             ├── Drawings
+             ├── Approvals
+             ├── BOQ
+             ├── RFIs
+             └── Site Logs
