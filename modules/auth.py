@@ -25,3 +25,4 @@ def require_auth():
         st.warning("Please sign in from the main login screen to access Creative Studios.")
         st.stop()
     render_sidebar()
+
