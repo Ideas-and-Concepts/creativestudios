@@ -157,7 +157,7 @@ def safe_dataframe(data_list, preferred_columns):
 
 def get_logo_html(width=140):
     return f"""
-    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
+    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 15px;">
         <svg width="{width}" height="{width}" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: white; border-radius: 12px; padding: 10px;">
             <rect width="500" height="500" fill="white"/>
             <path d="M150 250H350" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
@@ -171,7 +171,6 @@ def get_logo_html(width=140):
 
 def render_sidebar_logo():
     st.sidebar.markdown(get_logo_html(width=110), unsafe_allow_html=True)
-    st.sidebar.markdown("---")
 
 def require_auth():
     if not st.session_state.get("authenticated", False):
