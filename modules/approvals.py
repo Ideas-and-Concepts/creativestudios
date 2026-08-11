@@ -3,7 +3,7 @@ from datetime import datetime
 from .database import save_memory
 
 def render_approvals_module(db):
-    st.title("✍️ Cross-Disciplinary Sign-Off & Approvals")
+    st.title("Cross-Disciplinary Sign-Off & Approvals")
     st.caption("Review, track, and validate project milestones across architectural and engineering leads.")
 
     projects = db.get("projects", [])
@@ -15,7 +15,7 @@ def render_approvals_module(db):
     selected_proj_name = st.selectbox("Select Project for Review", list(project_options.keys()), key="app_proj_sel")
     selected_proj_id = project_options[selected_proj_name]
 
-    tab1, tab2 = st.tabs(["📋 Review Workflows", "➕ Initialize Approval Request"])
+    tab1, tab2 = st.tabs(["Review Workflows", "Initialize Approval Request"])
 
     with tab1:
         approvals = [a for a in db.get("approvals", []) if a["project_id"] == selected_proj_id]
@@ -23,26 +23,26 @@ def render_approvals_module(db):
             st.info("No approval workflows initiated for this project yet.")
         else:
             for app in approvals:
-                with st.expander(f"📌 {app['item_name']} — Overall Status: `{app['overall_status']}`"):
+                with st.expander(f"{app['item_name']} — Overall Status: `{app['overall_status']}`"):
                     c1, c2, c3, c4 = st.columns(4)
                     c1.markdown(f"**Architect:** `{app['arch_status']}`")
                     c2.markdown(f"**Structural:** `{app['struct_status']}`")
                     c3.markdown(f"**Electrical:** `{app['elec_status']}`")
                     c4.markdown(f"**Plumbing:** `{app['plum_status']}`")
-                    
+
                     st.markdown(f"**Notes:** {app['notes']}")
                     st.markdown("---")
-                    
+
                     current_user = st.session_state.get("user", {})
                     user_role = current_user.get("role", "")
-                    
+
                     col_act1, col_act2 = st.columns([2, 1])
                     with col_act1:
                         action_comment = st.text_input("Review Comment / Sign-off note", key=f"cmt_{app['id']}")
                     with col_act2:
                         st.write("")
                         st.write("")
-                        if st.button("✅ Approve Item", key=f"app_{app['id']}", use_container_width=True):
+                        if st.button("Approve Item", key=f"app_{app['id']}", use_container_width=True):
                             if user_role == "Architect":
                                 app["arch_status"] = "Approved"
                             elif user_role == "Structural Engineer":
@@ -56,12 +56,12 @@ def render_approvals_module(db):
                                 app["struct_status"] = "Approved"
                                 app["elec_status"] = "Approved"
                                 app["plum_status"] = "Approved"
-                            
+
                             if all(app[k] == "Approved" for k in ["arch_status", "struct_status", "elec_status", "plum_status"]):
                                 app["overall_status"] = "Fully Approved"
                             else:
                                 app["overall_status"] = "Pending Review"
-                                
+
                             app["notes"] += f" | [{current_user.get('name', 'User')}] Approved on {datetime.now().strftime('%Y-%m-%d')}."
                             save_memory(db)
                             st.success("Approval status updated successfully!")
@@ -72,7 +72,7 @@ def render_approvals_module(db):
         with st.form("new_approval_form"):
             item_name = st.text_input("Milestone / Deliverable Name (e.g., Foundation & Utility Schematic Package)")
             initial_notes = st.text_area("Initial Specification Notes")
-            
+
             submitted = st.form_submit_button("Initiate Sign-Off Workflow", use_container_width=True)
             if submitted:
                 if not item_name:
