@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime
-from database import save_memory
+from .database import save_memory
 
 def render_approvals_module(db):
     st.title("✍️ Cross-Disciplinary Sign-Off & Approvals")
@@ -57,7 +57,6 @@ def render_approvals_module(db):
                                 app["elec_status"] = "Approved"
                                 app["plum_status"] = "Approved"
                             
-                            # Check if all approved
                             if all(app[k] == "Approved" for k in ["arch_status", "struct_status", "elec_status", "plum_status"]):
                                 app["overall_status"] = "Fully Approved"
                             else:
