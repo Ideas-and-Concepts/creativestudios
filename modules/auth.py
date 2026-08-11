@@ -1,71 +1,90 @@
 """
 Creative Studios
-Authentication module.
+Authentication Module
 
-Uses the JSON database supplied by database.py.
+Simple JSON-compatible authentication for the AEC Workspace.
 """
 
 from __future__ import annotations
-
-from typing import Any
 
 import streamlit as st
 
 
 # ============================================================
-# DEFAULT USERS
+# DEFAULT ADMIN
 # ============================================================
 
-DEFAULT_USERS = [
-    {
-        "id": 1,
-        "username": "admin",
-        "password": "admin123",
-        "full_name": "System Administrator",
-        "role": "Admin",
-        "active": True,
-    },
-    {
-        "id": 2,
-        "username": "arch_lead",
-        "password": "arch123",
-        "full_name": "Lead Architect",
-        "role": "Architect",
-        "active": True,
-    },
-    {
-        "id": 3,
-        "username": "struct_eng",
-        "password": "struct123",
-        "full_name": "Structural Engineer",
-        "role": "Engineer",
-        "active": True,
-    },
-]
+DEFAULT_ADMIN = {
+    "id": 1,
+    "username": "admin",
+    "password": "admin123",
+    "full_name": "System Administrator",
+    "role": "Admin",
+    "active": True,
+}
 
 
 # ============================================================
-# AUTHENTICATION
+# NORMALIZE USER
 # ============================================================
 
-def login_user(
-    db: dict,
-    username: str,
-    password: str,
-) -> tuple[bool, dict]:
+def normalize_user(user):
+    """
+    Convert any user dictionary into a predictable structure.
+    """
 
-    username = str(
-        username or ""
-    ).strip()
+    if not isinstance(user, dict):
+        user = {}
 
-    password = str(
-        password or ""
-    )
+    return {
+        "id": user.get("id", 1),
+        "username": str(
+            user.get(
+                "username",
+                "admin",
+            )
+        ),
+        "password": str(
+            user.get(
+                "password",
+                "",
+            )
+        ),
+        "full_name": str(
+            user.get(
+                "full_name",
+                user.get(
+                    "name",
+                    "System Administrator",
+                ),
+            )
+        ),
+        "role": str(
+            user.get(
+                "role",
+                "Admin",
+            )
+        ),
+        "active": bool(
+            user.get(
+                "active",
+                True,
+            )
+        ),
+    }
 
-    if not username or not password:
 
-        return False, {}
+# ============================================================
+# GET USERS
+# ============================================================
 
+def get_users(db):
+    """
+    Safely retrieve users from the JSON database.
+    """
+
+    if not isinstance(db, dict):
+        return []
 
     users = db.get(
         "users",
@@ -76,21 +95,61 @@ def login_user(
         users,
         list,
     ):
+        return []
 
-        users = []
+    return [
+        normalize_user(user)
+        for user in users
+        if isinstance(
+            user,
+            dict,
+        )
+    ]
+
+
+# ============================================================
+# LOGIN
+# ============================================================
+
+def login_user(
+    db,
+    username,
+    password,
+):
+    """
+    Authenticate a user.
+
+    Returns:
+
+        (True, user)
+
+    or:
+
+        (False, {})
+
+    """
+
+    username = str(
+        username or ""
+    ).strip()
+
+    password = str(
+        password or ""
+    )
+
+    if not username or not password:
+        return False, {}
 
 
     # --------------------------------------------------------
     # Database users
     # --------------------------------------------------------
 
-    for user in users:
+    users = get_users(
+        db
+    )
 
-        if not isinstance(
-            user,
-            dict,
-        ):
-            continue
+    for user in users:
 
         if not user.get(
             "active",
@@ -98,98 +157,59 @@ def login_user(
         ):
             continue
 
-        db_username = str(
+        stored_username = str(
             user.get(
                 "username",
                 "",
             )
         ).strip()
 
-        db_password = str(
+        stored_password = str(
             user.get(
                 "password",
-                user.get(
-                    "password_hash",
-                    "",
-                ),
+                "",
             )
         )
 
         if (
-            db_username == username
-            and db_password == password
+            stored_username == username
+            and stored_password == password
         ):
 
-            return True, normalize_user(
-                user
-            )
+            return True, user
 
 
     # --------------------------------------------------------
-    # Default development users
+    # Emergency/default administrator
+    #
+    # This ensures the application can still be accessed
+    # even if the JSON file has been damaged or contains
+    # no users.
     # --------------------------------------------------------
 
-    for user in DEFAULT_USERS:
+    if (
+        username
+        == DEFAULT_ADMIN["username"]
+        and password
+        == DEFAULT_ADMIN["password"]
+    ):
 
-        if (
-            user["username"]
-            == username
-            and user["password"]
-            == password
-        ):
-
-            return True, normalize_user(
-                user
-            )
+        return True, dict(
+            DEFAULT_ADMIN
+        )
 
 
     return False, {}
 
 
 # ============================================================
-# USER NORMALIZATION
+# AUTHENTICATED STATE
 # ============================================================
 
-def normalize_user(
-    user: dict,
-) -> dict:
-
-    username = str(
-        user.get(
-            "username",
-            "admin",
-        )
-    )
-
-    return {
-        "id": user.get(
-            "id",
-            0,
-        ),
-        "username": username,
-        "full_name": user.get(
-            "full_name",
-            user.get(
-                "name",
-                username,
-            ),
-        ),
-        "role": user.get(
-            "role",
-            "User",
-        ),
-        "active": user.get(
-            "active",
-            True,
-        ),
-    }
-
-
-# ============================================================
-# SESSION HELPERS
-# ============================================================
-
-def is_authenticated() -> bool:
+def is_authenticated():
+    """
+    Return True when a user is currently signed in.
+    """
 
     return bool(
         st.session_state.get(
@@ -199,10 +219,17 @@ def is_authenticated() -> bool:
     )
 
 
-def get_current_user() -> dict:
+# ============================================================
+# CURRENT USER
+# ============================================================
+
+def get_current_user():
+    """
+    Return the currently signed-in user.
+    """
 
     user = st.session_state.get(
-        "user",
+        "user"
     )
 
     if isinstance(
@@ -210,17 +237,23 @@ def get_current_user() -> dict:
         dict,
     ):
 
-        return user
+        return normalize_user(
+            user
+        )
 
-    return {
-        "username": "admin",
-        "full_name": "System Administrator",
-        "role": "Admin",
-        "active": True,
-    }
+    return normalize_user(
+        DEFAULT_ADMIN
+    )
 
 
-def logout_user() -> None:
+# ============================================================
+# LOGOUT
+# ============================================================
+
+def logout_user():
+    """
+    Completely clear authentication state.
+    """
 
     st.session_state[
         "authenticated"
@@ -232,14 +265,14 @@ def logout_user() -> None:
 
 
 # ============================================================
-# COMPATIBILITY FUNCTION
+# REQUIRE AUTH
 # ============================================================
 
-def require_auth() -> bool:
-
+def require_auth():
     """
-    Compatibility helper for any older module that still calls
-    require_auth().
+    Compatibility function for older modules.
+
+    Returns True when authenticated.
     """
 
     if not is_authenticated():
