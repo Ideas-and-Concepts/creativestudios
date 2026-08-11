@@ -1,52 +1,108 @@
 """
 Creative Studios
-Authentication Module
+AEC Workspace Authentication
 
-Simple JSON-compatible authentication for the AEC Workspace.
+Compatible with creativestudios_db.json
 """
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import streamlit as st
 
-
-# ============================================================
-# DEFAULT ADMIN
-# ============================================================
 
 DEFAULT_ADMIN = {
     "id": 1,
     "username": "admin",
     "password": "admin123",
+    "password_hash": "",
     "full_name": "System Administrator",
     "role": "Admin",
     "active": True,
 }
 
 
-# ============================================================
-# NORMALIZE USER
-# ============================================================
+def _hash_password(password: str) -> str:
+    """Create a SHA-256 password hash."""
+    return hashlib.sha256(
+        password.encode("utf-8")
+    ).hexdigest()
 
-def normalize_user(user):
+
+def _check_password(
+    supplied_password: str,
+    user: dict,
+) -> bool:
     """
-    Convert any user dictionary into a predictable structure.
+    Support both plaintext passwords and password_hash.
     """
+
+    supplied_password = str(
+        supplied_password or ""
+    )
+
+    # Current JSON database format
+    stored_password = user.get(
+        "password"
+    )
+
+    if stored_password is not None:
+        stored_password = str(
+            stored_password
+        )
+
+        if hmac.compare_digest(
+            stored_password,
+            supplied_password,
+        ):
+            return True
+
+    # Older database format
+    stored_hash = user.get(
+        "password_hash"
+    )
+
+    if stored_hash:
+
+        supplied_hash = _hash_password(
+            supplied_password
+        )
+
+        if hmac.compare_digest(
+            str(stored_hash),
+            supplied_hash,
+        ):
+            return True
+
+    return False
+
+
+def _normalize_user(user: dict) -> dict:
 
     if not isinstance(user, dict):
-        user = {}
+        return {}
 
     return {
-        "id": user.get("id", 1),
+        "id": user.get(
+            "id",
+            1,
+        ),
         "username": str(
             user.get(
                 "username",
-                "admin",
+                "",
             )
         ),
         "password": str(
             user.get(
                 "password",
+                "",
+            )
+        ),
+        "password_hash": str(
+            user.get(
+                "password_hash",
                 "",
             )
         ),
@@ -74,14 +130,7 @@ def normalize_user(user):
     }
 
 
-# ============================================================
-# GET USERS
-# ============================================================
-
-def get_users(db):
-    """
-    Safely retrieve users from the JSON database.
-    """
+def get_users(db) -> list:
 
     if not isinstance(db, dict):
         return []
@@ -91,25 +140,15 @@ def get_users(db):
         [],
     )
 
-    if not isinstance(
-        users,
-        list,
-    ):
+    if not isinstance(users, list):
         return []
 
     return [
-        normalize_user(user)
+        _normalize_user(user)
         for user in users
-        if isinstance(
-            user,
-            dict,
-        )
+        if isinstance(user, dict)
     ]
 
-
-# ============================================================
-# LOGIN
-# ============================================================
 
 def login_user(
     db,
@@ -120,13 +159,9 @@ def login_user(
     Authenticate a user.
 
     Returns:
-
         (True, user)
-
-    or:
-
+        or
         (False, {})
-
     """
 
     username = str(
@@ -140,14 +175,11 @@ def login_user(
     if not username or not password:
         return False, {}
 
+    users = get_users(db)
 
     # --------------------------------------------------------
-    # Database users
+    # Check database users
     # --------------------------------------------------------
-
-    users = get_users(
-        db
-    )
 
     for user in users:
 
@@ -157,59 +189,45 @@ def login_user(
         ):
             continue
 
-        stored_username = str(
+        db_username = str(
             user.get(
                 "username",
                 "",
             )
         ).strip()
 
-        stored_password = str(
-            user.get(
-                "password",
-                "",
-            )
-        )
-
-        if (
-            stored_username == username
-            and stored_password == password
+        if not hmac.compare_digest(
+            db_username,
+            username,
         ):
+            continue
 
+        if _check_password(
+            password,
+            user,
+        ):
             return True, user
 
-
     # --------------------------------------------------------
-    # Emergency/default administrator
+    # Guaranteed administrator recovery
     #
-    # This ensures the application can still be accessed
-    # even if the JSON file has been damaged or contains
-    # no users.
+    # This keeps the application accessible if the JSON file
+    # was accidentally emptied or the admin record disappeared.
     # --------------------------------------------------------
 
     if (
-        username
-        == DEFAULT_ADMIN["username"]
-        and password
-        == DEFAULT_ADMIN["password"]
+        username == "admin"
+        and password == "admin123"
     ):
 
         return True, dict(
             DEFAULT_ADMIN
         )
 
-
     return False, {}
 
 
-# ============================================================
-# AUTHENTICATED STATE
-# ============================================================
-
-def is_authenticated():
-    """
-    Return True when a user is currently signed in.
-    """
+def is_authenticated() -> bool:
 
     return bool(
         st.session_state.get(
@@ -219,41 +237,24 @@ def is_authenticated():
     )
 
 
-# ============================================================
-# CURRENT USER
-# ============================================================
-
-def get_current_user():
-    """
-    Return the currently signed-in user.
-    """
+def get_current_user() -> dict:
 
     user = st.session_state.get(
         "user"
     )
 
-    if isinstance(
-        user,
-        dict,
-    ):
+    if isinstance(user, dict):
 
-        return normalize_user(
+        return _normalize_user(
             user
         )
 
-    return normalize_user(
+    return dict(
         DEFAULT_ADMIN
     )
 
 
-# ============================================================
-# LOGOUT
-# ============================================================
-
-def logout_user():
-    """
-    Completely clear authentication state.
-    """
+def logout_user() -> None:
 
     st.session_state[
         "authenticated"
@@ -264,19 +265,9 @@ def logout_user():
     ] = None
 
 
-# ============================================================
-# REQUIRE AUTH
-# ============================================================
-
-def require_auth():
-    """
-    Compatibility function for older modules.
-
-    Returns True when authenticated.
-    """
+def require_auth() -> bool:
 
     if not is_authenticated():
-
         st.stop()
 
     return True
