@@ -1,539 +1,1312 @@
 """
 Creative Studios
 AEC Collaboration Platform
-AEC Workspace
 
-Main Streamlit Application – Fixed Sidebar
+Main Streamlit Application
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from html import escape
+import base64
 
 import streamlit as st
 
 
 # ============================================================
-# APPLICATION PATHS
+# PATHS
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_FILE = BASE_DIR / "creativestudios_db.json"
-
-LOGO_CANDIDATES = [
-    BASE_DIR / "logo.svg",
-    BASE_DIR / "logo.png",
-    BASE_DIR / "assets" / "logo.svg",
-    BASE_DIR / "assets" / "logo.png",
-]
+LOGO_FILE = BASE_DIR / "logo.svg"
 
 
 # ============================================================
-# STREAMLIT CONFIGURATION
+# PAGE CONFIG
 # ============================================================
-
-# Use logo for page icon if available, otherwise None
-_tab_logo = None
-for _candidate in LOGO_CANDIDATES:
-    if _candidate.exists():
-        _tab_logo = str(_candidate)
-        break
 
 st.set_page_config(
-    page_title="Creative Studios | AEC Workspace",
-    page_icon=_tab_logo,
+    page_title="Creative Studios — AEC Platform",
+    page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# SESSION STATE
+# CSS
 # ============================================================
 
-DEFAULT_SESSION = {
-    "authenticated": False,
-    "user": None,
-    "active_module": "Project Directory",
-}
+st.markdown(
+    """
+    <style>
 
-for key, value in DEFAULT_SESSION.items():
-    if key not in st.session_state:
-        st.session_state[key] = value
+    /* ======================================================
+       GLOBAL
+       ====================================================== */
 
+    html,
+    body,
+    [data-testid="stApp"],
+    [data-testid="stAppViewContainer"] {
 
-# ============================================================
-# IMPORT APPLICATION MODULES (with safe fallback)
-# ============================================================
-
-try:
-    from modules.auth import login_user, logout_user, get_current_user, is_authenticated
-except Exception:
-    # Minimal fallback if the auth module is missing
-    def login_user(db, username, password):
-        username = str(username or "").strip()
-        password = str(password or "")
-        if username == "admin" and password == "admin123":
-            return True, {
-                "id": 1,
-                "username": "admin",
-                "full_name": "System Administrator",
-                "role": "Admin",
-                "active": True,
-            }
-        return False, {}
-
-    def logout_user():
-        st.session_state["authenticated"] = False
-        st.session_state["user"] = None
-
-    def is_authenticated():
-        return bool(st.session_state.get("authenticated", False))
-
-    def get_current_user():
-        user = st.session_state.get("user")
-        if isinstance(user, dict):
-            return user
-        return {
-            "id": 1,
-            "username": "admin",
-            "full_name": "System Administrator",
-            "role": "Admin",
-            "active": True,
-        }
-
-
-# ============================================================
-# DATABASE
-# ============================================================
-
-def load_database() -> dict:
-    """Load JSON database from modules or direct file."""
-    try:
-        from modules.database import load_memory
-        data = load_memory()
-        if isinstance(data, dict):
-            return data
-    except Exception:
-        pass
-
-    try:
-        import json
-        if DB_FILE.exists():
-            with DB_FILE.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-            if isinstance(data, dict):
-                return data
-    except Exception:
-        pass
-
-    # Empty safe default
-    return {
-        "users": [],
-        "projects": [],
-        "drawings": [],
-        "approvals": [],
-        "boq": [],
-        "rfis": [],
-        "site_logs": [],
+        background-color: #000000 !important;
+        color: #FFFFFF !important;
     }
 
 
-db = load_database()
+    [data-testid="stHeader"] {
+        background-color: #000000 !important;
+    }
+
+
+    [data-testid="stToolbar"] {
+        background-color: #000000 !important;
+    }
+
+
+    #MainMenu {
+        visibility: hidden;
+    }
+
+
+    footer {
+        visibility: hidden;
+    }
+
+
+    .block-container {
+
+        max-width: 1500px;
+
+        padding-top: 1.5rem;
+        padding-bottom: 3rem;
+    }
+
+
+    /* ======================================================
+       SIDEBAR
+       ====================================================== */
+
+    [data-testid="stSidebar"] {
+
+        background-color: #050505 !important;
+
+        border-right:
+            1px solid #172033 !important;
+    }
+
+
+    [data-testid="stSidebar"] > div:first-child {
+
+        background-color: #050505 !important;
+    }
+
+
+    [data-testid="stSidebar"] * {
+
+        color: #E5E7EB;
+    }
+
+
+    .sidebar-brand {
+
+        text-align: center;
+
+        padding:
+            10px 5px 18px 5px;
+    }
+
+
+    .sidebar-logo {
+
+        width: 78px;
+        height: 78px;
+
+        object-fit: contain;
+
+        display: block;
+
+        margin: 0 auto 9px auto;
+    }
+
+
+    .sidebar-brand-name {
+
+        color: #FFFFFF;
+
+        font-size: 19px;
+
+        font-weight: 800;
+    }
+
+
+    .sidebar-brand-subtitle {
+
+        color: #60A5FA;
+
+        font-size: 9px;
+
+        font-weight: 800;
+
+        letter-spacing: 1.2px;
+
+        text-transform: uppercase;
+
+        margin-top: 4px;
+    }
+
+
+    .sidebar-line {
+
+        height: 1px;
+
+        background: #172033;
+
+        margin: 5px 0 18px 0;
+    }
+
+
+    /* ======================================================
+       USER PANEL
+       ====================================================== */
+
+    .user-panel {
+
+        background: #080B10;
+
+        border: 1px solid #172033;
+
+        border-radius: 10px;
+
+        padding: 13px;
+
+        margin-bottom: 18px;
+    }
+
+
+    .user-label {
+
+        color: #60A5FA;
+
+        font-size: 9px;
+
+        font-weight: 800;
+
+        letter-spacing: 1px;
+
+        text-transform: uppercase;
+    }
+
+
+    .user-name {
+
+        color: #FFFFFF;
+
+        font-size: 14px;
+
+        font-weight: 800;
+
+        margin-top: 5px;
+    }
+
+
+    .user-login {
+
+        color: #94A3B8;
+
+        font-size: 11px;
+
+        margin-top: 3px;
+    }
+
+
+    .user-role {
+
+        display: inline-block;
+
+        margin-top: 9px;
+
+        padding: 4px 9px;
+
+        background: #2563EB;
+
+        color: #FFFFFF;
+
+        border-radius: 999px;
+
+        font-size: 9px;
+
+        font-weight: 800;
+    }
+
+
+    .nav-title {
+
+        color: #64748B;
+
+        font-size: 9px;
+
+        font-weight: 800;
+
+        letter-spacing: 1.2px;
+
+        text-transform: uppercase;
+
+        margin:
+            0 0 8px 3px;
+    }
+
+
+    [data-testid="stSidebar"] .stRadio > label {
+
+        display: none;
+    }
+
+
+    [data-testid="stSidebar"] .stRadio label {
+
+        border-radius: 8px;
+
+        padding: 8px 10px;
+
+        border: 1px solid transparent;
+    }
+
+
+    [data-testid="stSidebar"] .stRadio label:hover {
+
+        background: #0B1220;
+
+        border-color: #172033;
+    }
+
+
+    /* ======================================================
+       HEADERS
+       ====================================================== */
+
+    .page-title {
+
+        color: #FFFFFF;
+
+        font-size: 30px;
+
+        font-weight: 850;
+
+        letter-spacing: -0.8px;
+    }
+
+
+    .page-subtitle {
+
+        color: #94A3B8;
+
+        font-size: 13px;
+
+        margin-top: 5px;
+
+        margin-bottom: 20px;
+    }
+
+
+    /* ======================================================
+       KPI
+       ====================================================== */
+
+    [data-testid="stMetric"] {
+
+        background: #070707;
+
+        border: 1px solid #172033;
+
+        border-radius: 10px;
+
+        padding: 14px;
+    }
+
+
+    [data-testid="stMetricLabel"] {
+
+        color: #64748B !important;
+
+        font-size: 10px !important;
+
+        text-transform: uppercase;
+    }
+
+
+    [data-testid="stMetricValue"] {
+
+        color: #FFFFFF !important;
+    }
+
+
+    /* ======================================================
+       PROJECT CARD
+       ====================================================== */
+
+    .project-card {
+
+        background: #070707;
+
+        border: 1px solid #172033;
+
+        border-radius: 12px;
+
+        padding: 18px;
+
+        margin: 12px 0;
+    }
+
+
+    .project-card:hover {
+
+        border-color: #2563EB;
+    }
+
+
+    .project-header {
+
+        display: flex;
+
+        justify-content: space-between;
+
+        align-items: flex-start;
+
+        gap: 15px;
+    }
+
+
+    .project-name {
+
+        color: #FFFFFF;
+
+        font-size: 18px;
+
+        font-weight: 800;
+    }
+
+
+    .project-code {
+
+        color: #60A5FA;
+
+        font-size: 11px;
+
+        margin-top: 4px;
+    }
+
+
+    .project-phase {
+
+        color: #94A3B8;
+
+        font-size: 11px;
+
+        padding:
+            13px 0;
+
+        border-bottom:
+            1px solid #111827;
+    }
+
+
+    .project-phase strong {
+
+        color: #E2E8F0;
+    }
+
+
+    .project-details {
+
+        display: grid;
+
+        grid-template-columns:
+            repeat(4, 1fr);
+
+        gap: 15px;
+
+        margin-top: 14px;
+    }
+
+
+    .detail-label {
+
+        color: #475569;
+
+        font-size: 8px;
+
+        font-weight: 800;
+
+        letter-spacing: .8px;
+    }
+
+
+    .detail-value {
+
+        color: #CBD5E1;
+
+        font-size: 11px;
+
+        margin-top: 4px;
+    }
+
+
+    .project-description {
+
+        color: #64748B;
+
+        font-size: 11px;
+
+        line-height: 1.6;
+
+        margin-top: 14px;
+    }
+
+
+    /* ======================================================
+       STATUS BADGES
+       ====================================================== */
+
+    .status {
+
+        display: inline-block;
+
+        padding: 5px 9px;
+
+        border-radius: 999px;
+
+        font-size: 8px;
+
+        font-weight: 850;
+
+        white-space: nowrap;
+    }
+
+
+    .status-active {
+
+        background: #052E16;
+
+        color: #4ADE80;
+
+        border: 1px solid #166534;
+    }
+
+
+    .status-planning {
+
+        background: #172554;
+
+        color: #60A5FA;
+
+        border: 1px solid #1D4ED8;
+    }
+
+
+    .status-completed {
+
+        background: #042F2E;
+
+        color: #5EEAD4;
+
+        border: 1px solid #0F766E;
+    }
+
+
+    .status-hold {
+
+        background: #422006;
+
+        color: #FBBF24;
+
+        border: 1px solid #92400E;
+    }
+
+
+    .status-cancelled {
+
+        background: #450A0A;
+
+        color: #F87171;
+
+        border: 1px solid #991B1B;
+    }
+
+
+    .status-default {
+
+        background: #111827;
+
+        color: #94A3B8;
+
+        border: 1px solid #334155;
+    }
+
+
+    /* ======================================================
+       INPUTS
+       ====================================================== */
+
+    .stTextInput input,
+    .stTextArea textarea,
+    .stNumberInput input {
+
+        background: #050505 !important;
+
+        color: #FFFFFF !important;
+
+        border:
+            1px solid #1E293B !important;
+    }
+
+
+    /* ======================================================
+       BUTTONS
+       ====================================================== */
+
+    .stButton button,
+    .stFormSubmitButton button {
+
+        background: #2563EB !important;
+
+        color: #FFFFFF !important;
+
+        border:
+            1px solid #3B82F6 !important;
+
+        border-radius: 7px !important;
+
+        font-weight: 750 !important;
+    }
+
+
+    .stButton button:hover,
+    .stFormSubmitButton button:hover {
+
+        background: #1D4ED8 !important;
+    }
+
+
+    /* ======================================================
+       LOGIN
+       ====================================================== */
+
+    .login-container {
+
+        max-width: 390px;
+
+        margin:
+            70px auto 0 auto;
+
+        text-align: center;
+    }
+
+
+    .login-logo {
+
+        width: 120px;
+
+        height: 120px;
+
+        object-fit: contain;
+
+        margin:
+            0 auto 18px auto;
+    }
+
+
+    .login-title {
+
+        color: #FFFFFF;
+
+        font-size: 27px;
+
+        font-weight: 850;
+    }
+
+
+    .login-subtitle {
+
+        color: #64748B;
+
+        font-size: 11px;
+
+        margin:
+            6px 0 25px 0;
+    }
+
+
+    /* ======================================================
+       EMPTY STATE
+       ====================================================== */
+
+    .empty-state {
+
+        background: #070707;
+
+        border:
+            1px dashed #1E293B;
+
+        border-radius: 12px;
+
+        padding: 50px 20px;
+
+        text-align: center;
+
+        margin-top: 15px;
+    }
+
+
+    .empty-title {
+
+        color: #FFFFFF;
+
+        font-size: 18px;
+
+        font-weight: 800;
+    }
+
+
+    .empty-text {
+
+        color: #64748B;
+
+        font-size: 12px;
+
+        margin-top: 7px;
+    }
+
+
+    @media (max-width: 800px) {
+
+        .project-details {
+
+            grid-template-columns:
+                repeat(2, 1fr);
+        }
+
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # ============================================================
 # LOGO
 # ============================================================
 
-def get_logo_file() -> Path | None:
-    for candidate in LOGO_CANDIDATES:
-        if candidate.exists():
-            return candidate
-    return None
+def get_logo_data():
 
-LOGO_FILE = get_logo_file()
+    """
+    Safely read logo.svg.
 
+    Returns a base64 data URI or None.
+    """
 
-# ============================================================
-# GLOBAL CSS (dark theme, sidebar + login)
-# ============================================================
+    try:
 
-st.markdown("""
-<style>
-/* ---- GLOBAL ---- */
-html, body, [data-testid="stApp"], [data-testid="stAppViewContainer"], [data-testid="stMain"] {
-    background-color: #050505 !important;
-    color: #E5E7EB !important;
-}
-[data-testid="stHeader"] { background-color: transparent !important; }
-[data-testid="stToolbar"] { visibility: hidden !important; }
-#MainMenu { visibility: hidden !important; }
-footer { visibility: hidden !important; }
-.block-container {
-    max-width: 1500px !important;
-    padding-top: 1.5rem !important;
-    padding-bottom: 3rem !important;
-}
+        if not LOGO_FILE.exists():
 
-/* ---- SIDEBAR ---- */
-section[data-testid="stSidebar"] {
-    background-color: #080A0E !important;
-    border-right: 1px solid #172033 !important;
-}
-section[data-testid="stSidebar"] > div {
-    background-color: #080A0E !important;
-}
-section[data-testid="stSidebar"] .block-container {
-    padding-top: 1rem !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-}
+            return None
 
-/* Sidebar brand */
-.cs-sidebar-brand {
-    display: flex; align-items: center; gap: 11px; padding: 3px 2px 18px 2px;
-}
-.cs-sidebar-logo {
-    width: 48px; height: 48px; min-width: 48px;
-    display: flex; align-items: center; justify-content: center; overflow: hidden;
-    background: #0B1220; border: 1px solid #2563EB; border-radius: 12px;
-}
-.cs-sidebar-logo img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
-.cs-sidebar-fallback { color: #60A5FA; font-size: 19px; font-weight: 950; letter-spacing: -1px; }
-.cs-sidebar-name { color: #FFFFFF; font-size: 16px; font-weight: 900; line-height: 1.1; }
-.cs-sidebar-subtitle { color: #64748B; font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
+        content = LOGO_FILE.read_bytes()
 
-/* User card */
-.cs-user-card {
-    background: #0B0F16; border: 1px solid #172033; border-radius: 12px;
-    padding: 13px; margin-bottom: 18px;
-}
-.user-label { color: #60A5FA; font-size: 9px; font-weight: 850; letter-spacing: 1px; text-transform: uppercase; }
-.user-name { color: #FFFFFF; font-size: 14px; font-weight: 800; margin-top: 5px; }
-.user-login { color: #64748B; font-size: 11px; margin-top: 3px; }
-.user-role {
-    display: inline-block; margin-top: 8px; padding: 4px 9px;
-    background: #2563EB; color: #FFFFFF; border-radius: 999px;
-    font-size: 9px; font-weight: 850;
-}
+        encoded = base64.b64encode(
+            content
+        ).decode("utf-8")
 
-/* Navigation */
-.cs-navigation-title {
-    color: #475569; font-size: 9px; font-weight: 850; letter-spacing: 1px;
-    text-transform: uppercase; margin-bottom: 7px;
-}
-section[data-testid="stSidebar"] [data-testid="stRadio"] label {
-    color: #94A3B8 !important; background-color: transparent !important;
-    border-radius: 8px !important; padding: 8px 10px !important;
-}
-section[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-    background-color: #111827 !important; color: #FFFFFF !important;
-}
+        return (
+            "data:image/svg+xml;base64,"
+            + encoded
+        )
 
-/* ---- BUTTONS ---- */
-.stButton > button {
-    background-color: #2563EB !important; color: #FFFFFF !important;
-    border: 1px solid #2563EB !important; border-radius: 8px !important; font-weight: 750 !important;
-}
-.stButton > button:hover { background-color: #1D4ED8 !important; border-color: #3B82F6 !important; }
+    except Exception:
 
-/* ---- INPUTS ---- */
-.stTextInput input, .stTextArea textarea, .stNumberInput input {
-    background-color: #0B0F16 !important; color: #FFFFFF !important; border-color: #1E293B !important;
-}
-[data-baseweb="select"] > div {
-    background-color: #0B0F16 !important; color: #FFFFFF !important; border-color: #1E293B !important;
-}
-input::placeholder, textarea::placeholder { color: #475569 !important; }
-label { color: #CBD5E1 !important; }
-
-/* ---- METRICS ---- */
-[data-testid="stMetric"] {
-    background-color: #0B0F16 !important; border: 1px solid #172033 !important;
-    border-radius: 12px !important; padding: 15px !important;
-}
-[data-testid="stMetricLabel"] { color: #64748B !important; }
-[data-testid="stMetricValue"] { color: #FFFFFF !important; }
-
-/* ---- LOGIN PAGE ---- */
-.cs-login-wrapper {
-    width: 100%; min-height: 80vh; display: flex; justify-content: center;
-    align-items: flex-start; padding-top: 7vh;
-}
-.cs-login-panel { width: 430px; max-width: 100%; text-align: center; }
-.cs-login-logo {
-    width: 96px; height: 96px; margin: 0 auto 20px auto;
-    background: #0B0F16; border: 1px solid #2563EB; border-radius: 20px;
-    display: flex; align-items: center; justify-content: center; overflow: hidden;
-}
-.cs-login-logo img { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
-.cs-login-fallback { color: #60A5FA; font-size: 34px; font-weight: 950; letter-spacing: -2px; }
-.cs-login-title { color: #FFFFFF; font-size: 30px; font-weight: 900; letter-spacing: -1px; }
-.cs-login-subtitle { color: #64748B; font-size: 13px; line-height: 1.5; margin-top: 7px; margin-bottom: 25px; }
-
-/* ---- CARDS ---- */
-.cs-card {
-    background-color: #0B0F16; border: 1px solid #172033; border-radius: 14px; padding: 20px;
-}
-.cs-card-title { color: #FFFFFF; font-size: 18px; font-weight: 850; }
-.cs-card-subtitle { color: #64748B; font-size: 12px; margin-top: 5px; }
-
-/* ---- FORM ---- */
-[data-testid="stForm"] { background-color: transparent !important; border: none !important; }
-
-/* ---- DIVIDERS ---- */
-hr { border-color: #172033 !important; }
-</style>
-""", unsafe_allow_html=True)
+        return None
 
 
 # ============================================================
-# HELPERS
+# DATABASE
 # ============================================================
 
-def safe_text(value, fallback: str = "") -> str:
-    if value is None:
-        return fallback
-    return escape(str(value))
+try:
+
+    from modules.database import load_memory
+
+    db = load_memory()
+
+except Exception:
+
+    db = {}
+
+
+if not isinstance(db, dict):
+
+    db = {}
+
+
+# ============================================================
+# SESSION STATE
+# ============================================================
+
+if "authenticated" not in st.session_state:
+
+    st.session_state[
+        "authenticated"
+    ] = False
+
+
+if "user" not in st.session_state:
+
+    st.session_state[
+        "user"
+    ] = None
+
+
+# ============================================================
+# LOGIN
+# ============================================================
+
+def authenticate(
+    username,
+    password,
+):
+
+    username = str(
+        username or ""
+    ).strip().lower()
+
+    password = str(
+        password or ""
+    )
+
+
+    users = db.get(
+        "users",
+        [],
+    )
+
+
+    if not isinstance(
+        users,
+        list,
+    ):
+
+        users = []
+
+
+    for user in users:
+
+        if not isinstance(
+            user,
+            dict,
+        ):
+
+            continue
+
+
+        stored_username = str(
+            user.get(
+                "username",
+                "",
+            )
+        ).strip().lower()
+
+
+        stored_password = str(
+            user.get(
+                "password",
+                user.get(
+                    "password_hash",
+                    "",
+                ),
+            )
+        )
+
+
+        if (
+            username == stored_username
+            and password == stored_password
+        ):
+
+            st.session_state[
+                "authenticated"
+            ] = True
+
+            st.session_state[
+                "user"
+            ] = user
+
+            return True
+
+
+    # --------------------------------------------------------
+    # Development fallback
+    #
+    # This only works when no users exist in the database.
+    # --------------------------------------------------------
+
+    if not users:
+
+        if (
+            username == "admin"
+            and password == "admin123"
+        ):
+
+            user = {
+
+                "username":
+                    "admin",
+
+                "name":
+                    "System Administrator",
+
+                "full_name":
+                    "System Administrator",
+
+                "role":
+                    "Admin",
+
+            }
+
+
+            st.session_state[
+                "authenticated"
+            ] = True
+
+            st.session_state[
+                "user"
+            ] = user
+
+            return True
+
+
+    return False
 
 
 # ============================================================
 # LOGIN PAGE
 # ============================================================
 
-def render_login() -> None:
-    st.markdown('<div class="cs-login-wrapper"><div class="cs-login-panel">', unsafe_allow_html=True)
+def show_login():
 
-    # Logo
-    if LOGO_FILE is not None:
-        st.markdown('<div class="cs-login-logo">', unsafe_allow_html=True)
-        st.image(str(LOGO_FILE), width=76)
-        st.markdown('</div>', unsafe_allow_html=True)
+    logo = get_logo_data()
+
+
+    st.markdown(
+        '<div class="login-container">',
+        unsafe_allow_html=True,
+    )
+
+
+    if logo:
+
+        st.markdown(
+            f"""
+            <img
+                src="{logo}"
+                class="login-logo"
+            >
+            """,
+            unsafe_allow_html=True,
+        )
+
     else:
-        st.markdown('<div class="cs-login-logo"><div class="cs-login-fallback">CS</div></div>', unsafe_allow_html=True)
 
-    # Title
-    st.markdown("""
-        <div class="cs-login-title">Creative Studios</div>
-        <div class="cs-login-subtitle">
-            AEC Collaboration Platform<br>
-            Architectural • Engineering • Construction
+        st.markdown(
+            """
+            <div
+                style="
+                    width:120px;
+                    height:120px;
+                    margin:0 auto 18px auto;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    border:2px solid #2563EB;
+                    border-radius:28px;
+                    color:#60A5FA;
+                    font-size:42px;
+                    font-weight:900;
+                "
+            >
+                CS
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+    st.markdown(
+        """
+        <div class="login-title">
+            Creative Studios
         </div>
-    """, unsafe_allow_html=True)
 
-    # Form
-    with st.form("creative_studios_login_form", clear_on_submit=False):
-        username = st.text_input("Username", placeholder="Enter username")
-        password = st.text_input("Password", type="password", placeholder="Enter password")
-        submit = st.form_submit_button("Sign In", use_container_width=True)
+        <div class="login-subtitle">
+            AEC Collaboration Platform
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+    with st.form(
+        "login_form",
+        clear_on_submit=False,
+    ):
+
+        username = st.text_input(
+            "Username",
+            placeholder="Enter username",
+        )
+
+
+        password = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Enter password",
+        )
+
+
+        submit = st.form_submit_button(
+            "Sign In",
+            use_container_width=True,
+        )
+
 
     if submit:
-        username = str(username or "").strip()
-        password = str(password or "")
 
-        if not username:
-            st.error("Please enter your username.")
-            return
-        if not password:
-            st.error("Please enter your password.")
-            return
+        if authenticate(
+            username,
+            password,
+        ):
 
-        # Authenticate
-        try:
-            success, user = login_user(db, username, password)
-        except TypeError:
-            try:
-                success, user = login_user(db=db, username=username, password=password)
-            except Exception:
-                success, user = False, {}
-        except Exception:
-            success, user = False, {}
-
-        # Admin recovery
-        if not success and username == "admin" and password == "admin123":
-            success = True
-            user = {
-                "id": 1, "username": "admin",
-                "full_name": "System Administrator",
-                "role": "Admin", "active": True,
-            }
-
-        if success:
-            st.session_state["authenticated"] = True
-            st.session_state["user"] = user
-            st.session_state["active_module"] = "Project Directory"
             st.rerun()
+
         else:
-            st.error("Invalid username or password.")
 
-    # Test credentials
-    with st.expander("Default Test Credentials"):
-        st.markdown("""
-        * **Lead Architect**: `arch_lead` / `arch123`
-        * **Structural Engineer**: `struct_eng` / `struct123`
-        * **Electrical Engineer**: `elec_eng` / `elec123`
-        * **Master Plumber**: `plumber_lead` / `plum123`
-        * **System Admin**: `admin` / `admin123`
-        """)
+            st.error(
+                "Invalid username or password."
+            )
 
-    st.markdown('</div></div>', unsafe_allow_html=True)
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
-# SIDEBAR (rendered after login)
+# SIDEBAR
 # ============================================================
 
-def render_sidebar() -> str:
-    user = get_current_user()
-    if not isinstance(user, dict):
-        user = {
-            "username": "admin",
-            "full_name": "System Administrator",
-            "role": "Admin",
-        }
+def show_sidebar():
 
-    full_name = safe_text(user.get("full_name", "System Administrator"))
-    username = safe_text(user.get("username", "admin"))
-    role = safe_text(user.get("role", "Admin"))
+    user = st.session_state.get(
+        "user"
+    ) or {}
+
+
+    username = str(
+        user.get(
+            "username",
+            "admin",
+        )
+    )
+
+
+    name = str(
+        user.get(
+            "name",
+            user.get(
+                "full_name",
+                "System Administrator",
+            ),
+        )
+    )
+
+
+    role = str(
+        user.get(
+            "role",
+            "Admin",
+        )
+    )
+
+
+    logo = get_logo_data()
+
 
     with st.sidebar:
-        # Brand
-        if LOGO_FILE is not None:
-            st.markdown('<div class="cs-sidebar-brand">', unsafe_allow_html=True)
-            st.markdown('<div class="cs-sidebar-logo">', unsafe_allow_html=True)
-            st.image(str(LOGO_FILE), width=38)
-            st.markdown('</div>', unsafe_allow_html=True)
-            st.markdown("""
-                <div>
-                    <div class="cs-sidebar-name">Creative Studios</div>
-                    <div class="cs-sidebar-subtitle">AEC Workspace</div>
-                </div>
-            """, unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.markdown("""
-                <div class="cs-sidebar-brand">
-                    <div class="cs-sidebar-logo"><div class="cs-sidebar-fallback">CS</div></div>
-                    <div>
-                        <div class="cs-sidebar-name">Creative Studios</div>
-                        <div class="cs-sidebar-subtitle">AEC Workspace</div>
+
+        if logo:
+
+            st.markdown(
+                f"""
+                <div class="sidebar-brand">
+
+                    <img
+                        src="{logo}"
+                        class="sidebar-logo"
+                    >
+
+                    <div class="sidebar-brand-name">
+                        Creative Studios
                     </div>
+
+                    <div class="sidebar-brand-subtitle">
+                        AEC Workspace
+                    </div>
+
                 </div>
-            """, unsafe_allow_html=True)
+                """,
+                unsafe_allow_html=True,
+            )
 
-        # User card
-        st.markdown(f"""
-            <div class="cs-user-card">
-                <div class="user-label">Signed In</div>
-                <div class="user-name">{full_name}</div>
-                <div class="user-login">@{username}</div>
-                <div class="user-role">{role}</div>
+        else:
+
+            st.markdown(
+                """
+                <div class="sidebar-brand">
+
+                    <div style="
+                        color:#2563EB;
+                        font-size:38px;
+                        font-weight:900;
+                    ">
+                        CS
+                    </div>
+
+                    <div class="sidebar-brand-name">
+                        Creative Studios
+                    </div>
+
+                    <div class="sidebar-brand-subtitle">
+                        AEC Workspace
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+        st.markdown(
+            '<div class="sidebar-line"></div>',
+            unsafe_allow_html=True,
+        )
+
+
+        st.markdown(
+            f"""
+            <div class="user-panel">
+
+                <div class="user-label">
+                    Signed In
+                </div>
+
+                <div class="user-name">
+                    {name}
+                </div>
+
+                <div class="user-login">
+                    @{username}
+                </div>
+
+                <div class="user-role">
+                    {role}
+                </div>
+
             </div>
-        """, unsafe_allow_html=True)
+            """,
+            unsafe_allow_html=True,
+        )
 
-        # Navigation
-        st.markdown('<div class="cs-navigation-title">AEC Workspace</div>', unsafe_allow_html=True)
 
-        menu_items = [
+        st.markdown(
+            """
+            <div class="nav-title">
+                Navigation
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+        menu = [
             "Project Directory",
             "Drawing Repository",
             "Sign-Off & Approvals",
-            "Bill of Quantities",
+            "Bill of Quantities (BOQ)",
             "RFI & Technical Queries",
             "Daily Site Logs",
         ]
 
-        current = st.session_state.get("active_module", "Project Directory")
-        if current not in menu_items:
-            current = "Project Directory"
 
         selected = st.radio(
             "Navigation",
-            menu_items,
-            index=menu_items.index(current),
-            key="aec_workspace_navigation",
+            menu,
             label_visibility="collapsed",
         )
 
-        st.session_state["active_module"] = selected
 
-        # Spacer and sign-out
-        st.markdown("<div style='height:22px'></div>", unsafe_allow_html=True)
-        if st.button("Sign Out", key="sign_out_button", use_container_width=True):
-            try:
-                logout_user()
-            except Exception:
-                pass
-            st.session_state["authenticated"] = False
-            st.session_state["user"] = None
-            st.session_state["active_module"] = "Project Directory"
+        st.markdown(
+            "<br>",
+            unsafe_allow_html=True,
+        )
+
+
+        if st.button(
+            "Sign Out",
+            use_container_width=True,
+        ):
+
+            st.session_state[
+                "authenticated"
+            ] = False
+
+            st.session_state[
+                "user"
+            ] = None
+
             st.rerun()
+
 
     return selected
 
 
 # ============================================================
-# MODULE RENDERERS (with full loading)
+# STARTUP
 # ============================================================
 
-def _render_module(module_name: str, render_func_name: str, display_name: str) -> None:
+if not st.session_state[
+    "authenticated"
+]:
+
+    show_login()
+
+    st.stop()
+
+
+# ============================================================
+# AUTHENTICATED APPLICATION
+# ============================================================
+
+selected_module = show_sidebar()
+
+
+# ============================================================
+# PROJECT DIRECTORY
+# ============================================================
+
+if selected_module == "Project Directory":
+
+    from modules.projects import (
+        render_projects_module
+    )
+
+    render_projects_module(
+        db
+    )
+
+
+# ============================================================
+# OTHER MODULES
+# ============================================================
+
+elif selected_module == "Drawing Repository":
+
     try:
-        import importlib
-        module = importlib.import_module(f"modules.{module_name}")
-        render_func = getattr(module, render_func_name)
-        render_func(db)
-    except Exception as error:
-        st.error(f"{display_name} could not be loaded.")
-        with st.expander("Technical details"):
-            st.code(str(error))
+
+        from modules.drawings import (
+            render_drawings_module
+        )
+
+        render_drawings_module(
+            db
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"Drawing Repository is unavailable: {exc}"
+        )
 
 
-def render_projects() -> None:
-    _render_module("projects", "render_projects_module", "Project Directory")
+elif selected_module == "Sign-Off & Approvals":
 
-def render_drawings() -> None:
-    _render_module("drawings", "render_drawings_module", "Drawing Repository")
+    try:
 
-def render_approvals() -> None:
-    _render_module("approvals", "render_approvals_module", "Sign-Off & Approvals")
+        from modules.approvals import (
+            render_approvals_module
+        )
 
-def render_boq() -> None:
-    _render_module("boq", "render_boq_module", "Bill of Quantities")
+        render_approvals_module(
+            db
+        )
 
-def render_rfi() -> None:
-    _render_module("rfi", "render_rfi_module", "RFI & Technical Queries")
+    except Exception as exc:
 
-def render_site_logs() -> None:
-    _render_module("site_logs", "render_site_logs_module", "Daily Site Logs")
-
-
-# ============================================================
-# APPLICATION ROUTER
-# ============================================================
-
-def render_application() -> None:
-    selected = render_sidebar()
-
-    module_map = {
-        "Project Directory": render_projects,
-        "Drawing Repository": render_drawings,
-        "Sign-Off & Approvals": render_approvals,
-        "Bill of Quantities": render_boq,
-        "RFI & Technical Queries": render_rfi,
-        "Daily Site Logs": render_site_logs,
-    }
-
-    render_func = module_map.get(selected, render_projects)
-    render_func()
+        st.error(
+            f"Sign-Off & Approvals is unavailable: {exc}"
+        )
 
 
-# ============================================================
-# ENTRY POINT
-# ============================================================
+elif selected_module == "Bill of Quantities (BOQ)":
 
-if is_authenticated():
-    render_application()
-else:
-    render_login()
+    try:
+
+        from modules.boq import (
+            render_boq_module
+        )
+
+        render_boq_module(
+            db
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"BOQ is unavailable: {exc}"
+        )
+
+
+elif selected_module == "RFI & Technical Queries":
+
+    try:
+
+        from modules.rfi import (
+            render_rfi_module
+        )
+
+        render_rfi_module(
+            db
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"RFI module is unavailable: {exc}"
+        )
+
+
+elif selected_module == "Daily Site Logs":
+
+    try:
+
+        from modules.site_logs import (
+            render_site_logs_module
+        )
+
+        render_site_logs_module(
+            db
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"Daily Site Logs is unavailable: {exc}"
+        )
