@@ -63,3 +63,4 @@ def render_boq_module(db):
                     save_memory(db)
                     st.success("BOQ item added successfully!")
                     st.rerun()
+
