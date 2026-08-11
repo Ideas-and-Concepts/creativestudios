@@ -82,3 +82,16 @@ streamlit_app.py
              ┌─────────┴─────────┐
              ▼                   ▼
       JSON Database          PostgreSQL
+
+
+                    CREATIVE STUDIOS
+                           │
+                    PROJECT DIRECTORY
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+          Projects       People        Budget
+             │
+       ┌─────┼─────┬──────────┬─────────┐
+       ▼     ▼     ▼          ▼         ▼
+    Drawings BOQ  RFIs    Approvals  Site Logs
