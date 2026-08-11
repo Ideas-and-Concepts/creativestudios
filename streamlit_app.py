@@ -1,12 +1,12 @@
 import streamlit as st
 from pathlib import Path
-from utils import ensure_logo_svg, get_logo_html, LOGO_FILE
-from database import load_memory
-from auth import login_user, require_auth, render_sidebar
-from projects import render_projects_module
-from drawings import render_drawings_module
-from approvals import render_approvals_module
-from boq import render_boq_module
+from modules.utils import ensure_logo_svg, get_logo_html, LOGO_FILE
+from modules.database import load_memory
+from modules.auth import login_user, require_auth, render_sidebar
+from modules.projects import render_projects_module
+from modules.drawings import render_drawings_module
+from modules.approvals import render_approvals_module
+from modules.boq import render_boq_module
 
 ensure_logo_svg()
 
