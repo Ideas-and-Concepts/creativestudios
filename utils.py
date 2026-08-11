@@ -155,11 +155,19 @@ def safe_dataframe(data_list, preferred_columns):
     available_cols = [col for col in preferred_columns if col in df.columns]
     return df[available_cols]
 
+def render_sidebar_logo():
+    """Injects the logo into the sidebar cleanly without text app titles."""
+    if Path("logo.jpg").exists():
+        st.sidebar.image("logo.jpg", use_container_width=True)
+    st.sidebar.markdown("---")
+
 def require_auth():
-    """Guard function placed at top of every page script."""
+    """Guard function placed at top of every page script with logo branding."""
     if not st.session_state.get("authenticated", False):
         st.warning("Please sign in from the main Login page to access this system.")
         st.stop()
+    
+    render_sidebar_logo()
     
     current_user = st.session_state["user"]
     st.sidebar.markdown(f"👤 **{current_user['name']}**")
