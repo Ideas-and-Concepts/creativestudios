@@ -8,11 +8,6 @@ Version 1.1.0
 
 import streamlit as st
 
-
-# ============================================================
-# APPLICATION MODULES
-# ============================================================
-
 from modules.utils import (
     ensure_logo_svg,
     get_logo_html,
@@ -24,16 +19,11 @@ from modules.database import (
 )
 
 from modules.auth import (
-    initialize_auth_session,
     login_user,
     require_auth,
-    render_sidebar,
+    render_user_profile,
+    render_sidebar_logout,
 )
-
-
-# ============================================================
-# CORE MODULES
-# ============================================================
 
 from modules.projects import (
     render_projects_module,
@@ -79,7 +69,7 @@ except ImportError:
 
 
 # ============================================================
-# PAGE CONFIG
+# PAGE CONFIGURATION
 # ============================================================
 
 ensure_logo_svg()
@@ -93,7 +83,7 @@ st.set_page_config(
 
 
 # ============================================================
-# BLUE THEME
+# BLUE CREATIVE STUDIOS THEME
 # ============================================================
 
 st.markdown(
@@ -105,12 +95,11 @@ st.markdown(
        ======================================================== */
 
     .stApp {
-        background-color:#F8FAFC;
+        background-color: #F8FAFC;
     }
 
-
     [data-testid="stHeader"] {
-        background-color:transparent;
+        background-color: transparent;
     }
 
 
@@ -124,7 +113,7 @@ st.markdown(
             linear-gradient(
                 180deg,
                 #1D4ED8 0%,
-                #2563EB 50%,
+                #2563EB 52%,
                 #1E40AF 100%
             );
 
@@ -135,7 +124,7 @@ st.markdown(
 
 
     section[data-testid="stSidebar"] * {
-        color:#FFFFFF;
+        color: #FFFFFF;
     }
 
 
@@ -143,10 +132,16 @@ st.markdown(
     .stRadio label {
 
         padding:
-            8px 10px;
+            9px 11px;
 
         border-radius:
             9px;
+
+        font-weight:
+            600;
+
+        transition:
+            all 0.15s ease;
     }
 
 
@@ -154,21 +149,24 @@ st.markdown(
     .stRadio label:hover {
 
         background:
-            rgba(255,255,255,0.12);
+            rgba(255,255,255,0.13);
     }
 
 
     /* ========================================================
-       LOGIN
+       LOGIN CARD
        ======================================================== */
 
     .login-card {
 
-        background:#FFFFFF;
+        background:
+            #FFFFFF;
 
-        padding:40px;
+        padding:
+            40px;
 
-        border-radius:20px;
+        border-radius:
+            20px;
 
         border:
             1px solid
@@ -182,51 +180,74 @@ st.markdown(
 
     .login-title {
 
-        text-align:center;
+        text-align:
+            center;
 
-        color:#1E3A8A;
+        color:
+            #1E3A8A;
 
-        font-size:30px;
+        font-size:
+            30px;
 
-        font-weight:800;
+        font-weight:
+            800;
 
-        margin-top:15px;
+        margin-top:
+            15px;
 
-        margin-bottom:5px;
+        margin-bottom:
+            5px;
     }
 
 
     .login-subtitle {
 
-        text-align:center;
+        text-align:
+            center;
 
-        color:#64748B;
+        color:
+            #64748B;
 
-        font-size:14px;
+        font-size:
+            14px;
 
-        margin-bottom:25px;
+        margin-bottom:
+            25px;
     }
 
 
     /* ========================================================
-       MODULE HEADERS
+       CONTENT
        ======================================================== */
+
+    .module-header {
+        margin-bottom: 20px;
+    }
+
 
     .module-title {
 
-        color:#1E3A8A;
+        font-size:
+            29px;
 
-        font-size:29px;
+        font-weight:
+            800;
 
-        font-weight:800;
+        color:
+            #1E3A8A;
+
+        margin-bottom:
+            5px;
     }
 
 
     .module-subtitle {
 
-        color:#64748B;
+        color:
+            #64748B;
 
-        font-size:14px;
+        font-size:
+            14px;
     }
 
 
@@ -236,9 +257,11 @@ st.markdown(
 
     .stButton > button {
 
-        border-radius:9px;
+        border-radius:
+            9px;
 
-        font-weight:700;
+        font-weight:
+            700;
 
         border:
             1px solid
@@ -248,9 +271,11 @@ st.markdown(
 
     .stButton > button:hover {
 
-        border-color:#1D4ED8;
+        border-color:
+            #1D4ED8;
 
-        color:#1D4ED8;
+        color:
+            #1D4ED8;
     }
 
 
@@ -261,7 +286,8 @@ st.markdown(
     .stTextInput input:focus,
     .stTextArea textarea:focus {
 
-        border-color:#2563EB;
+        border-color:
+            #2563EB;
 
         box-shadow:
             0 0 0 1px #2563EB;
@@ -274,25 +300,18 @@ st.markdown(
 
     [data-testid="stMetric"] {
 
-        background:#FFFFFF;
+        background:
+            #FFFFFF;
 
         border:
             1px solid
             #DBEAFE;
 
-        border-radius:12px;
+        border-radius:
+            12px;
 
-        padding:12px;
-    }
-
-
-    /* ========================================================
-       TABS
-       ======================================================== */
-
-    .stTabs [data-baseweb="tab"] {
-
-        font-weight:700;
+        padding:
+            12px;
     }
 
 
@@ -310,14 +329,32 @@ db = load_memory()
 
 
 # ============================================================
-# SESSION
+# SESSION STATE
 # ============================================================
 
-initialize_auth_session()
+if "authenticated" not in st.session_state:
+
+    st.session_state[
+        "authenticated"
+    ] = False
+
+
+if "user" not in st.session_state:
+
+    st.session_state[
+        "user"
+    ] = None
+
+
+if "app_mode" not in st.session_state:
+
+    st.session_state[
+        "app_mode"
+    ] = "Project Directory"
 
 
 # ============================================================
-# LOGIN SCREEN
+# LOGIN PAGE
 # ============================================================
 
 if not st.session_state.get(
@@ -325,21 +362,23 @@ if not st.session_state.get(
     False,
 ):
 
-    # Hide sidebar during login.
+    # Hide sidebar while logged out.
     st.markdown(
         """
         <style>
         section[data-testid="stSidebar"] {
-            display:none;
+            display: none;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
+
     left, center, right = st.columns(
         [1, 1.15, 1]
     )
+
 
     with center:
 
@@ -348,10 +387,12 @@ if not st.session_state.get(
             unsafe_allow_html=True,
         )
 
+
         st.markdown(
             '<div class="login-card">',
             unsafe_allow_html=True,
         )
+
 
         # ----------------------------------------------------
         # LOGO
@@ -363,6 +404,7 @@ if not st.session_state.get(
             ),
             unsafe_allow_html=True,
         )
+
 
         # ----------------------------------------------------
         # TITLE
@@ -377,6 +419,7 @@ if not st.session_state.get(
             unsafe_allow_html=True,
         )
 
+
         st.markdown(
             """
             <div class="login-subtitle">
@@ -385,6 +428,7 @@ if not st.session_state.get(
             """,
             unsafe_allow_html=True,
         )
+
 
         # ----------------------------------------------------
         # LOGIN FORM
@@ -399,24 +443,38 @@ if not st.session_state.get(
                 placeholder="Enter your username",
             )
 
+
             password = st.text_input(
                 "Password",
                 type="password",
                 placeholder="Enter your password",
             )
 
+
             submitted = st.form_submit_button(
                 "Sign In",
                 use_container_width=True,
             )
 
+
             if submitted:
 
-                if not username.strip():
+                username = (
+                    username or ""
+                ).strip()
+
+
+                password = (
+                    password or ""
+                )
+
+
+                if not username:
 
                     st.warning(
                         "Please enter your username."
                     )
+
 
                 elif not password:
 
@@ -424,11 +482,19 @@ if not st.session_state.get(
                         "Please enter your password."
                     )
 
+
                 elif login_user(
                     db,
                     username,
                     password,
                 ):
+
+                    # IMPORTANT:
+                    # login_user() already stores the
+                    # complete user dictionary.
+                    #
+                    # DO NOT replace it with the
+                    # username string.
 
                     st.success(
                         "Authentication successful."
@@ -436,19 +502,21 @@ if not st.session_state.get(
 
                     st.rerun()
 
+
                 else:
 
                     st.error(
                         "Invalid username or password."
                     )
 
+
         st.markdown(
             """
             <div style="
                 text-align:center;
-                margin-top:25px;
                 color:#94A3B8;
                 font-size:12px;
+                margin-top:25px;
             ">
                 Creative Studios AEC Platform
             </div>
@@ -456,10 +524,12 @@ if not st.session_state.get(
             unsafe_allow_html=True,
         )
 
+
         st.markdown(
             "</div>",
             unsafe_allow_html=True,
         )
+
 
     st.stop()
 
@@ -475,21 +545,126 @@ require_auth()
 # SIDEBAR
 # ============================================================
 
-render_sidebar()
+with st.sidebar:
+
+    # --------------------------------------------------------
+    # BRAND
+    # --------------------------------------------------------
+
+    st.markdown(
+        """
+        <div style="
+            text-align:center;
+            padding:8px 0 15px;
+        ">
+
+            <div style="
+                font-size:21px;
+                font-weight:800;
+                color:#FFFFFF;
+                letter-spacing:-0.5px;
+            ">
+                Creative Studios
+            </div>
+
+            <div style="
+                font-size:9px;
+                color:#DBEAFE;
+                font-weight:700;
+                letter-spacing:1.1px;
+                text-transform:uppercase;
+                margin-top:4px;
+            ">
+                AEC Collaboration Platform
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+    st.divider()
+
+
+    # --------------------------------------------------------
+    # NAVIGATION
+    # --------------------------------------------------------
+
+    st.markdown(
+        """
+        <div style="
+            font-size:10px;
+            color:#BFDBFE;
+            font-weight:800;
+            text-transform:uppercase;
+            letter-spacing:1px;
+            margin-bottom:7px;
+        ">
+            AEC Workspace
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+    menu_items = [
+        "Project Directory",
+        "Drawing Repository",
+        "Sign-Off & Approvals",
+        "Bill of Quantities (BOQ)",
+        "RFI & Technical Queries",
+        "Daily Site Logs",
+    ]
+
+
+    current_mode = st.session_state.get(
+        "app_mode",
+        "Project Directory",
+    )
+
+
+    if current_mode not in menu_items:
+
+        current_mode = (
+            "Project Directory"
+        )
+
+
+    app_mode = st.radio(
+        "Navigation",
+        menu_items,
+        index=menu_items.index(
+            current_mode
+        ),
+        label_visibility="collapsed",
+    )
+
+
+    st.session_state[
+        "app_mode"
+    ] = app_mode
+
+
+    st.divider()
+
+
+    # --------------------------------------------------------
+    # USER PROFILE
+    # --------------------------------------------------------
+
+    render_user_profile()
+
+
+    # --------------------------------------------------------
+    # LOGOUT
+    # --------------------------------------------------------
+
+    render_sidebar_logout()
 
 
 # ============================================================
-# CURRENT MODULE
-# ============================================================
-
-app_mode = st.session_state.get(
-    "app_mode",
-    "Project Directory",
-)
-
-
-# ============================================================
-# MODULE ROUTER
+# MAIN APPLICATION ROUTER
 # ============================================================
 
 if app_mode == "Project Directory":
@@ -556,12 +731,3 @@ elif app_mode == "Daily Site Logs":
         st.info(
             "The Daily Site Logs module is not currently installed."
         )
-
-
-else:
-
-    st.session_state[
-        "app_mode"
-    ] = "Project Directory"
-
-    st.rerun()
