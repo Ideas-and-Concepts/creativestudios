@@ -8,6 +8,7 @@ from modules.drawings import render_drawings_module
 from modules.approvals import render_approvals_module
 from modules.boq import render_boq_module
 from modules.rfi import render_rfi_module
+from modules.site_logs import render_site_logs_module
 
 ensure_logo_svg()
 
@@ -62,7 +63,8 @@ else:
             "📐 Drawing Repository", 
             "✍️ Sign-Off & Approvals", 
             "📊 Bill of Quantities (BOQ)",
-            "💬 RFI & Technical Queries"
+            "💬 RFI & Technical Queries",
+            "📝 Daily Site Logs"
         ],
         label_visibility="collapsed"
     )
@@ -79,3 +81,5 @@ else:
         render_boq_module(db)
     elif app_mode == "💬 RFI & Technical Queries":
         render_rfi_module(db)
+    elif app_mode == "📝 Daily Site Logs":
+        render_site_logs_module(db)
