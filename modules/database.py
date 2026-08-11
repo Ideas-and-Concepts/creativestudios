@@ -1,13 +1,6 @@
 """
 Creative Studios
-Database Module
-
-JSON-based persistence layer for the Creative Studios
-AEC Collaboration Platform.
-
-This module is intentionally lightweight and defensive so
-the Streamlit application can start even if the database
-file is missing, empty, malformed, or partially populated.
+JSON Database Module
 """
 
 from __future__ import annotations
@@ -19,10 +12,12 @@ from typing import Any
 
 
 # ============================================================
-# DATABASE PATH
+# DATABASE LOCATION
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(
+    __file__
+).resolve().parent.parent
 
 DATABASE_FILE = (
     BASE_DIR / "creativestudios_db.json"
@@ -66,37 +61,29 @@ DEFAULT_DATABASE = {
             "budget": 1250000,
             "estimated_budget": 1250000,
             "description": (
-                "A commercial development project managed "
-                "through the Creative Studios AEC "
-                "collaboration platform."
+                "A commercial development project "
+                "managed through the Creative Studios "
+                "AEC collaboration platform."
             ),
         }
     ],
 
     "drawings": [],
-
     "approvals": [],
-
     "boq": [],
-
     "rfi": [],
-
     "site_logs": [],
-
     "documents": [],
-
     "notifications": [],
-
     "activity_logs": [],
 }
 
 
 # ============================================================
-# REQUIRED COLLECTIONS
+# COLLECTIONS
 # ============================================================
 
 REQUIRED_COLLECTIONS = [
-
     "users",
     "projects",
     "drawings",
@@ -107,52 +94,32 @@ REQUIRED_COLLECTIONS = [
     "documents",
     "notifications",
     "activity_logs",
-
 ]
 
 
 # ============================================================
-# INTERNAL HELPERS
+# NORMALISE DATABASE
 # ============================================================
-
-def _new_default_database() -> dict[str, Any]:
-
-    """
-    Return a completely independent copy of the default
-    database.
-    """
-
-    return deepcopy(
-        DEFAULT_DATABASE
-    )
-
 
 def _normalise_database(
     data: Any,
 ) -> dict[str, Any]:
-
-    """
-    Make sure the loaded database always has the expected
-    dictionary structure and collections.
-    """
 
     if not isinstance(
         data,
         dict,
     ):
 
-        data = _new_default_database()
-
+        data = deepcopy(
+            DEFAULT_DATABASE
+        )
 
     for collection in REQUIRED_COLLECTIONS:
 
-        value = data.get(
-            collection
-        )
-
-
         if not isinstance(
-            value,
+            data.get(
+                collection
+            ),
             list,
         ):
 
@@ -160,42 +127,67 @@ def _normalise_database(
                 collection
             ] = []
 
+    # Always ensure an administrator exists.
 
-    # --------------------------------------------------------
-    # If there are no users, restore the default administrator.
-    # --------------------------------------------------------
+    users = data.get(
+        "users",
+        [],
+    )
 
-    if not data["users"]:
+    admin_exists = False
 
-        data["users"] = deepcopy(
-            DEFAULT_DATABASE["users"]
+    for user in users:
+
+        if not isinstance(
+            user,
+            dict,
+        ):
+            continue
+
+        if str(
+            user.get(
+                "username",
+                ""
+            )
+        ).lower() == "admin":
+
+            admin_exists = True
+            break
+
+    if not admin_exists:
+
+        users.insert(
+            0,
+            deepcopy(
+                DEFAULT_DATABASE[
+                    "users"
+                ][0]
+            ),
         )
-
 
     return data
 
 
 # ============================================================
-# LOAD DATABASE
+# LOAD
 # ============================================================
 
 def load_memory() -> dict[str, Any]:
 
     """
-    Load the JSON database.
+    Load the Creative Studios JSON database.
 
-    If the file does not exist, it is created.
-
-    If the file is invalid or unreadable, a safe default
-    database is returned and an attempt is made to repair
-    the file.
+    Automatically creates or repairs the database when
+    necessary.
     """
 
     try:
 
         if not DATABASE_FILE.exists():
 
-            data = _new_default_database()
+            data = deepcopy(
+                DEFAULT_DATABASE
+            )
 
             save_memory(
                 data
@@ -203,15 +195,15 @@ def load_memory() -> dict[str, Any]:
 
             return data
 
-
-        raw = DATABASE_FILE.read_text(
+        content = DATABASE_FILE.read_text(
             encoding="utf-8"
         ).strip()
 
+        if not content:
 
-        if not raw:
-
-            data = _new_default_database()
+            data = deepcopy(
+                DEFAULT_DATABASE
+            )
 
             save_memory(
                 data
@@ -219,33 +211,26 @@ def load_memory() -> dict[str, Any]:
 
             return data
 
-
         data = json.loads(
-            raw
+            content
         )
-
 
         data = _normalise_database(
             data
         )
 
-
         return data
 
-
     except (
-        json.JSONDecodeError,
         OSError,
+        json.JSONDecodeError,
         TypeError,
         ValueError,
     ):
 
-        data = _new_default_database()
-
-
-        # ----------------------------------------------------
-        # Try to repair an invalid database.
-        # ----------------------------------------------------
+        data = deepcopy(
+            DEFAULT_DATABASE
+        )
 
         try:
 
@@ -257,12 +242,11 @@ def load_memory() -> dict[str, Any]:
 
             pass
 
-
         return data
 
 
 # ============================================================
-# SAVE DATABASE
+# SAVE
 # ============================================================
 
 def save_memory(
@@ -270,11 +254,9 @@ def save_memory(
 ) -> bool:
 
     """
-    Save the supplied database dictionary to JSON.
+    Save database safely.
 
-    Returns:
-        True  -> saved successfully
-        False -> save failed
+    Returns True when successful.
     """
 
     try:
@@ -283,24 +265,14 @@ def save_memory(
             data
         )
 
-
         DATABASE_FILE.parent.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-
-        # ----------------------------------------------------
-        # Write to a temporary file first.
-        #
-        # This prevents a failed write from leaving the main
-        # JSON database partially corrupted.
-        # ----------------------------------------------------
-
         temporary_file = DATABASE_FILE.with_suffix(
             ".tmp"
         )
-
 
         temporary_file.write_text(
             json.dumps(
@@ -311,14 +283,11 @@ def save_memory(
             encoding="utf-8",
         )
 
-
         temporary_file.replace(
             DATABASE_FILE
         )
 
-
         return True
-
 
     except (
         OSError,
@@ -330,44 +299,30 @@ def save_memory(
 
 
 # ============================================================
-# RESET DATABASE
+# RESET
 # ============================================================
 
 def reset_database() -> dict[str, Any]:
 
-    """
-    Replace the current database with the default database.
-
-    Returns the new database dictionary.
-    """
-
-    data = _new_default_database()
-
+    data = deepcopy(
+        DEFAULT_DATABASE
+    )
 
     save_memory(
         data
     )
 
-
     return data
 
 
 # ============================================================
-# GET COLLECTION
+# COLLECTION
 # ============================================================
 
 def get_collection(
     data: dict[str, Any],
     collection: str,
 ) -> list:
-
-    """
-    Safely retrieve a collection from the database.
-
-    Example:
-
-        projects = get_collection(db, "projects")
-    """
 
     if not isinstance(
         data,
@@ -376,80 +331,24 @@ def get_collection(
 
         return []
 
-
-    value = data.get(
-        collection,
-        [],
-    )
-
-
     if not isinstance(
-        value,
+        data.get(
+            collection
+        ),
         list,
     ):
 
-        value = []
-
         data[
             collection
-        ] = value
+        ] = []
 
-
-    return value
-
-
-# ============================================================
-# ADD RECORD
-# ============================================================
-
-def add_record(
-    data: dict[str, Any],
-    collection: str,
-    record: dict[str, Any],
-) -> dict[str, Any]:
-
-    """
-    Add a dictionary record to a collection.
-
-    The updated record is returned.
-    """
-
-    if not isinstance(
-        data,
-        dict,
-    ):
-
-        raise TypeError(
-            "Database must be a dictionary."
-        )
-
-
-    if not isinstance(
-        record,
-        dict,
-    ):
-
-        raise TypeError(
-            "Record must be a dictionary."
-        )
-
-
-    records = get_collection(
-        data,
-        collection,
-    )
-
-
-    records.append(
-        record
-    )
-
-
-    return record
+    return data[
+        collection
+    ]
 
 
 # ============================================================
-# FIND RECORD
+# FIND
 # ============================================================
 
 def find_record(
@@ -459,18 +358,10 @@ def find_record(
     value: Any,
 ):
 
-    """
-    Find the first record matching a field.
-
-    Returns:
-        record dictionary or None
-    """
-
     records = get_collection(
         data,
         collection,
     )
-
 
     for record in records:
 
@@ -478,9 +369,7 @@ def find_record(
             record,
             dict,
         ):
-
             continue
-
 
         if record.get(
             field
@@ -488,58 +377,68 @@ def find_record(
 
             return record
 
-
     return None
 
 
 # ============================================================
-# FIND ALL RECORDS
+# ADD
 # ============================================================
 
-def find_records(
+def add_record(
     data: dict[str, Any],
     collection: str,
-    field: str,
-    value: Any,
-) -> list[dict[str, Any]]:
-
-    """
-    Find all records matching a field.
-    """
+    record: dict[str, Any],
+) -> dict[str, Any]:
 
     records = get_collection(
         data,
         collection,
     )
 
+    records.append(
+        record
+    )
 
-    results = []
-
-
-    for record in records:
-
-        if not isinstance(
-            record,
-            dict,
-        ):
-
-            continue
-
-
-        if record.get(
-            field
-        ) == value:
-
-            results.append(
-                record
-            )
-
-
-    return results
+    return record
 
 
 # ============================================================
-# DELETE RECORD
+# UPDATE
+# ============================================================
+
+def update_record(
+    data: dict[str, Any],
+    collection: str,
+    field: str,
+    value: Any,
+    updates: dict[str, Any],
+) -> bool:
+
+    record = find_record(
+        data,
+        collection,
+        field,
+        value,
+    )
+
+    if record is None:
+        return False
+
+    if not isinstance(
+        updates,
+        dict,
+    ):
+        return False
+
+    record.update(
+        updates
+    )
+
+    return True
+
+
+# ============================================================
+# DELETE
 # ============================================================
 
 def delete_record(
@@ -549,19 +448,10 @@ def delete_record(
     value: Any,
 ) -> bool:
 
-    """
-    Delete the first record matching a field.
-
-    Returns:
-        True  -> record deleted
-        False -> record not found
-    """
-
     records = get_collection(
         data,
         collection,
     )
-
 
     for index, record in enumerate(
         records
@@ -571,9 +461,7 @@ def delete_record(
             record,
             dict,
         ):
-
             continue
-
 
         if record.get(
             field
@@ -585,88 +473,12 @@ def delete_record(
 
             return True
 
-
     return False
 
 
 # ============================================================
-# UPDATE RECORD
+# COMPATIBILITY ALIASES
 # ============================================================
-
-def update_record(
-    data: dict[str, Any],
-    collection: str,
-    field: str,
-    value: Any,
-    updates: dict[str, Any],
-) -> bool:
-
-    """
-    Update the first matching record.
-
-    Returns:
-        True  -> updated
-        False -> not found
-    """
-
-    if not isinstance(
-        updates,
-        dict,
-    ):
-
-        return False
-
-
-    record = find_record(
-        data,
-        collection,
-        field,
-        value,
-    )
-
-
-    if record is None:
-
-        return False
-
-
-    record.update(
-        updates
-    )
-
-
-    return True
-
-
-# ============================================================
-# DATABASE STATUS
-# ============================================================
-
-def database_exists() -> bool:
-
-    """
-    Return True when the database file exists.
-    """
-
-    return DATABASE_FILE.exists()
-
-
-def database_path() -> str:
-
-    """
-    Return the absolute database path.
-    """
-
-    return str(
-        DATABASE_FILE
-    )
-
-
-# ============================================================
-# OPTIONAL COMPATIBILITY ALIASES
-# ============================================================
-
-# Some older Creative Studios modules may use these names.
 
 load_database = load_memory
 
@@ -676,27 +488,16 @@ get_data = load_memory
 
 
 # ============================================================
-# STARTUP CHECK
+# DATABASE INFORMATION
 # ============================================================
 
-if __name__ == "__main__":
+def database_exists() -> bool:
 
-    database = load_memory()
+    return DATABASE_FILE.exists()
 
-    print(
-        "Creative Studios database loaded."
-    )
 
-    print(
-        f"Database: {DATABASE_FILE}"
-    )
+def database_path() -> str:
 
-    print(
-        f"Projects: "
-        f"{len(database.get('projects', []))}"
-    )
-
-    print(
-        f"Users: "
-        f"{len(database.get('users', []))}"
+    return str(
+        DATABASE_FILE
     )
