@@ -24,3 +24,21 @@ creative-studios/
 ├── approvals.py           # Module 4: Cross-disciplinary review & sign-off workflows
 ├── boq.py                 # Module 5: Bill of Quantities & material cost estimation
 └── streamlit_app.py       # Main Entrypoint: Navigation router and application layout
+
+
+creative-studios/
+│
+├── logo.svg
+├── creativestudios_db.json
+├── requirements.txt
+├── streamlit_app.py       # Main entry point stays in root
+│
+└── modules/
+    ├── __init__.py        # Empty file to mark as a Python package
+    ├── utils.py
+    ├── database.py
+    ├── auth.py
+    ├── projects.py
+    ├── drawings.py
+    ├── approvals.py
+    └── boq.py
