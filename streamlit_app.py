@@ -28,7 +28,6 @@ if not st.session_state["authenticated"]:
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
-        # Perfectly centered logo display on login page
         st.markdown(get_logo_html(width=140), unsafe_allow_html=True)
         
         with st.form("login_form"):
