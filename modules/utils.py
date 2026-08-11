@@ -32,3 +32,4 @@ def get_logo_html(width=130):
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
+
