@@ -2,13 +2,19 @@
 Creative Studios
 AEC Collaboration Platform
 
-Main Streamlit Application
+Main Streamlit Application — Fixed (logo + CSS)
 """
 
 from pathlib import Path
 import base64
 
 import streamlit as st
+
+# ------------------------------------------------------------
+# Ensure the default logo file exists before anything else
+# ------------------------------------------------------------
+from modules.utils import ensure_logo_svg   # <-- re‑added
+ensure_logo_svg()                           # creates logo.svg if missing
 
 
 # ============================================================
@@ -20,19 +26,19 @@ LOGO_FILE = BASE_DIR / "logo.svg"
 
 
 # ============================================================
-# PAGE CONFIG
+# PAGE CONFIG (logo, no emoji)
 # ============================================================
 
 st.set_page_config(
     page_title="Creative Studios — AEC Platform",
-    page_icon=str(LOGO_FILE) if LOGO_FILE.exists() else None,   # logo, no emoji
+    page_icon=str(LOGO_FILE) if LOGO_FILE.exists() else None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# CSS
+# CSS (includes missing project card classes)
 # ============================================================
 
 st.markdown(
@@ -396,7 +402,7 @@ st.markdown(
     }
 
 
-    /* ----------  ADDED: missing classes used in the project card HTML ---------- */
+    /* ----------  MISSING CLASSES (used in custom HTML) ---------- */
 
     .project-title {
         color: #FFFFFF;
@@ -420,7 +426,7 @@ st.markdown(
         font-weight: 850;
         white-space: nowrap;
     }
-    /* -------------------------------------------------------------------------- */
+    /* ------------------------------------------------------------- */
 
 
     .project-phase {
@@ -721,36 +727,18 @@ st.markdown(
 
 
 # ============================================================
-# LOGO
+# LOGO (base64 helper)
 # ============================================================
 
 def get_logo_data():
-
-    """
-    Safely read logo.svg.
-
-    Returns a base64 data URI or None.
-    """
-
+    """Return a base64 data URI for the logo, or None if missing."""
     try:
-
         if not LOGO_FILE.exists():
-
             return None
-
         content = LOGO_FILE.read_bytes()
-
-        encoded = base64.b64encode(
-            content
-        ).decode("utf-8")
-
-        return (
-            "data:image/svg+xml;base64,"
-            + encoded
-        )
-
+        encoded = base64.b64encode(content).decode("utf-8")
+        return f"data:image/svg+xml;base64,{encoded}"
     except Exception:
-
         return None
 
 
@@ -759,18 +747,12 @@ def get_logo_data():
 # ============================================================
 
 try:
-
     from modules.database import load_memory
-
     db = load_memory()
-
 except Exception:
-
     db = {}
 
-
 if not isinstance(db, dict):
-
     db = {}
 
 
@@ -779,136 +761,44 @@ if not isinstance(db, dict):
 # ============================================================
 
 if "authenticated" not in st.session_state:
-
-    st.session_state[
-        "authenticated"
-    ] = False
-
-
+    st.session_state["authenticated"] = False
 if "user" not in st.session_state:
-
-    st.session_state[
-        "user"
-    ] = None
+    st.session_state["user"] = None
 
 
 # ============================================================
-# LOGIN
+# AUTHENTICATION
 # ============================================================
 
-def authenticate(
-    username,
-    password,
-):
+def authenticate(username, password):
+    username = str(username or "").strip().lower()
+    password = str(password or "")
 
-    username = str(
-        username or ""
-    ).strip().lower()
-
-    password = str(
-        password or ""
-    )
-
-
-    users = db.get(
-        "users",
-        [],
-    )
-
-
-    if not isinstance(
-        users,
-        list,
-    ):
-
+    users = db.get("users", [])
+    if not isinstance(users, list):
         users = []
 
-
     for user in users:
-
-        if not isinstance(
-            user,
-            dict,
-        ):
-
+        if not isinstance(user, dict):
             continue
-
-
-        stored_username = str(
-            user.get(
-                "username",
-                "",
-            )
-        ).strip().lower()
-
-
-        stored_password = str(
-            user.get(
-                "password",
-                user.get(
-                    "password_hash",
-                    "",
-                ),
-            )
-        )
-
-
-        if (
-            username == stored_username
-            and password == stored_password
-        ):
-
-            st.session_state[
-                "authenticated"
-            ] = True
-
-            st.session_state[
-                "user"
-            ] = user
-
+        stored_username = str(user.get("username", "")).strip().lower()
+        stored_password = str(user.get("password", user.get("password_hash", "")))
+        if username == stored_username and password == stored_password:
+            st.session_state["authenticated"] = True
+            st.session_state["user"] = user
             return True
 
-
-    # --------------------------------------------------------
-    # Development fallback
-    #
-    # This only works when no users exist in the database.
-    # --------------------------------------------------------
-
-    if not users:
-
-        if (
-            username == "admin"
-            and password == "admin123"
-        ):
-
-            user = {
-
-                "username":
-                    "admin",
-
-                "name":
-                    "System Administrator",
-
-                "full_name":
-                    "System Administrator",
-
-                "role":
-                    "Admin",
-
-            }
-
-
-            st.session_state[
-                "authenticated"
-            ] = True
-
-            st.session_state[
-                "user"
-            ] = user
-
-            return True
-
+    # Development fallback (only when DB is empty)
+    if not users and username == "admin" and password == "admin123":
+        user = {
+            "username": "admin",
+            "name": "System Administrator",
+            "full_name": "System Administrator",
+            "role": "Admin",
+        }
+        st.session_state["authenticated"] = True
+        st.session_state["user"] = user
+        return True
 
     return False
 
@@ -918,112 +808,44 @@ def authenticate(
 # ============================================================
 
 def show_login():
-
     logo = get_logo_data()
-
-
-    st.markdown(
-        '<div class="login-container">',
-        unsafe_allow_html=True,
-    )
-
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
 
     if logo:
-
-        st.markdown(
-            f"""
-            <img
-                src="{logo}"
-                class="login-logo"
-            >
-            """,
-            unsafe_allow_html=True,
-        )
-
+        st.markdown(f'<img src="{logo}" class="login-logo">', unsafe_allow_html=True)
     else:
-
         st.markdown(
             """
-            <div
-                style="
-                    width:120px;
-                    height:120px;
-                    margin:0 auto 18px auto;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    border:2px solid #2563EB;
-                    border-radius:28px;
-                    color:#60A5FA;
-                    font-size:42px;
-                    font-weight:900;
-                "
-            >
+            <div style="width:120px;height:120px;margin:0 auto 18px auto;
+                        display:flex;align-items:center;justify-content:center;
+                        border:2px solid #2563EB;border-radius:28px;
+                        color:#60A5FA;font-size:42px;font-weight:900;">
                 CS
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-
     st.markdown(
         """
-        <div class="login-title">
-            Creative Studios
-        </div>
-
-        <div class="login-subtitle">
-            AEC Collaboration Platform
-        </div>
+        <div class="login-title">Creative Studios</div>
+        <div class="login-subtitle">AEC Collaboration Platform</div>
         """,
         unsafe_allow_html=True,
     )
 
-
-    with st.form(
-        "login_form",
-        clear_on_submit=False,
-    ):
-
-        username = st.text_input(
-            "Username",
-            placeholder="Enter username",
-        )
-
-
-        password = st.text_input(
-            "Password",
-            type="password",
-            placeholder="Enter password",
-        )
-
-
-        submit = st.form_submit_button(
-            "Sign In",
-            use_container_width=True,
-        )
-
+    with st.form("login_form", clear_on_submit=False):
+        username = st.text_input("Username", placeholder="Enter username")
+        password = st.text_input("Password", type="password", placeholder="Enter password")
+        submit = st.form_submit_button("Sign In", use_container_width=True)
 
     if submit:
-
-        if authenticate(
-            username,
-            password,
-        ):
-
+        if authenticate(username, password):
             st.rerun()
-
         else:
+            st.error("Invalid username or password.")
 
-            st.error(
-                "Invalid username or password."
-            )
-
-
-    st.markdown(
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ============================================================
@@ -1031,137 +853,51 @@ def show_login():
 # ============================================================
 
 def show_sidebar():
-
-    user = st.session_state.get(
-        "user"
-    ) or {}
-
-
-    username = str(
-        user.get(
-            "username",
-            "admin",
-        )
-    )
-
-
-    name = str(
-        user.get(
-            "name",
-            user.get(
-                "full_name",
-                "System Administrator",
-            ),
-        )
-    )
-
-
-    role = str(
-        user.get(
-            "role",
-            "Admin",
-        )
-    )
-
-
+    user = st.session_state.get("user") or {}
+    username = str(user.get("username", "admin"))
+    name = str(user.get("name", user.get("full_name", "System Administrator")))
+    role = str(user.get("role", "Admin"))
     logo = get_logo_data()
 
-
     with st.sidebar:
-
         if logo:
-
             st.markdown(
                 f"""
                 <div class="sidebar-brand">
-
-                    <img
-                        src="{logo}"
-                        class="sidebar-logo"
-                    >
-
-                    <div class="sidebar-brand-name">
-                        Creative Studios
-                    </div>
-
-                    <div class="sidebar-brand-subtitle">
-                        AEC Workspace
-                    </div>
-
+                    <img src="{logo}" class="sidebar-logo">
+                    <div class="sidebar-brand-name">Creative Studios</div>
+                    <div class="sidebar-brand-subtitle">AEC Workspace</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
-
         else:
-
             st.markdown(
                 """
                 <div class="sidebar-brand">
-
-                    <div style="
-                        color:#2563EB;
-                        font-size:38px;
-                        font-weight:900;
-                    ">
-                        CS
-                    </div>
-
-                    <div class="sidebar-brand-name">
-                        Creative Studios
-                    </div>
-
-                    <div class="sidebar-brand-subtitle">
-                        AEC Workspace
-                    </div>
-
+                    <div style="color:#2563EB;font-size:38px;font-weight:900;">CS</div>
+                    <div class="sidebar-brand-name">Creative Studios</div>
+                    <div class="sidebar-brand-subtitle">AEC Workspace</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-
-        st.markdown(
-            '<div class="sidebar-line"></div>',
-            unsafe_allow_html=True,
-        )
-
+        st.markdown('<div class="sidebar-line"></div>', unsafe_allow_html=True)
 
         st.markdown(
             f"""
             <div class="user-panel">
-
-                <div class="user-label">
-                    Signed In
-                </div>
-
-                <div class="user-name">
-                    {name}
-                </div>
-
-                <div class="user-login">
-                    @{username}
-                </div>
-
-                <div class="user-role">
-                    {role}
-                </div>
-
+                <div class="user-label">Signed In</div>
+                <div class="user-name">{name}</div>
+                <div class="user-login">@{username}</div>
+                <div class="user-role">{role}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-
-        st.markdown(
-            """
-            <div class="nav-title">
-                Navigation
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+        st.markdown('<div class="nav-title">Navigation</div>', unsafe_allow_html=True)
 
         menu = [
             "Project Directory",
@@ -1172,168 +908,68 @@ def show_sidebar():
             "Daily Site Logs",
         ]
 
+        selected = st.radio("Navigation", menu, label_visibility="collapsed")
 
-        selected = st.radio(
-            "Navigation",
-            menu,
-            label_visibility="collapsed",
-        )
+        st.markdown("<br>", unsafe_allow_html=True)
 
-
-        st.markdown(
-            "<br>",
-            unsafe_allow_html=True,
-        )
-
-
-        if st.button(
-            "Sign Out",
-            use_container_width=True,
-        ):
-
-            st.session_state[
-                "authenticated"
-            ] = False
-
-            st.session_state[
-                "user"
-            ] = None
-
+        if st.button("Sign Out", use_container_width=True):
+            st.session_state["authenticated"] = False
+            st.session_state["user"] = None
             st.rerun()
-
 
     return selected
 
 
 # ============================================================
-# STARTUP
+# AUTHENTICATION GATE
 # ============================================================
 
-if not st.session_state[
-    "authenticated"
-]:
-
+if not st.session_state["authenticated"]:
     show_login()
-
     st.stop()
 
 
 # ============================================================
-# AUTHENTICATED APPLICATION
+# ROUTING
 # ============================================================
 
 selected_module = show_sidebar()
 
-
-# ============================================================
-# PROJECT DIRECTORY
-# ============================================================
-
 if selected_module == "Project Directory":
-
-    from modules.projects import (
-        render_projects_module
-    )
-
-    render_projects_module(
-        db
-    )
-
-
-# ============================================================
-# OTHER MODULES
-# ============================================================
+    from modules.projects import render_projects_module
+    render_projects_module(db)
 
 elif selected_module == "Drawing Repository":
-
     try:
-
-        from modules.drawings import (
-            render_drawings_module
-        )
-
-        render_drawings_module(
-            db
-        )
-
+        from modules.drawings import render_drawings_module
+        render_drawings_module(db)
     except Exception as exc:
-
-        st.error(
-            f"Drawing Repository is unavailable: {exc}"
-        )
-
+        st.error(f"Drawing Repository is unavailable: {exc}")
 
 elif selected_module == "Sign-Off & Approvals":
-
     try:
-
-        from modules.approvals import (
-            render_approvals_module
-        )
-
-        render_approvals_module(
-            db
-        )
-
+        from modules.approvals import render_approvals_module
+        render_approvals_module(db)
     except Exception as exc:
-
-        st.error(
-            f"Sign-Off & Approvals is unavailable: {exc}"
-        )
-
+        st.error(f"Sign-Off & Approvals is unavailable: {exc}")
 
 elif selected_module == "Bill of Quantities (BOQ)":
-
     try:
-
-        from modules.boq import (
-            render_boq_module
-        )
-
-        render_boq_module(
-            db
-        )
-
+        from modules.boq import render_boq_module
+        render_boq_module(db)
     except Exception as exc:
-
-        st.error(
-            f"BOQ is unavailable: {exc}"
-        )
-
+        st.error(f"BOQ is unavailable: {exc}")
 
 elif selected_module == "RFI & Technical Queries":
-
     try:
-
-        from modules.rfi import (
-            render_rfi_module
-        )
-
-        render_rfi_module(
-            db
-        )
-
+        from modules.rfi import render_rfi_module
+        render_rfi_module(db)
     except Exception as exc:
-
-        st.error(
-            f"RFI module is unavailable: {exc}"
-        )
-
+        st.error(f"RFI module is unavailable: {exc}")
 
 elif selected_module == "Daily Site Logs":
-
     try:
-
-        from modules.site_logs import (
-            render_site_logs_module
-        )
-
-        render_site_logs_module(
-            db
-        )
-
+        from modules.site_logs import render_site_logs_module
+        render_site_logs_module(db)
     except Exception as exc:
-
-        st.error(
-            f"Daily Site Logs is unavailable: {exc}"
-        )
+        st.error(f"Daily Site Logs is unavailable: {exc}")
