@@ -22,45 +22,27 @@ def login(username, password):
     return False
 
 if not st.session_state["authenticated"]:
-    # Display Logo on Login Page
-    col_logo, col_text = st.columns([1, 3])
-    with col_logo:
+    # Clean centered login layout with logo
+    col1, col2, col3 = st.columns([1, 1.2, 1])
+    with col2:
+        st.markdown("<br>", unsafe_allow_html=True)
         try:
-            st.image("logo.jpg", width=120)
+            st.image("logo.jpg", width=150)
         except Exception:
-            st.warning("Logo image 'logo.jpg' not found in root directory.")
-    with col_text:
-        st.title("System Portal")
-        st.markdown("Sign in to access project blueprints, approval pipelines, and BoQs.")
-
-    col_login, col_demo = st.columns([1, 1])
-
-    with col_login:
+            st.warning("Logo image 'logo.jpg' not found in root directory. Please save the provided image as 'logo.jpg'.")
+        
         with st.form("login_form"):
             user_input = st.text_input("Username")
             pass_input = st.text_input("Password", type="password")
-            submit_btn = st.form_submit_button("Sign In")
+            submit_btn = st.form_submit_button("Sign In", use_container_width=True)
 
             if submit_btn:
                 if login(user_input, pass_input):
-                    st.success("Authentication successful! Use the sidebar to navigate.")
+                    st.success("Authentication successful!")
                     st.rerun()
                 else:
                     st.error("Invalid username or password.")
-
-    with col_demo:
-        st.subheader("💡 Demo Quick Switch")
-        for u in db.get("users", []):
-            if st.button(f"Login as {u['name']} [{u['role']}]", key=f"quick_{u['username']}"):
-                pwd_map = {
-                    "admin": "admin123", "jane_arch": "arch123",
-                    "john_struct": "struct123", "mark_mep": "mep123",
-                    "sam_proc": "proc123"
-                }
-                login(u['username'], pwd_map.get(u['username'], "admin123"))
-                st.rerun()
 else:
-    # Render sidebar logo for logged-in users on root page too
     render_sidebar_logo()
     
     user = st.session_state["user"]
