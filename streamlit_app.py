@@ -1,6 +1,6 @@
 import streamlit as st
 from pathlib import Path
-from utils import load_memory, hash_password, render_sidebar_logo, ensure_logo_svg, LOGO_FILE
+from utils import load_memory, hash_password, render_sidebar_logo, ensure_logo_svg, get_logo_html, LOGO_FILE
 
 ensure_logo_svg()
 
@@ -28,8 +28,8 @@ if not st.session_state["authenticated"]:
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
-        if Path(LOGO_FILE).exists():
-            st.image(LOGO_FILE, width=150)
+        # Perfectly centered logo display on login page
+        st.markdown(get_logo_html(width=140), unsafe_allow_html=True)
         
         with st.form("login_form"):
             user_input = st.text_input("Username")
