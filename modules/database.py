@@ -2,104 +2,73 @@
 Creative Studios
 Database Module
 
-Supports:
+JSON-based persistence layer for the Creative Studios
+AEC Collaboration Platform.
 
-1. Local JSON database
-2. PostgreSQL database through DATABASE_URL
-
-The application modules interact with the database through
-load_memory() and save_memory().
+This module is intentionally lightweight and defensive so
+the Streamlit application can start even if the database
+file is missing, empty, malformed, or partially populated.
 """
 
+from __future__ import annotations
+
 import json
-import os
 from copy import deepcopy
 from pathlib import Path
-
-import streamlit as st
-from sqlalchemy import create_engine, text
-
-from .utils import hash_password
+from typing import Any
 
 
 # ============================================================
-# DATABASE CONFIGURATION
+# DATABASE PATH
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-MEMORY_FILE = BASE_DIR / "creativestudios_db.json"
+DATABASE_FILE = (
+    BASE_DIR / "creativestudios_db.json"
+)
 
 
 # ============================================================
-# DEFAULT USERS
-# ============================================================
-#
-# Passwords are hashed before being stored.
-#
-# IMPORTANT:
-# These are development/bootstrap accounts.
-# They should be replaced or disabled before production.
-#
-
-DEFAULT_USERS = [
-    {
-        "username": "admin",
-        "password_hash": hash_password("admin123"),
-        "name": "System Administrator",
-        "role": "Admin",
-        "active": True,
-    },
-    {
-        "username": "arch_lead",
-        "password_hash": hash_password("arch123"),
-        "name": "Lead Architect",
-        "role": "Architect",
-        "active": True,
-    },
-    {
-        "username": "struct_eng",
-        "password_hash": hash_password("struct123"),
-        "name": "Structural Specialist",
-        "role": "Structural Engineer",
-        "active": True,
-    },
-    {
-        "username": "elec_eng",
-        "password_hash": hash_password("elec123"),
-        "name": "Electrical Systems Lead",
-        "role": "Electrical Engineer",
-        "active": True,
-    },
-    {
-        "username": "plumber_lead",
-        "password_hash": hash_password("plum123"),
-        "name": "Master Plumber",
-        "role": "Plumber",
-        "active": True,
-    },
-]
-
-
-# ============================================================
-# DEFAULT APPLICATION DATA
+# DEFAULT DATABASE
 # ============================================================
 
-DEFAULT_MEMORY = {
-    "users": DEFAULT_USERS,
+DEFAULT_DATABASE = {
+
+    "users": [
+        {
+            "id": 1,
+            "username": "admin",
+            "password": "admin123",
+            "name": "System Administrator",
+            "full_name": "System Administrator",
+            "role": "Admin",
+            "email": "admin@creativestudios.local",
+            "active": True,
+        }
+    ],
 
     "projects": [
         {
             "id": "PRJ-001",
+            "project_id": "PRJ-001",
             "name": "Grand Horizon Commercial Complex",
+            "project_name": "Grand Horizon Commercial Complex",
             "type": "Commercial",
-            "phase": "Schematic Design",
+            "project_type": "Commercial",
             "status": "Active",
-            "budget": 1250000.0,
-            "created_at": "2026-02-10",
+            "phase": "Design Development",
+            "client": "Grand Horizon Developments",
+            "client_name": "Grand Horizon Developments",
+            "location": "Kampala, Uganda",
+            "project_manager": "System Administrator",
+            "manager": "System Administrator",
+            "budget": 1250000,
+            "estimated_budget": 1250000,
             "description": (
-                "10-story mixed-use commercial space "
-                "with basement parking and green roofing."
+                "A commercial development project managed "
+                "through the Creative Studios AEC "
+                "collaboration platform."
             ),
         }
     ],
@@ -110,130 +79,159 @@ DEFAULT_MEMORY = {
 
     "boq": [],
 
-    "rfis": [],
+    "rfi": [],
 
     "site_logs": [],
+
+    "documents": [],
+
+    "notifications": [],
+
+    "activity_logs": [],
 }
 
 
 # ============================================================
-# POSTGRESQL ENGINE
+# REQUIRED COLLECTIONS
 # ============================================================
 
-@st.cache_resource
-def get_engine():
-    """
-    Create and cache the PostgreSQL engine.
+REQUIRED_COLLECTIONS = [
 
-    If DATABASE_URL is not configured, the application
-    automatically falls back to the local JSON database.
-    """
+    "users",
+    "projects",
+    "drawings",
+    "approvals",
+    "boq",
+    "rfi",
+    "site_logs",
+    "documents",
+    "notifications",
+    "activity_logs",
 
-    database_url = os.environ.get("DATABASE_URL")
-
-    if not database_url:
-        return None
-
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace(
-            "postgres://",
-            "postgresql://",
-            1,
-        )
-
-    try:
-        return create_engine(
-            database_url,
-            pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
-        )
-
-    except Exception as exc:
-        st.warning(
-            f"Unable to connect to PostgreSQL. "
-            f"Using local database instead. ({exc})"
-        )
-
-        return None
+]
 
 
 # ============================================================
-# DATABASE INITIALIZATION
+# INTERNAL HELPERS
 # ============================================================
 
-def init_db() -> None:
+def _new_default_database() -> dict[str, Any]:
+
     """
-    Initialize the PostgreSQL application state table.
+    Return a completely independent copy of the default
+    database.
     """
 
-    engine = get_engine()
+    return deepcopy(
+        DEFAULT_DATABASE
+    )
 
-    if engine is None:
-        return
 
-    with engine.begin() as connection:
+def _normalise_database(
+    data: Any,
+) -> dict[str, Any]:
 
-        connection.execute(
-            text(
-                """
-                CREATE TABLE IF NOT EXISTS app_state (
-                    id INTEGER PRIMARY KEY,
-                    data JSONB NOT NULL
-                );
-                """
-            )
+    """
+    Make sure the loaded database always has the expected
+    dictionary structure and collections.
+    """
+
+    if not isinstance(
+        data,
+        dict,
+    ):
+
+        data = _new_default_database()
+
+
+    for collection in REQUIRED_COLLECTIONS:
+
+        value = data.get(
+            collection
         )
 
 
-# ============================================================
-# DATA NORMALIZATION
-# ============================================================
+        if not isinstance(
+            value,
+            list,
+        ):
 
-def normalize_memory(data: dict) -> dict:
-    """
-    Ensure all required application collections exist.
-    """
+            data[
+                collection
+            ] = []
 
-    if not isinstance(data, dict):
-        data = {}
 
-    defaults = deepcopy(DEFAULT_MEMORY)
+    # --------------------------------------------------------
+    # If there are no users, restore the default administrator.
+    # --------------------------------------------------------
 
-    for key, default_value in defaults.items():
+    if not data["users"]:
 
-        if key not in data or data[key] is None:
-            data[key] = deepcopy(default_value)
+        data["users"] = deepcopy(
+            DEFAULT_DATABASE["users"]
+        )
+
 
     return data
 
 
 # ============================================================
-# LOCAL JSON DATABASE
+# LOAD DATABASE
 # ============================================================
 
-def load_local_memory() -> dict:
+def load_memory() -> dict[str, Any]:
+
     """
-    Load the local JSON database.
+    Load the JSON database.
+
+    If the file does not exist, it is created.
+
+    If the file is invalid or unreadable, a safe default
+    database is returned and an attempt is made to repair
+    the file.
     """
-
-    if not MEMORY_FILE.exists():
-
-        data = deepcopy(DEFAULT_MEMORY)
-
-        save_local_memory(data)
-
-        return data
 
     try:
 
-        raw_data = MEMORY_FILE.read_text(
+        if not DATABASE_FILE.exists():
+
+            data = _new_default_database()
+
+            save_memory(
+                data
+            )
+
+            return data
+
+
+        raw = DATABASE_FILE.read_text(
             encoding="utf-8"
+        ).strip()
+
+
+        if not raw:
+
+            data = _new_default_database()
+
+            save_memory(
+                data
+            )
+
+            return data
+
+
+        data = json.loads(
+            raw
         )
 
-        data = json.loads(raw_data)
 
-        return normalize_memory(data)
+        data = _normalise_database(
+            data
+        )
+
+
+        return data
+
 
     except (
         json.JSONDecodeError,
@@ -242,291 +240,463 @@ def load_local_memory() -> dict:
         ValueError,
     ):
 
-        # If the JSON file is corrupted, return a clean
-        # in-memory structure rather than crashing the app.
-        return deepcopy(DEFAULT_MEMORY)
+        data = _new_default_database()
 
 
-def save_local_memory(data: dict) -> bool:
-    """
-    Save application data to the local JSON database.
-    """
+        # ----------------------------------------------------
+        # Try to repair an invalid database.
+        # ----------------------------------------------------
 
-    try:
+        try:
 
-        normalized = normalize_memory(data)
+            save_memory(
+                data
+            )
 
-        MEMORY_FILE.write_text(
-            json.dumps(
-                normalized,
-                indent=2,
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
-        )
+        except Exception:
 
-        return True
+            pass
 
-    except OSError as exc:
-
-        st.error(
-            f"Unable to save local database: {exc}"
-        )
-
-        return False
-
-
-# ============================================================
-# LOAD DATABASE
-# ============================================================
-
-def load_memory() -> dict:
-    """
-    Load application data.
-
-    PostgreSQL is preferred when DATABASE_URL exists.
-    Otherwise the local JSON database is used.
-    """
-
-    engine = get_engine()
-
-    # --------------------------------------------------------
-    # LOCAL MODE
-    # --------------------------------------------------------
-
-    if engine is None:
-        return load_local_memory()
-
-    # --------------------------------------------------------
-    # POSTGRESQL MODE
-    # --------------------------------------------------------
-
-    try:
-
-        init_db()
-
-        with engine.connect() as connection:
-
-            result = connection.execute(
-                text(
-                    """
-                    SELECT data
-                    FROM app_state
-                    WHERE id = 1
-                    """
-                )
-            ).fetchone()
-
-            if result and result[0] is not None:
-
-                data = result[0]
-
-                if isinstance(data, str):
-                    data = json.loads(data)
-
-                return normalize_memory(data)
-
-        # No database state exists yet.
-        data = deepcopy(DEFAULT_MEMORY)
-
-        save_memory(data)
 
         return data
-
-    except Exception as exc:
-
-        st.warning(
-            "Database connection failed. "
-            "Creative Studios is using the local database. "
-            f"({exc})"
-        )
-
-        return load_local_memory()
 
 
 # ============================================================
 # SAVE DATABASE
 # ============================================================
 
-def save_memory(data: dict) -> bool:
+def save_memory(
+    data: dict[str, Any],
+) -> bool:
+
     """
-    Save application data.
+    Save the supplied database dictionary to JSON.
 
-    Uses PostgreSQL when DATABASE_URL exists.
-    Otherwise saves to JSON.
+    Returns:
+        True  -> saved successfully
+        False -> save failed
     """
-
-    normalized = normalize_memory(data)
-
-    engine = get_engine()
-
-    # --------------------------------------------------------
-    # LOCAL MODE
-    # --------------------------------------------------------
-
-    if engine is None:
-        return save_local_memory(normalized)
-
-    # --------------------------------------------------------
-    # POSTGRESQL MODE
-    # --------------------------------------------------------
 
     try:
 
-        init_db()
+        data = _normalise_database(
+            data
+        )
 
-        with engine.begin() as connection:
 
-            connection.execute(
-                text(
-                    """
-                    INSERT INTO app_state (id, data)
-                    VALUES (:id, CAST(:data AS JSONB))
-                    ON CONFLICT (id)
-                    DO UPDATE SET data = EXCLUDED.data;
-                    """
-                ),
-                {
-                    "id": 1,
-                    "data": json.dumps(
-                        normalized,
-                        ensure_ascii=False,
-                    ),
-                },
-            )
+        DATABASE_FILE.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+
+        # ----------------------------------------------------
+        # Write to a temporary file first.
+        #
+        # This prevents a failed write from leaving the main
+        # JSON database partially corrupted.
+        # ----------------------------------------------------
+
+        temporary_file = DATABASE_FILE.with_suffix(
+            ".tmp"
+        )
+
+
+        temporary_file.write_text(
+            json.dumps(
+                data,
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+
+        temporary_file.replace(
+            DATABASE_FILE
+        )
+
 
         return True
 
-    except Exception as exc:
 
-        st.error(
-            f"Failed to save changes to PostgreSQL: {exc}"
-        )
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+    ):
 
         return False
 
 
 # ============================================================
-# GENERIC COLLECTION HELPERS
+# RESET DATABASE
+# ============================================================
+
+def reset_database() -> dict[str, Any]:
+
+    """
+    Replace the current database with the default database.
+
+    Returns the new database dictionary.
+    """
+
+    data = _new_default_database()
+
+
+    save_memory(
+        data
+    )
+
+
+    return data
+
+
+# ============================================================
+# GET COLLECTION
 # ============================================================
 
 def get_collection(
-    db: dict,
-    collection_name: str,
+    data: dict[str, Any],
+    collection: str,
 ) -> list:
+
     """
-    Return a collection from the database.
+    Safely retrieve a collection from the database.
+
+    Example:
+
+        projects = get_collection(db, "projects")
     """
 
-    collection = db.get(
-        collection_name,
+    if not isinstance(
+        data,
+        dict,
+    ):
+
+        return []
+
+
+    value = data.get(
+        collection,
         [],
     )
 
-    if not isinstance(collection, list):
-        return []
 
-    return collection
+    if not isinstance(
+        value,
+        list,
+    ):
 
+        value = []
+
+        data[
+            collection
+        ] = value
+
+
+    return value
+
+
+# ============================================================
+# ADD RECORD
+# ============================================================
 
 def add_record(
-    db: dict,
-    collection_name: str,
-    record: dict,
-) -> dict:
+    data: dict[str, Any],
+    collection: str,
+    record: dict[str, Any],
+) -> dict[str, Any]:
+
     """
-    Add a record to a database collection and persist it.
+    Add a dictionary record to a collection.
+
+    The updated record is returned.
     """
 
-    if collection_name not in db:
-        db[collection_name] = []
+    if not isinstance(
+        data,
+        dict,
+    ):
 
-    db[collection_name].append(record)
+        raise TypeError(
+            "Database must be a dictionary."
+        )
 
-    save_memory(db)
+
+    if not isinstance(
+        record,
+        dict,
+    ):
+
+        raise TypeError(
+            "Record must be a dictionary."
+        )
+
+
+    records = get_collection(
+        data,
+        collection,
+    )
+
+
+    records.append(
+        record
+    )
+
 
     return record
 
 
-def update_record(
-    db: dict,
-    collection_name: str,
-    record_id: str,
-    updates: dict,
-    id_field: str = "id",
-) -> bool:
+# ============================================================
+# FIND RECORD
+# ============================================================
+
+def find_record(
+    data: dict[str, Any],
+    collection: str,
+    field: str,
+    value: Any,
+):
+
     """
-    Update a record by ID.
+    Find the first record matching a field.
+
+    Returns:
+        record dictionary or None
     """
 
     records = get_collection(
-        db,
-        collection_name,
+        data,
+        collection,
     )
+
 
     for record in records:
 
-        if str(record.get(id_field)) == str(record_id):
+        if not isinstance(
+            record,
+            dict,
+        ):
 
-            record.update(updates)
+            continue
 
-            save_memory(db)
+
+        if record.get(
+            field
+        ) == value:
+
+            return record
+
+
+    return None
+
+
+# ============================================================
+# FIND ALL RECORDS
+# ============================================================
+
+def find_records(
+    data: dict[str, Any],
+    collection: str,
+    field: str,
+    value: Any,
+) -> list[dict[str, Any]]:
+
+    """
+    Find all records matching a field.
+    """
+
+    records = get_collection(
+        data,
+        collection,
+    )
+
+
+    results = []
+
+
+    for record in records:
+
+        if not isinstance(
+            record,
+            dict,
+        ):
+
+            continue
+
+
+        if record.get(
+            field
+        ) == value:
+
+            results.append(
+                record
+            )
+
+
+    return results
+
+
+# ============================================================
+# DELETE RECORD
+# ============================================================
+
+def delete_record(
+    data: dict[str, Any],
+    collection: str,
+    field: str,
+    value: Any,
+) -> bool:
+
+    """
+    Delete the first record matching a field.
+
+    Returns:
+        True  -> record deleted
+        False -> record not found
+    """
+
+    records = get_collection(
+        data,
+        collection,
+    )
+
+
+    for index, record in enumerate(
+        records
+    ):
+
+        if not isinstance(
+            record,
+            dict,
+        ):
+
+            continue
+
+
+        if record.get(
+            field
+        ) == value:
+
+            records.pop(
+                index
+            )
 
             return True
 
+
     return False
 
 
-def delete_record(
-    db: dict,
-    collection_name: str,
-    record_id: str,
-    id_field: str = "id",
+# ============================================================
+# UPDATE RECORD
+# ============================================================
+
+def update_record(
+    data: dict[str, Any],
+    collection: str,
+    field: str,
+    value: Any,
+    updates: dict[str, Any],
 ) -> bool:
+
     """
-    Delete a record by ID.
+    Update the first matching record.
+
+    Returns:
+        True  -> updated
+        False -> not found
     """
 
-    records = get_collection(
-        db,
-        collection_name,
+    if not isinstance(
+        updates,
+        dict,
+    ):
+
+        return False
+
+
+    record = find_record(
+        data,
+        collection,
+        field,
+        value,
     )
 
-    original_length = len(records)
 
-    db[collection_name] = [
-        record
-        for record in records
-        if str(record.get(id_field)) != str(record_id)
-    ]
+    if record is None:
 
-    if len(db[collection_name]) != original_length:
-
-        save_memory(db)
-
-        return True
-
-    return False
+        return False
 
 
-def find_record(
-    db: dict,
-    collection_name: str,
-    record_id: str,
-    id_field: str = "id",
-):
-    """
-    Find one record by ID.
-    """
-
-    records = get_collection(
-        db,
-        collection_name,
+    record.update(
+        updates
     )
 
-    for record in records:
 
-        if str(record.get(id_field)) == str(record_id):
-            return record
+    return True
 
-    return None
+
+# ============================================================
+# DATABASE STATUS
+# ============================================================
+
+def database_exists() -> bool:
+
+    """
+    Return True when the database file exists.
+    """
+
+    return DATABASE_FILE.exists()
+
+
+def database_path() -> str:
+
+    """
+    Return the absolute database path.
+    """
+
+    return str(
+        DATABASE_FILE
+    )
+
+
+# ============================================================
+# OPTIONAL COMPATIBILITY ALIASES
+# ============================================================
+
+# Some older Creative Studios modules may use these names.
+
+load_database = load_memory
+
+save_database = save_memory
+
+get_data = load_memory
+
+
+# ============================================================
+# STARTUP CHECK
+# ============================================================
+
+if __name__ == "__main__":
+
+    database = load_memory()
+
+    print(
+        "Creative Studios database loaded."
+    )
+
+    print(
+        f"Database: {DATABASE_FILE}"
+    )
+
+    print(
+        f"Projects: "
+        f"{len(database.get('projects', []))}"
+    )
+
+    print(
+        f"Users: "
+        f"{len(database.get('users', []))}"
+    )
