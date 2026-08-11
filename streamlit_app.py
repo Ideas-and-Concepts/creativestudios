@@ -75,3 +75,4 @@ else:
         render_approvals_module(db)
     elif app_mode == "📊 Bill of Quantities (BOQ)":
         render_boq_module(db)
+
