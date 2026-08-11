@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import date
-from database import save_memory
+from .database import save_memory
 
 def render_projects_module(db):
     st.title("🏗️ Project Directory & Dashboard")
