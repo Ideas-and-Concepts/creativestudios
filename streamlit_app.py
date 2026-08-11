@@ -2,16 +2,34 @@
 Creative Studios
 AEC Collaboration Platform
 
-Main Streamlit application.
+Main Streamlit Application
+Version 2.0.0
+
+Architecture:
+    streamlit_app.py
+        |
+        +-- modules.database
+        +-- modules.auth
+        +-- modules.projects
+        +-- modules.drawings
+        +-- modules.approvals
+        +-- modules.boq
+        +-- modules.rfi
+        +-- modules.site_logs
+
+UI:
+    Black / Blue
+    Floating-style sidebar
+    Creative Studios branding
+    No pages/ directory required
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-import base64
-import html
+from typing import Any
 
 import streamlit as st
-
-from modules.database import load_memory
 
 
 # ============================================================
@@ -19,6 +37,7 @@ from modules.database import load_memory
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
+
 LOGO_FILE = BASE_DIR / "logo.svg"
 
 
@@ -27,7 +46,7 @@ LOGO_FILE = BASE_DIR / "logo.svg"
 # ============================================================
 
 st.set_page_config(
-    page_title="Creative Studios | AEC Workspace",
+    page_title="Creative Studios — AEC Workspace",
     page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -35,505 +54,912 @@ st.set_page_config(
 
 
 # ============================================================
-# LOGO HELPER
+# SAFE MODULE IMPORTS
 # ============================================================
 
-def get_logo_data_uri() -> str | None:
-    """
-    Safely load logo.svg as a base64 data URI.
-    This avoids Streamlit static-file/path issues.
-    """
+try:
 
-    try:
-        if not LOGO_FILE.exists():
-            return None
+    from modules.database import load_memory
 
-        svg_data = LOGO_FILE.read_bytes()
+except Exception:
 
-        encoded = base64.b64encode(
-            svg_data
-        ).decode("utf-8")
-
-        return f"data:image/svg+xml;base64,{encoded}"
-
-    except Exception:
-        return None
+    load_memory = None
 
 
-LOGO_URI = get_logo_data_uri()
+try:
+
+    from modules.auth import (
+        login_user,
+        require_auth,
+    )
+
+except Exception:
+
+    login_user = None
+    require_auth = None
+
+
+try:
+
+    from modules.projects import (
+        render_projects_module,
+    )
+
+except Exception:
+
+    render_projects_module = None
+
+
+try:
+
+    from modules.drawings import (
+        render_drawings_module,
+    )
+
+except Exception:
+
+    render_drawings_module = None
+
+
+try:
+
+    from modules.approvals import (
+        render_approvals_module,
+    )
+
+except Exception:
+
+    render_approvals_module = None
+
+
+try:
+
+    from modules.boq import (
+        render_boq_module,
+    )
+
+except Exception:
+
+    render_boq_module = None
+
+
+try:
+
+    from modules.rfi import (
+        render_rfi_module,
+    )
+
+except Exception:
+
+    render_rfi_module = None
+
+
+try:
+
+    from modules.site_logs import (
+        render_site_logs_module,
+    )
+
+except Exception:
+
+    render_site_logs_module = None
 
 
 # ============================================================
 # GLOBAL CSS
 # ============================================================
 
-st.markdown(
+def inject_global_css() -> None:
+
+    st.markdown(
+        """
+        <style>
+
+        /* ==================================================
+           GLOBAL
+           ================================================== */
+
+        html,
+        body,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stApp"] {
+
+            background:
+                #05070A !important;
+
+            color:
+                #E5E7EB !important;
+
+        }
+
+
+        [data-testid="stAppViewContainer"] {
+
+            background:
+                #05070A !important;
+
+        }
+
+
+        .main {
+
+            background:
+                #05070A !important;
+
+        }
+
+
+        /* ==================================================
+           REMOVE STREAMLIT DEFAULT DECORATIONS
+           ================================================== */
+
+        #MainMenu {
+
+            visibility:
+                hidden;
+
+        }
+
+
+        footer {
+
+            visibility:
+                hidden;
+
+        }
+
+
+        header {
+
+            background:
+                transparent !important;
+
+        }
+
+
+        [data-testid="stDecoration"] {
+
+            display:
+                none !important;
+
+        }
+
+
+        /* ==================================================
+           SIDEBAR
+           ================================================== */
+
+        section[data-testid="stSidebar"] {
+
+            background:
+                #070A0F !important;
+
+            border-right:
+                1px solid #172033 !important;
+
+        }
+
+
+        section[data-testid="stSidebar"] > div {
+
+            background:
+                #070A0F !important;
+
+        }
+
+
+        /* ==================================================
+           SIDEBAR BRAND
+           ================================================== */
+
+        .cs-sidebar-brand {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                12px;
+
+            padding:
+                8px 4px 20px 4px;
+
+        }
+
+
+        .cs-sidebar-logo {
+
+            width:
+                48px;
+
+            height:
+                48px;
+
+            min-width:
+                48px;
+
+            border-radius:
+                12px;
+
+            background:
+                #0B1220;
+
+            border:
+                1px solid #1D4ED8;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            overflow:
+                hidden;
+
+        }
+
+
+        .cs-sidebar-logo img {
+
+            width:
+                100%;
+
+            height:
+                100%;
+
+            object-fit:
+                contain;
+
+            padding:
+                6px;
+
+        }
+
+
+        .cs-sidebar-fallback {
+
+            color:
+                #60A5FA;
+
+            font-size:
+                19px;
+
+            font-weight:
+                900;
+
+            letter-spacing:
+                -1px;
+
+        }
+
+
+        .cs-sidebar-name {
+
+            color:
+                #FFFFFF;
+
+            font-size:
+                17px;
+
+            font-weight:
+                850;
+
+            line-height:
+                1.1;
+
+        }
+
+
+        .cs-sidebar-subtitle {
+
+            color:
+                #64748B;
+
+            font-size:
+                10px;
+
+            margin-top:
+                4px;
+
+            text-transform:
+                uppercase;
+
+            letter-spacing:
+                1px;
+
+            font-weight:
+                700;
+
+        }
+
+
+        /* ==================================================
+           USER CARD
+           ================================================== */
+
+        .cs-user-card {
+
+            background:
+                #0A0F16;
+
+            border:
+                1px solid #172033;
+
+            border-radius:
+                12px;
+
+            padding:
+                13px;
+
+            margin:
+                4px 0 18px 0;
+
+        }
+
+
+        .user-label {
+
+            color:
+                #60A5FA;
+
+            font-size:
+                9px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                1px;
+
+            text-transform:
+                uppercase;
+
+        }
+
+
+        .user-name {
+
+            color:
+                #FFFFFF;
+
+            font-size:
+                14px;
+
+            font-weight:
+                800;
+
+            margin-top:
+                5px;
+
+        }
+
+
+        .user-login {
+
+            color:
+                #64748B;
+
+            font-size:
+                11px;
+
+            margin-top:
+                3px;
+
+        }
+
+
+        .user-role {
+
+            display:
+                inline-block;
+
+            margin-top:
+                8px;
+
+            padding:
+                4px 9px;
+
+            background:
+                #1D4ED8;
+
+            color:
+                #FFFFFF;
+
+            border-radius:
+                999px;
+
+            font-size:
+                9px;
+
+            font-weight:
+                850;
+
+        }
+
+
+        /* ==================================================
+           SIDEBAR NAVIGATION
+           ================================================== */
+
+        section[data-testid="stSidebar"]
+        .stRadio > div {
+
+            gap:
+                5px;
+
+        }
+
+
+        section[data-testid="stSidebar"]
+        .stRadio label {
+
+            background:
+                transparent;
+
+            border-radius:
+                9px;
+
+            padding:
+                8px 10px;
+
+            color:
+                #94A3B8 !important;
+
+        }
+
+
+        section[data-testid="stSidebar"]
+        .stRadio label:hover {
+
+            background:
+                #0F172A;
+
+            color:
+                #FFFFFF !important;
+
+        }
+
+
+        /* ==================================================
+           BUTTONS
+           ================================================== */
+
+        .stButton > button {
+
+            background:
+                #2563EB !important;
+
+            color:
+                #FFFFFF !important;
+
+            border:
+                1px solid #2563EB !important;
+
+            border-radius:
+                8px !important;
+
+            font-weight:
+                750 !important;
+
+        }
+
+
+        .stButton > button:hover {
+
+            background:
+                #1D4ED8 !important;
+
+            border-color:
+                #3B82F6 !important;
+
+        }
+
+
+        /* ==================================================
+           INPUTS
+           ================================================== */
+
+        input,
+        textarea,
+        [data-baseweb="select"] > div {
+
+            background:
+                #0A0F16 !important;
+
+            color:
+                #FFFFFF !important;
+
+            border-color:
+                #1E293B !important;
+
+        }
+
+
+        label {
+
+            color:
+                #CBD5E1 !important;
+
+        }
+
+
+        /* ==================================================
+           METRICS
+           ================================================== */
+
+        [data-testid="stMetric"] {
+
+            background:
+                #0A0F16;
+
+            border:
+                1px solid #172033;
+
+            border-radius:
+                12px;
+
+            padding:
+                15px;
+
+        }
+
+
+        [data-testid="stMetricLabel"] {
+
+            color:
+                #64748B !important;
+
+        }
+
+
+        [data-testid="stMetricValue"] {
+
+            color:
+                #FFFFFF !important;
+
+        }
+
+
+        /* ==================================================
+           DIVIDERS
+           ================================================== */
+
+        hr {
+
+            border-color:
+                #172033 !important;
+
+        }
+
+
+        /* ==================================================
+           MAIN CONTAINER
+           ================================================== */
+
+        .block-container {
+
+            padding-top:
+                2rem;
+
+            padding-bottom:
+                3rem;
+
+            max-width:
+                1500px;
+
+        }
+
+
+        /* ==================================================
+           LOGIN PAGE
+           ================================================== */
+
+        .cs-login-wrapper {
+
+            max-width:
+                440px;
+
+            margin:
+                7vh auto 0 auto;
+
+            text-align:
+                center;
+
+        }
+
+
+        .cs-login-logo {
+
+            width:
+                92px;
+
+            height:
+                92px;
+
+            margin:
+                0 auto 20px auto;
+
+            border-radius:
+                20px;
+
+            background:
+                #0A0F16;
+
+            border:
+                1px solid #1D4ED8;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            overflow:
+                hidden;
+
+        }
+
+
+        .cs-login-logo img {
+
+            width:
+                100%;
+
+            height:
+                100%;
+
+            object-fit:
+                contain;
+
+            padding:
+                12px;
+
+        }
+
+
+        .cs-login-fallback {
+
+            color:
+                #60A5FA;
+
+            font-size:
+                34px;
+
+            font-weight:
+                950;
+
+        }
+
+
+        .cs-login-title {
+
+            color:
+                #FFFFFF;
+
+            font-size:
+                30px;
+
+            font-weight:
+                900;
+
+            letter-spacing:
+                -1px;
+
+        }
+
+
+        .cs-login-subtitle {
+
+            color:
+                #64748B;
+
+            font-size:
+                13px;
+
+            margin-top:
+                6px;
+
+            margin-bottom:
+                25px;
+
+        }
+
+
+        /* Remove empty Streamlit form decoration */
+
+        [data-testid="stForm"] {
+
+            background:
+                transparent !important;
+
+            border:
+                none !important;
+
+            padding:
+                0 !important;
+
+        }
+
+
+        /* ==================================================
+           RESPONSIVE
+           ================================================== */
+
+        @media (max-width: 768px) {
+
+            .block-container {
+
+                padding-left:
+                    1rem;
+
+                padding-right:
+                    1rem;
+
+            }
+
+            .cs-sidebar-brand {
+
+                padding-bottom:
+                    12px;
+
+            }
+
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# LOGO HTML
+# ============================================================
+
+def logo_html(
+    css_class: str,
+) -> str:
+
+    if LOGO_FILE.exists():
+
+        logo_path = str(
+            LOGO_FILE
+        ).replace(
+            "\\",
+            "/",
+        )
+
+        return f"""
+        <div class="{css_class}">
+            <img src="file://{logo_path}">
+        </div>
+        """
+
+    return f"""
+    <div class="{css_class}">
+        <div class="cs-login-fallback">
+            CS
+        </div>
+    </div>
     """
-    <style>
-
-    /* =====================================================
-       GLOBAL APPLICATION
-       ===================================================== */
-
-    html,
-    body,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stApp"] {
-        background: #050505 !important;
-    }
-
-    .stApp {
-        background: #050505 !important;
-        color: #F8FAFC !important;
-    }
-
-    [data-testid="stHeader"] {
-        background: #050505 !important;
-    }
-
-    .main {
-        background: #050505 !important;
-    }
-
-    .block-container {
-        max-width: 1500px;
-        padding-top: 2rem;
-        padding-bottom: 4rem;
-    }
-
-
-    /* =====================================================
-       SIDEBAR
-       ===================================================== */
-
-    [data-testid="stSidebar"] {
-        background: #080808 !important;
-        border-right: 1px solid #172033 !important;
-    }
-
-    [data-testid="stSidebar"] > div:first-child {
-        background: #080808 !important;
-    }
-
-
-    /* =====================================================
-       SIDEBAR BRAND
-       ===================================================== */
-
-    .cs-sidebar-brand {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 8px 2px 17px 2px;
-    }
-
-    .cs-sidebar-logo {
-        width: 48px;
-        height: 48px;
-        min-width: 48px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        background: #2563EB;
-        color: #FFFFFF;
-
-        border-radius: 12px;
-
-        overflow: hidden;
-
-        box-shadow:
-            0 0 25px rgba(37, 99, 235, 0.25);
-    }
-
-    .cs-sidebar-logo img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        padding: 7px;
-    }
-
-    .cs-sidebar-fallback {
-        color: #FFFFFF;
-        font-size: 17px;
-        font-weight: 900;
-        letter-spacing: -1px;
-    }
-
-    .cs-sidebar-name {
-        color: #FFFFFF;
-        font-size: 16px;
-        font-weight: 900;
-        line-height: 1.1;
-        white-space: nowrap;
-    }
-
-    .cs-sidebar-subtitle {
-        color: #64748B;
-        font-size: 9px;
-        font-weight: 800;
-        letter-spacing: 1.1px;
-        text-transform: uppercase;
-        margin-top: 5px;
-        white-space: nowrap;
-    }
-
-    .cs-divider {
-        height: 1px;
-        background: #172033;
-        margin: 7px 0 17px 0;
-    }
-
-
-    /* =====================================================
-       USER PANEL
-       ===================================================== */
-
-    .cs-user-card {
-        background: #0C1016;
-        border: 1px solid #172033;
-        border-radius: 11px;
-        padding: 13px;
-        margin-bottom: 15px;
-    }
-
-    .user-label {
-        color: #60A5FA;
-        font-size: 9px;
-        font-weight: 850;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-    }
-
-    .user-name {
-        color: #FFFFFF;
-        font-size: 15px;
-        font-weight: 800;
-        margin-top: 5px;
-    }
-
-    .user-login {
-        color: #64748B;
-        font-size: 11px;
-        margin-top: 3px;
-    }
-
-    .user-role {
-        display: inline-block;
-        margin-top: 8px;
-        padding: 4px 9px;
-
-        background: #2563EB;
-        color: #FFFFFF;
-
-        border-radius: 999px;
-
-        font-size: 9px;
-        font-weight: 850;
-    }
-
-
-    /* =====================================================
-       SIDEBAR NAVIGATION
-       ===================================================== */
-
-    .cs-section-title {
-        color: #475569;
-        font-size: 9px;
-        font-weight: 850;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-        margin: 3px 0 9px 0;
-    }
-
-    [data-testid="stSidebar"] .stRadio label {
-        color: #CBD5E1 !important;
-        font-size: 13px !important;
-        font-weight: 600 !important;
-    }
-
-    [data-testid="stSidebar"] .stRadio label:hover {
-        color: #FFFFFF !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
-        background: #0D1117 !important;
-        color: #CBD5E1 !important;
-        border: 1px solid #172033 !important;
-        border-radius: 8px !important;
-        font-weight: 700 !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: #2563EB !important;
-        border-color: #2563EB !important;
-        color: #FFFFFF !important;
-    }
-
-
-    /* =====================================================
-       MAIN CONTENT
-       ===================================================== */
-
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-        color: #FFFFFF !important;
-    }
-
-    p {
-        color: #94A3B8;
-    }
-
-
-    /* =====================================================
-       INPUTS
-       ===================================================== */
-
-    input,
-    textarea {
-        background: #0D1117 !important;
-        color: #FFFFFF !important;
-        border-color: #1E293B !important;
-    }
-
-    [data-baseweb="select"] > div {
-        background: #0D1117 !important;
-        color: #FFFFFF !important;
-        border-color: #1E293B !important;
-    }
-
-
-    /* =====================================================
-       METRICS
-       ===================================================== */
-
-    [data-testid="stMetric"] {
-        background: #0B0F14;
-        border: 1px solid #172033;
-        border-radius: 12px;
-        padding: 17px;
-    }
-
-    [data-testid="stMetricLabel"] {
-        color: #64748B !important;
-    }
-
-    [data-testid="stMetricValue"] {
-        color: #FFFFFF !important;
-    }
-
-
-    /* =====================================================
-       BUTTONS
-       ===================================================== */
-
-    .stButton button {
-        border-radius: 8px;
-        font-weight: 700;
-    }
-
-
-    /* =====================================================
-       LOGIN
-       ===================================================== */
-
-    .cs-login-wrapper {
-        min-height: 80vh;
-
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .cs-login-container {
-        width: 100%;
-        max-width: 410px;
-    }
-
-    .cs-login-logo {
-        width: 78px;
-        height: 78px;
-
-        margin: 0 auto 18px auto;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        background: #2563EB;
-
-        border-radius: 17px;
-
-        overflow: hidden;
-
-        box-shadow:
-            0 0 35px rgba(37, 99, 235, 0.30);
-    }
-
-    .cs-login-logo img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        padding: 10px;
-    }
-
-    .cs-login-fallback {
-        color: #FFFFFF;
-        font-size: 26px;
-        font-weight: 900;
-    }
-
-    .cs-login-title {
-        text-align: center;
-        color: #FFFFFF;
-        font-size: 30px;
-        font-weight: 900;
-        letter-spacing: -0.8px;
-    }
-
-    .cs-login-subtitle {
-        text-align: center;
-        color: #64748B;
-        font-size: 13px;
-        margin-top: 6px;
-        margin-bottom: 27px;
-    }
-
-    .cs-login-label {
-        color: #94A3B8;
-        font-size: 10px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .7px;
-        margin-bottom: 5px;
-    }
-
-
-    /* =====================================================
-       PROJECT CARDS
-       ===================================================== */
-
-    .project-card {
-        background: #0B0F14;
-        border: 1px solid #172033;
-        border-radius: 14px;
-        padding: 20px;
-        margin-bottom: 10px;
-    }
-
-    .project-card:hover {
-        border-color: #2563EB;
-    }
-
-    .project-title {
-        color: #FFFFFF;
-        font-size: 18px;
-        font-weight: 850;
-    }
-
-    .project-meta {
-        color: #64748B;
-        font-size: 12px;
-        margin-top: 5px;
-    }
-
-    .project-status {
-        display: inline-block;
-        padding: 4px 9px;
-        border-radius: 999px;
-        font-size: 9px;
-        font-weight: 850;
-        text-transform: uppercase;
-    }
-
-    .status-active {
-        background: #0B3B82;
-        color: #93C5FD;
-    }
-
-    .status-planning {
-        background: #422006;
-        color: #FCD34D;
-    }
-
-    .status-completed {
-        background: #064E3B;
-        color: #6EE7B7;
-    }
-
-    .status-on-hold {
-        background: #27272A;
-        color: #D4D4D8;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 
 # ============================================================
 # DATABASE
 # ============================================================
 
-db = load_memory()
+def get_database() -> dict:
+
+    if load_memory is None:
+
+        return {
+            "projects": [],
+            "users": [],
+        }
+
+    try:
+
+        db = load_memory()
+
+        if not isinstance(
+            db,
+            dict,
+        ):
+
+            db = {}
+
+        db.setdefault(
+            "projects",
+            [],
+        )
+
+        db.setdefault(
+            "users",
+            [],
+        )
+
+        return db
+
+    except Exception:
+
+        return {
+            "projects": [],
+            "users": [],
+        }
 
 
 # ============================================================
 # SESSION STATE
 # ============================================================
 
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
+def initialize_session() -> None:
 
-if "user" not in st.session_state:
-    st.session_state.user = None
+    if "authenticated" not in st.session_state:
 
-if "app_mode" not in st.session_state:
-    st.session_state.app_mode = "Project Directory"
+        st.session_state[
+            "authenticated"
+        ] = False
+
+    if "user" not in st.session_state:
+
+        st.session_state[
+            "user"
+        ] = None
 
 
 # ============================================================
-# LOGIN PAGE
+# LOGIN
 # ============================================================
 
-if not st.session_state.authenticated:
+def render_login(
+    db: dict,
+) -> None:
 
     st.markdown(
-        '<div class="cs-login-wrapper">'
-        '<div class="cs-login-container">',
+        """
+        <div class="cs-login-wrapper">
+        """,
         unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------
-    # Logo
-    # --------------------------------------------------------
+    if LOGO_FILE.exists():
 
-    if LOGO_URI:
+        logo_path = str(
+            LOGO_FILE
+        ).replace(
+            "\\",
+            "/",
+        )
 
-        logo_html = (
-            '<div class="cs-login-logo">'
-            f'<img src="{LOGO_URI}" alt="Creative Studios Logo">'
-            '</div>'
+        st.markdown(
+            f"""
+            <div class="cs-login-logo">
+                <img src="file://{logo_path}">
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
     else:
 
-        logo_html = (
-            '<div class="cs-login-logo">'
-            '<div class="cs-login-fallback">CS</div>'
-            '</div>'
+        st.markdown(
+            """
+            <div class="cs-login-logo">
+                <div class="cs-login-fallback">
+                    CS
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-
-    st.markdown(
-        logo_html,
-        unsafe_allow_html=True,
-    )
 
     st.markdown(
         """
@@ -549,35 +975,18 @@ if not st.session_state.authenticated:
         unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------
-    # Login form
-    # --------------------------------------------------------
-
     with st.form(
-        "creative_studios_login",
-        clear_on_submit=False,
+        "creative_studios_login"
     ):
-
-        st.markdown(
-            '<div class="cs-login-label">Username</div>',
-            unsafe_allow_html=True,
-        )
 
         username = st.text_input(
             "Username",
-            label_visibility="collapsed",
             placeholder="Enter username",
-        )
-
-        st.markdown(
-            '<div class="cs-login-label">Password</div>',
-            unsafe_allow_html=True,
         )
 
         password = st.text_input(
             "Password",
             type="password",
-            label_visibility="collapsed",
             placeholder="Enter password",
         )
 
@@ -588,172 +997,391 @@ if not st.session_state.authenticated:
 
     if submitted:
 
-        username_clean = username.strip().lower()
+        if not username.strip():
 
-        authenticated_user = None
-
-        for user in db.get(
-            "users",
-            [],
-        ):
-
-            if not isinstance(
-                user,
-                dict,
-            ):
-                continue
-
-            stored_username = str(
-                user.get(
-                    "username",
-                    "",
-                )
-            ).strip().lower()
-
-            stored_password = str(
-                user.get(
-                    "password",
-                    "",
-                )
+            st.error(
+                "Username is required."
             )
 
-            active = user.get(
-                "active",
-                True,
+            return
+
+        if not password:
+
+            st.error(
+                "Password is required."
             )
 
-            if (
-                stored_username == username_clean
-                and stored_password == password
-                and active
+            return
+
+        authenticated = False
+
+        user = None
+
+        if login_user is not None:
+
+            try:
+
+                result = login_user(
+                    db,
+                    username.strip(),
+                    password,
+                )
+
+                authenticated = bool(
+                    result
+                )
+
+            except Exception:
+
+                authenticated = False
+
+        # ----------------------------------------------------
+        # Compatibility fallback
+        # ----------------------------------------------------
+
+        if not authenticated:
+
+            for candidate in db.get(
+                "users",
+                [],
             ):
 
-                authenticated_user = user
-                break
+                if not isinstance(
+                    candidate,
+                    dict,
+                ):
+                    continue
 
-        if authenticated_user is not None:
+                candidate_username = str(
+                    candidate.get(
+                        "username",
+                        "",
+                    )
+                )
 
-            st.session_state.authenticated = True
-            st.session_state.user = authenticated_user
+                candidate_password = str(
+                    candidate.get(
+                        "password",
+                        candidate.get(
+                            "password_hash",
+                            "",
+                        ),
+                    )
+                )
+
+                if (
+                    candidate_username
+                    == username.strip()
+                    and candidate_password
+                    == password
+                ):
+
+                    authenticated = True
+
+                    user = candidate
+
+                    break
+
+        if authenticated:
+
+            st.session_state[
+                "authenticated"
+            ] = True
+
+            if user is None:
+
+                user = {
+                    "username":
+                        username.strip(),
+                    "full_name":
+                        "System Administrator"
+                    if username.strip()
+                    == "admin"
+                    else username.strip(),
+                    "role":
+                        "Admin"
+                    if username.strip()
+                    == "admin"
+                    else "User",
+                }
+
+            st.session_state[
+                "user"
+            ] = user
 
             st.rerun()
 
-        else:
-
-            st.error(
-                "Invalid username or password."
-            )
+        st.error(
+            "Invalid username or password."
+        )
 
     st.markdown(
-        "</div></div>",
+        "</div>",
         unsafe_allow_html=True,
     )
 
-    st.stop()
-
 
 # ============================================================
-# CURRENT USER
+# USER DETAILS
 # ============================================================
 
-current_user = st.session_state.get(
-    "user",
-    {},
-)
+def get_user_details() -> tuple[str, str, str]:
 
-if not isinstance(
-    current_user,
-    dict,
-):
-
-    current_user = {}
-
-
-username = str(
-    current_user.get(
-        "username",
-        "admin",
+    user = st.session_state.get(
+        "user"
     )
-)
 
-full_name = str(
-    current_user.get(
-        "full_name",
-        current_user.get(
-            "name",
+    if not isinstance(
+        user,
+        dict,
+    ):
+
+        return (
             "System Administrator",
-        ),
+            "@admin",
+            "Admin",
+        )
+
+    username = str(
+        user.get(
+            "username",
+            "admin",
+        )
     )
-)
 
-role = str(
-    current_user.get(
-        "role",
-        "Admin",
+    full_name = str(
+        user.get(
+            "full_name",
+            user.get(
+                "name",
+                "System Administrator",
+            ),
+        )
     )
-)
 
+    role = str(
+        user.get(
+            "role",
+            "Admin",
+        )
+    )
 
-# Escape user values before putting them into HTML.
-
-username_html = html.escape(
-    username
-)
-
-full_name_html = html.escape(
-    full_name
-)
-
-role_html = html.escape(
-    role
-)
+    return (
+        full_name,
+        f"@{username}"
+        if not username.startswith("@")
+        else username,
+        role,
+    )
 
 
 # ============================================================
 # SIDEBAR
 # ============================================================
 
-with st.sidebar:
+def render_sidebar() -> str:
 
-    # --------------------------------------------------------
-    # BRAND
-    # --------------------------------------------------------
+    full_name, username, role = (
+        get_user_details()
+    )
 
-    if LOGO_URI:
+    with st.sidebar:
 
-        sidebar_logo = (
-            '<div class="cs-sidebar-logo">'
-            f'<img src="{LOGO_URI}" '
-            'alt="Creative Studios Logo">'
-            '</div>'
+        # ----------------------------------------------------
+        # BRAND
+        # ----------------------------------------------------
+
+        if LOGO_FILE.exists():
+
+            logo_path = str(
+                LOGO_FILE
+            ).replace(
+                "\\",
+                "/",
+            )
+
+            st.markdown(
+                f"""
+                <div class="cs-sidebar-brand">
+
+                    <div class="cs-sidebar-logo">
+
+                        <img
+                            src="file://{logo_path}"
+                        >
+
+                    </div>
+
+                    <div>
+
+                        <div class="cs-sidebar-name">
+                            Creative Studios
+                        </div>
+
+                        <div class="cs-sidebar-subtitle">
+                            AEC Workspace
+                        </div>
+
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        else:
+
+            st.markdown(
+                """
+                <div class="cs-sidebar-brand">
+
+                    <div class="cs-sidebar-logo">
+
+                        <div class="cs-sidebar-fallback">
+                            CS
+                        </div>
+
+                    </div>
+
+                    <div>
+
+                        <div class="cs-sidebar-name">
+                            Creative Studios
+                        </div>
+
+                        <div class="cs-sidebar-subtitle">
+                            AEC Workspace
+                        </div>
+
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        # ----------------------------------------------------
+        # USER
+        # ----------------------------------------------------
+
+        st.markdown(
+            f"""
+            <div class="cs-user-card">
+
+                <div class="user-label">
+                    Signed In
+                </div>
+
+                <div class="user-name">
+                    {full_name}
+                </div>
+
+                <div class="user-login">
+                    {username}
+                </div>
+
+                <div class="user-role">
+                    {role}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    else:
+        # ----------------------------------------------------
+        # NAVIGATION
+        # ----------------------------------------------------
 
-        sidebar_logo = (
-            '<div class="cs-sidebar-logo">'
-            '<div class="cs-sidebar-fallback">'
-            'CS'
-            '</div>'
-            '</div>'
+        st.markdown(
+            """
+            <div style="
+                color:#475569;
+                font-size:9px;
+                font-weight:850;
+                letter-spacing:1px;
+                text-transform:uppercase;
+                margin-bottom:8px;
+            ">
+                AEC Workspace
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
+
+        menu = st.radio(
+            "Navigation",
+            [
+                "Project Directory",
+                "Drawing Repository",
+                "Sign-Off & Approvals",
+                "Bill of Quantities",
+                "RFI & Technical Queries",
+                "Daily Site Logs",
+            ],
+            label_visibility="collapsed",
+        )
+
+        st.markdown(
+            "<br>",
+            unsafe_allow_html=True,
+        )
+
+        # ----------------------------------------------------
+        # LOGOUT
+        # ----------------------------------------------------
+
+        if st.button(
+            "Sign Out",
+            use_container_width=True,
+        ):
+
+            st.session_state[
+                "authenticated"
+            ] = False
+
+            st.session_state[
+                "user"
+            ] = None
+
+            st.rerun()
+
+    return menu
+
+
+# ============================================================
+# MODULE FALLBACK
+# ============================================================
+
+def module_unavailable(
+    module_name: str,
+) -> None:
 
     st.markdown(
         f"""
-        <div class="cs-sidebar-brand">
+        <div style="
+            background:#0A0F16;
+            border:1px solid #172033;
+            border-radius:14px;
+            padding:30px;
+        ">
 
-            {sidebar_logo}
+            <div style="
+                color:#60A5FA;
+                font-size:20px;
+                font-weight:850;
+            ">
+                {module_name}
+            </div>
 
-            <div>
-
-                <div class="cs-sidebar-name">
-                    Creative Studios
-                </div>
-
-                <div class="cs-sidebar-subtitle">
-                    AEC Workspace
-                </div>
-
+            <div style="
+                color:#64748B;
+                margin-top:8px;
+                font-size:13px;
+            ">
+                This module is not currently available.
+                Check the corresponding file inside
+                the modules directory.
             </div>
 
         </div>
@@ -761,185 +1389,163 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        '<div class="cs-divider"></div>',
-        unsafe_allow_html=True,
-    )
+
+# ============================================================
+# MODULE ROUTER
+# ============================================================
+
+def render_module(
+    menu: str,
+    db: dict,
+) -> None:
+
+    if menu == "Project Directory":
+
+        if render_projects_module is None:
+
+            module_unavailable(
+                "Project Directory"
+            )
+
+        else:
+
+            render_projects_module(
+                db
+            )
+
+        return
+
+
+    if menu == "Drawing Repository":
+
+        if render_drawings_module is None:
+
+            module_unavailable(
+                "Drawing Repository"
+            )
+
+        else:
+
+            render_drawings_module(
+                db
+            )
+
+        return
+
+
+    if menu == "Sign-Off & Approvals":
+
+        if render_approvals_module is None:
+
+            module_unavailable(
+                "Sign-Off & Approvals"
+            )
+
+        else:
+
+            render_approvals_module(
+                db
+            )
+
+        return
+
+
+    if menu == "Bill of Quantities":
+
+        if render_boq_module is None:
+
+            module_unavailable(
+                "Bill of Quantities"
+            )
+
+        else:
+
+            render_boq_module(
+                db
+            )
+
+        return
+
+
+    if menu == "RFI & Technical Queries":
+
+        if render_rfi_module is None:
+
+            module_unavailable(
+                "RFI & Technical Queries"
+            )
+
+        else:
+
+            render_rfi_module(
+                db
+            )
+
+        return
+
+
+    if menu == "Daily Site Logs":
+
+        if render_site_logs_module is None:
+
+            module_unavailable(
+                "Daily Site Logs"
+            )
+
+        else:
+
+            render_site_logs_module(
+                db
+            )
+
+        return
+
+
+# ============================================================
+# APPLICATION
+# ============================================================
+
+def main() -> None:
+
+    inject_global_css()
+
+    initialize_session()
+
+    db = get_database()
 
     # --------------------------------------------------------
-    # USER
+    # LOGIN
     # --------------------------------------------------------
 
-    st.markdown(
-        f"""
-        <div class="cs-user-card">
-
-            <div class="user-label">
-                Signed In
-            </div>
-
-            <div class="user-name">
-                {full_name_html}
-            </div>
-
-            <div class="user-login">
-                @{username_html}
-            </div>
-
-            <div class="user-role">
-                {role_html}
-            </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        '<div class="cs-divider"></div>',
-        unsafe_allow_html=True,
-    )
-
-    # --------------------------------------------------------
-    # NAVIGATION
-    # --------------------------------------------------------
-
-    st.markdown(
-        """
-        <div class="cs-section-title">
-            AEC Workspace
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    navigation_items = [
-        "Project Directory",
-        "Drawing Repository",
-        "Sign-Off & Approvals",
-        "Bill of Quantities (BOQ)",
-        "RFI & Technical Queries",
-        "Daily Site Logs",
-    ]
-
-    current_mode = st.session_state.get(
-        "app_mode",
-        "Project Directory",
-    )
-
-    if current_mode not in navigation_items:
-
-        current_mode = "Project Directory"
-
-    selected_index = navigation_items.index(
-        current_mode
-    )
-
-    app_mode = st.radio(
-        "Select Module",
-        navigation_items,
-        index=selected_index,
-        label_visibility="collapsed",
-    )
-
-    st.session_state.app_mode = app_mode
-
-    st.markdown(
-        '<div class="cs-divider"></div>',
-        unsafe_allow_html=True,
-    )
-
-    # --------------------------------------------------------
-    # SIGN OUT
-    # --------------------------------------------------------
-
-    if st.button(
-        "Sign Out",
-        use_container_width=True,
+    if not st.session_state.get(
+        "authenticated",
+        False,
     ):
 
-        st.session_state.authenticated = False
-        st.session_state.user = None
-        st.session_state.app_mode = "Project Directory"
+        render_login(db)
 
-        st.rerun()
+        return
+
+    # --------------------------------------------------------
+    # SIDEBAR
+    # --------------------------------------------------------
+
+    menu = render_sidebar()
+
+    # --------------------------------------------------------
+    # MAIN MODULE
+    # --------------------------------------------------------
+
+    render_module(
+        menu,
+        db,
+    )
 
 
 # ============================================================
-# APPLICATION ROUTER
+# RUN
 # ============================================================
 
-if app_mode == "Project Directory":
+if __name__ == "__main__":
 
-    from modules.projects import render_projects_module
-
-    render_projects_module(
-        db
-    )
-
-
-elif app_mode == "Drawing Repository":
-
-    st.title("Drawing Repository")
-
-    st.caption(
-        "Central repository for architectural, structural, "
-        "MEP and construction drawings."
-    )
-
-    st.info(
-        "Drawing Repository module is ready for integration."
-    )
-
-
-elif app_mode == "Sign-Off & Approvals":
-
-    st.title("Sign-Off & Approvals")
-
-    st.caption(
-        "Review, approval and document sign-off workflow."
-    )
-
-    st.info(
-        "Sign-Off & Approvals module is ready for integration."
-    )
-
-
-elif app_mode == "Bill of Quantities (BOQ)":
-
-    st.title("Bill of Quantities")
-
-    st.caption(
-        "Project quantities, rates, costs and BOQ management."
-    )
-
-    st.info(
-        "BOQ module is ready for integration."
-    )
-
-
-elif app_mode == "RFI & Technical Queries":
-
-    st.title("RFI & Technical Queries")
-
-    st.caption(
-        "Technical queries and request-for-information workflow."
-    )
-
-    st.info(
-        "RFI module is ready for integration."
-    )
-
-
-elif app_mode == "Daily Site Logs":
-
-    st.title("Daily Site Logs")
-
-    st.caption(
-        "Daily construction activities, manpower, equipment "
-        "and site observations."
-    )
-
-    st.info(
-        "Daily Site Logs module is ready for integration."
-    )
+    main()
