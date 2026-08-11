@@ -1,34 +1,31 @@
 import base64
-import hashlib
 from pathlib import Path
 
 LOGO_FILE = "logo.svg"
 
 def ensure_logo_svg():
-    """Generates a modern minimalist architectural grid vector SVG logo for the login screen."""
-    svg_content = """<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-        <linearGradient id="archGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#0F172A"/>
-            <stop offset="100%" stop-color="#2563EB"/>
-        </linearGradient>
-    </defs>
-    <rect x="80" y="80" width="240" height="240" rx="24" stroke="url(#archGrad)" stroke-width="20" fill="none"/>
-    <path d="M140 260V140H200L260 200V260" stroke="url(#archGrad)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="260" cy="140" r="16" fill="#06B6D4"/>
-</svg>"""
-    Path(LOGO_FILE).write_text(svg_content)
+    """Create a clean SVG logo (CS monogram) if it doesn't already exist."""
+    logo_path = Path(LOGO_FILE)
+    if not logo_path.exists():
+        svg_content = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e3a8a"/>
+      <stop offset="100%" style="stop-color:#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="40" fill="url(#bg)"/>
+  <text x="100" y="115" font-family="Arial, Helvetica, sans-serif" font-size="110" font-weight="bold" fill="#ffffff" text-anchor="middle" letter-spacing="10">CS</text>
+</svg>'''
+        with open(logo_path, 'w', encoding='utf-8') as f:
+            f.write(svg_content)
 
 def get_logo_html(width=130):
-    ensure_logo_svg()
-    if Path(LOGO_FILE).exists():
-        encoded = base64.b64encode(Path(LOGO_FILE).read_bytes()).decode()
-        return f"""
-        <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 15px;">
-            <img src="data:image/svg+xml;base64,{encoded}" width="{width}" style="display: block;" />
-        </div>
-        """
+    """Return an HTML <img> tag with the base64-encoded logo, scaled to the given width."""
+    logo_path = Path(LOGO_FILE)
+    if logo_path.exists():
+        with open(logo_path, 'rb') as f:
+            svg_bytes = f.read()
+        b64 = base64.b64encode(svg_bytes).decode('utf-8')
+        return f'<img src="data:image/svg+xml;base64,{b64}" width="{width}" alt="Creative Studios Logo">'
     return ""
-
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
