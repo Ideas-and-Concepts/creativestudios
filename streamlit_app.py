@@ -1,6 +1,6 @@
 import streamlit as st
 from pathlib import Path
-from modules.utils import ensure_logo_svg, LOGO_FILE
+from modules.utils import ensure_logo_svg, get_logo_html, LOGO_FILE
 from modules.database import load_memory
 from modules.auth import login_user, require_auth
 from modules.projects import render_projects_module
@@ -25,8 +25,9 @@ if "authenticated" not in st.session_state:
 if not st.session_state["authenticated"]:
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align: center; color: #0F172A; font-weight: 700;'>Creative Studios</h1>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(get_logo_html(width=130), unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: #0F172A; font-weight: 700;'>Creative Studios</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #64748B;'>Architectural, Engineering & Construction Collaboration</p><br>", unsafe_allow_html=True)
         
         with st.form("login_form"):
