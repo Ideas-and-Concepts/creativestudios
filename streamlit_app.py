@@ -7,6 +7,7 @@ from modules.projects import render_projects_module
 from modules.drawings import render_drawings_module
 from modules.approvals import render_approvals_module
 from modules.boq import render_boq_module
+from modules.rfi import render_rfi_module
 
 ensure_logo_svg()
 
@@ -60,7 +61,8 @@ else:
             "🏗️ Project Directory", 
             "📐 Drawing Repository", 
             "✍️ Sign-Off & Approvals", 
-            "📊 Bill of Quantities (BOQ)"
+            "📊 Bill of Quantities (BOQ)",
+            "💬 RFI & Technical Queries"
         ],
         label_visibility="collapsed"
     )
@@ -75,3 +77,5 @@ else:
         render_approvals_module(db)
     elif app_mode == "📊 Bill of Quantities (BOQ)":
         render_boq_module(db)
+    elif app_mode == "💬 RFI & Technical Queries":
+        render_rfi_module(db)
