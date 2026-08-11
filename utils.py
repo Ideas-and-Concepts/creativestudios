@@ -7,6 +7,20 @@ from pathlib import Path
 from sqlalchemy import create_engine, text
 
 MEMORY_FILE = "creativestudios_db.json"
+LOGO_FILE = "logo.svg"
+
+def ensure_logo_svg():
+    """Automatically writes the SVG logo file to the root directory if it doesn't exist."""
+    svg_content = """<svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="500" height="500" fill="white"/>
+    <path d="M165 248H335" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+    <path d="M190 155C150 200 150 300 190 345" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+    <path d="M310 155C270 195 270 305 310 345" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+    <path d="M235 142C275 142 325 158 355 185" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+    <path d="M265 358C225 358 175 342 145 315" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+</svg>"""
+    if not Path(LOGO_FILE).exists():
+        Path(LOGO_FILE).write_text(svg_content)
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
@@ -95,6 +109,7 @@ def init_db():
             """))
 
 def load_memory():
+    ensure_logo_svg()
     engine = get_engine()
     if not engine:
         if Path(MEMORY_FILE).exists():
@@ -155,23 +170,10 @@ def safe_dataframe(data_list, preferred_columns):
     available_cols = [col for col in preferred_columns if col in df.columns]
     return df[available_cols]
 
-def get_logo_html(width=140):
-    return f"""
-    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 15px;">
-        <svg width="{width}" height="{width}" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: white; border-radius: 12px; padding: 10px;">
-            <rect width="500" height="500" fill="white"/>
-            <!-- Exact vector conversion of uploaded logo asset -->
-            <path d="M165 248H335" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
-            <path d="M190 155C150 200 150 300 190 345" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
-            <path d="M310 155C270 195 270 305 310 345" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
-            <path d="M235 142C275 142 325 158 355 185" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
-            <path d="M265 358C225 358 175 342 145 315" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
-        </svg>
-    </div>
-    """
-
 def render_sidebar_logo():
-    st.sidebar.markdown(get_logo_html(width=110), unsafe_allow_html=True)
+    ensure_logo_svg()
+    if Path(LOGO_FILE).exists():
+        st.sidebar.image(LOGO_FILE, width=110)
 
 def require_auth():
     if not st.session_state.get("authenticated", False):
