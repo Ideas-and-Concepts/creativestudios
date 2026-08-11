@@ -30,7 +30,7 @@ if not st.session_state["authenticated"]:
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
-        # Main logo on login page only
+        # Main logo on login page
         st.markdown(get_logo_html(width=130), unsafe_allow_html=True)
         st.markdown("<h2 style='text-align: center; color: #0F172A; font-weight: 700;'>Creative Studios</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #64748B;'>Architectural, Engineering & Construction Collaboration</p><br>", unsafe_allow_html=True)
@@ -59,8 +59,11 @@ else:
     # -------- AUTHENTICATED APP --------
     require_auth()
 
-    # -------- SIDEBAR (NO LOGO, PLAIN TEXT) --------
+    # -------- SIDEBAR WITH LOGO --------
     with st.sidebar:
+        # Logo in sidebar
+        st.markdown(get_logo_html(width=90), unsafe_allow_html=True)
+        st.markdown("---")
         st.markdown("Navigation")
         app_mode = st.radio(
             "Select Module",
