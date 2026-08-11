@@ -1,15 +1,15 @@
 """
 Creative Studios
-Architectural, Engineering & Construction Collaboration Platform
+AEC Collaboration Platform
 
-Main Streamlit Application Controller
+Main Application Controller
 """
 
 import streamlit as st
 
 
 # ============================================================
-# MODULE IMPORTS
+# MODULES
 # ============================================================
 
 from modules.utils import (
@@ -77,7 +77,7 @@ st.set_page_config(
 
 
 # ============================================================
-# BLUE + BLACK THEME
+# BLACK + BLUE DESIGN SYSTEM
 # ============================================================
 
 st.markdown(
@@ -85,18 +85,55 @@ st.markdown(
     <style>
 
     /* ========================================================
-       GLOBAL
+       GLOBAL APPLICATION
        ======================================================== */
 
-    .stApp {
-        background:
-            linear-gradient(
-                135deg,
-                #F8FAFC 0%,
-                #EFF6FF 100%
-            );
+    html,
+    body,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stApp"] {
 
-        color: #0F172A;
+        background:#020617 !important;
+
+        color:#E2E8F0 !important;
+    }
+
+
+    .stApp {
+
+        background:#020617 !important;
+
+        color:#E2E8F0 !important;
+    }
+
+
+    [data-testid="stAppViewContainer"] {
+
+        background:#020617 !important;
+    }
+
+
+    .main {
+
+        background:#020617 !important;
+    }
+
+
+    /* ========================================================
+       MAIN CONTENT
+       ======================================================== */
+
+    [data-testid="stMain"] {
+
+        background:#020617 !important;
+    }
+
+
+    [data-testid="stMainBlockContainer"] {
+
+        background:#020617 !important;
+
+        color:#E2E8F0 !important;
     }
 
 
@@ -105,7 +142,8 @@ st.markdown(
        ======================================================== */
 
     [data-testid="stHeader"] {
-        background: transparent;
+
+        background:#020617 !important;
     }
 
 
@@ -118,27 +156,29 @@ st.markdown(
         background:
             linear-gradient(
                 180deg,
-                #020617 0%,
-                #0F172A 55%,
-                #172554 100%
-            );
+                #000000 0%,
+                #020617 55%,
+                #071B3A 100%
+            ) !important;
 
         border-right:
-            2px solid #2563EB;
+            1px solid #1D4ED8;
 
         box-shadow:
-            8px 0 30px
-            rgba(15, 23, 42, 0.20);
+            8px 0 35px
+            rgba(0,0,0,.45);
     }
 
 
     section[data-testid="stSidebar"] > div {
-        padding-top: 1rem;
+
+        background:transparent !important;
     }
 
 
     section[data-testid="stSidebar"] * {
-        color: #FFFFFF;
+
+        color:#E2E8F0;
     }
 
 
@@ -147,75 +187,89 @@ st.markdown(
        ======================================================== */
 
     .sidebar-brand {
-        text-align: center;
-        padding: 8px 5px 12px 5px;
+
+        text-align:center;
+
+        padding:
+            8px 4px 12px 4px;
     }
 
 
     .sidebar-brand-title {
-        color: #FFFFFF;
-        font-size: 21px;
-        font-weight: 850;
-        margin-top: 6px;
+
+        color:#FFFFFF;
+
+        font-size:21px;
+
+        font-weight:850;
+
+        margin-top:6px;
     }
 
 
     .sidebar-brand-subtitle {
-        color: #60A5FA;
-        font-size: 9px;
-        font-weight: 800;
-        letter-spacing: 1.1px;
-        text-transform: uppercase;
-        margin-top: 4px;
+
+        color:#60A5FA;
+
+        font-size:9px;
+
+        font-weight:800;
+
+        letter-spacing:1px;
+
+        text-transform:uppercase;
+
+        margin-top:4px;
     }
 
 
     /* ========================================================
-       SIDEBAR SECTION
+       SIDEBAR NAVIGATION
        ======================================================== */
 
     .sidebar-section-title {
-        color: #60A5FA;
-        font-size: 10px;
-        font-weight: 850;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        margin: 12px 0 7px 0;
+
+        color:#3B82F6;
+
+        font-size:10px;
+
+        font-weight:850;
+
+        letter-spacing:1px;
+
+        text-transform:uppercase;
+
+        margin:
+            12px 0 8px 0;
     }
 
-
-    /* ========================================================
-       RADIO NAVIGATION
-       ======================================================== */
 
     section[data-testid="stSidebar"]
     .stRadio > div {
 
-        gap: 4px;
+        gap:4px;
     }
 
 
     section[data-testid="stSidebar"]
     .stRadio label {
 
-        background: transparent;
+        background:
+            transparent !important;
 
-        color: #CBD5E1;
+        color:#CBD5E1 !important;
 
         padding:
-            9px 11px;
+            10px 11px;
 
         border-radius:
-            9px;
+            8px;
 
         font-size:
             13px;
 
         font-weight:
             650;
-
-        transition:
-            all 0.15s ease;
     }
 
 
@@ -223,79 +277,357 @@ st.markdown(
     .stRadio label:hover {
 
         background:
-            rgba(37, 99, 235, 0.22);
+            #0F172A !important;
 
         color:
-            #FFFFFF;
+            #FFFFFF !important;
     }
 
 
     /* ========================================================
-       BUTTONS
+       SIDEBAR USER CARD
        ======================================================== */
 
-    .stButton > button {
+    .sidebar-user-card {
 
         background:
-            #020617;
-
-        color:
-            #FFFFFF;
+            #050B18;
 
         border:
             1px solid #1E293B;
 
+        border-left:
+            3px solid #2563EB;
+
         border-radius:
-            9px;
+            10px;
 
-        font-weight:
-            750;
-
-        min-height:
-            40px;
+        padding:
+            12px;
     }
 
 
-    .stButton > button:hover {
+    .sidebar-user-label {
 
-        background:
-            #2563EB;
+        color:
+            #60A5FA;
 
-        border-color:
-            #2563EB;
+        font-size:
+            9px;
+
+        font-weight:
+            850;
+
+        letter-spacing:
+            1px;
+
+        text-transform:
+            uppercase;
+    }
+
+
+    .sidebar-user-name {
 
         color:
             #FFFFFF;
+
+        font-size:
+            15px;
+
+        font-weight:
+            800;
+
+        margin-top:
+            5px;
+    }
+
+
+    .sidebar-user-login {
+
+        color:
+            #64748B;
+
+        font-size:
+            11px;
+
+        margin-top:
+            3px;
+    }
+
+
+    .sidebar-user-role {
+
+        display:
+            inline-block;
+
+        margin-top:
+            8px;
+
+        padding:
+            4px 9px;
+
+        background:
+            #1D4ED8;
+
+        color:
+            #FFFFFF;
+
+        border-radius:
+            999px;
+
+        font-size:
+            9px;
+
+        font-weight:
+            850;
     }
 
 
     /* ========================================================
-       FORM BUTTONS
+       TEXT
        ======================================================== */
 
-    .stFormSubmitButton > button {
-
-        background:
-            #2563EB !important;
-
-        border-color:
-            #2563EB !important;
+    h1,
+    h2,
+    h3,
+    h4,
+    p,
+    label {
 
         color:
-            #FFFFFF !important;
+            #E2E8F0 !important;
+    }
+
+
+    .stMarkdown {
+
+        color:
+            #CBD5E1;
+    }
+
+
+    /* ========================================================
+       PAGE HEADER
+       ======================================================== */
+
+    .page-header {
+
+        background:
+            linear-gradient(
+                135deg,
+                #000000 0%,
+                #020617 60%,
+                #071B3A 100%
+            );
+
+        border:
+            1px solid #1E293B;
+
+        border-left:
+            5px solid #2563EB;
+
+        border-radius:
+            14px;
+
+        padding:
+            25px 28px;
+
+        margin-bottom:
+            20px;
+
+        box-shadow:
+            0 12px 30px
+            rgba(0,0,0,.25);
+    }
+
+
+    .page-title {
+
+        color:
+            #FFFFFF;
+
+        font-size:
+            29px;
+
+        font-weight:
+            850;
+    }
+
+
+    .page-subtitle {
+
+        color:
+            #64748B;
+
+        font-size:
+            13px;
+
+        margin-top:
+            5px;
+    }
+
+
+    /* ========================================================
+       SECTION HEADER
+       ======================================================== */
+
+    .section-header {
+
+        background:
+            #050B18;
+
+        border:
+            1px solid #1E293B;
+
+        border-left:
+            4px solid #2563EB;
+
+        border-radius:
+            10px;
+
+        padding:
+            17px 20px;
+
+        margin-bottom:
+            18px;
+    }
+
+
+    .section-title {
+
+        color:
+            #FFFFFF;
+
+        font-size:
+            20px;
+
+        font-weight:
+            800;
+    }
+
+
+    .section-description {
+
+        color:
+            #64748B;
+
+        font-size:
+            12px;
+
+        margin-top:
+            4px;
+    }
+
+
+    /* ========================================================
+       METRICS
+       ======================================================== */
+
+    [data-testid="stMetric"] {
+
+        background:
+            #050B18 !important;
+
+        border:
+            1px solid #1E293B;
+
+        border-top:
+            3px solid #2563EB;
+
+        border-radius:
+            10px;
+
+        padding:
+            14px;
+
+        box-shadow:
+            0 8px 20px
+            rgba(0,0,0,.20);
+    }
+
+
+    [data-testid="stMetricLabel"] {
+
+        color:
+            #64748B !important;
+
+        font-size:
+            10px !important;
 
         font-weight:
             800 !important;
     }
 
 
-    .stFormSubmitButton > button:hover {
+    [data-testid="stMetricValue"] {
+
+        color:
+            #FFFFFF !important;
+
+        font-weight:
+            850 !important;
+    }
+
+
+    /* ========================================================
+       INFORMATION CARDS
+       ======================================================== */
+
+    .dark-info {
 
         background:
-            #1D4ED8 !important;
+            #050B18;
 
-        border-color:
-            #1D4ED8 !important;
+        border:
+            1px solid #1E293B;
+
+        border-radius:
+            8px;
+
+        padding:
+            10px;
+
+        min-height:
+            58px;
+    }
+
+
+    .dark-label {
+
+        color:
+            #64748B;
+
+        font-size:
+            8px;
+
+        font-weight:
+            850;
+
+        letter-spacing:
+            .8px;
+    }
+
+
+    .dark-value {
+
+        color:
+            #E2E8F0;
+
+        font-size:
+            12px;
+
+        font-weight:
+            650;
+
+        margin-top:
+            5px;
+    }
+
+
+    .blue-value {
+
+        color:
+            #60A5FA !important;
     }
 
 
@@ -308,16 +640,16 @@ st.markdown(
     .stNumberInput input {
 
         background:
-            #FFFFFF;
+            #050B18 !important;
 
         color:
-            #0F172A;
+            #FFFFFF !important;
 
         border:
-            1px solid #CBD5E1;
+            1px solid #334155 !important;
 
         border-radius:
-            9px;
+            8px !important;
     }
 
 
@@ -326,66 +658,96 @@ st.markdown(
     .stNumberInput input:focus {
 
         border-color:
-            #2563EB;
+            #2563EB !important;
 
         box-shadow:
-            0 0 0 1px #2563EB;
+            0 0 0 1px #2563EB !important;
     }
 
 
     /* ========================================================
-       SELECT BOX
+       SELECTBOX
        ======================================================== */
 
     div[data-baseweb="select"] > div {
 
         background:
-            #FFFFFF;
+            #050B18 !important;
 
-        border-radius:
-            9px;
+        color:
+            #FFFFFF !important;
 
-        border-color:
-            #CBD5E1;
+        border:
+            1px solid #334155 !important;
+    }
+
+
+    div[data-baseweb="select"] span {
+
+        color:
+            #FFFFFF !important;
     }
 
 
     /* ========================================================
-       METRICS
+       BUTTONS
        ======================================================== */
 
-    [data-testid="stMetric"] {
+    .stButton > button {
 
         background:
-            #FFFFFF;
+            #0F172A !important;
+
+        color:
+            #FFFFFF !important;
 
         border:
-            1px solid #CBD5E1;
-
-        border-top:
-            4px solid #2563EB;
+            1px solid #334155 !important;
 
         border-radius:
-            13px;
+            8px !important;
 
-        padding:
-            15px;
-
-        box-shadow:
-            0 7px 20px
-            rgba(15, 23, 42, 0.06);
+        font-weight:
+            750 !important;
     }
 
 
-    [data-testid="stMetricLabel"] {
-        color: #64748B !important;
-        font-weight: 700;
+    .stButton > button:hover {
+
+        background:
+            #2563EB !important;
+
+        border-color:
+            #2563EB !important;
+
+        color:
+            #FFFFFF !important;
     }
 
 
-    [data-testid="stMetricValue"] {
-        color: #020617 !important;
-        font-weight: 850;
+    .stFormSubmitButton > button {
+
+        background:
+            #2563EB !important;
+
+        color:
+            #FFFFFF !important;
+
+        border:
+            1px solid #2563EB !important;
+
+        border-radius:
+            8px !important;
+
+        font-weight:
+            800 !important;
+    }
+
+
+    .stFormSubmitButton > button:hover {
+
+        background:
+            #1D4ED8 !important;
     }
 
 
@@ -396,7 +758,7 @@ st.markdown(
     button[data-baseweb="tab"] {
 
         color:
-            #475569;
+            #64748B !important;
 
         font-weight:
             750;
@@ -406,7 +768,7 @@ st.markdown(
     button[data-baseweb="tab"][aria-selected="true"] {
 
         color:
-            #2563EB;
+            #60A5FA !important;
     }
 
 
@@ -417,13 +779,13 @@ st.markdown(
     [data-testid="stExpander"] {
 
         background:
-            #FFFFFF;
+            #050B18 !important;
 
         border:
-            1px solid #CBD5E1;
+            1px solid #1E293B !important;
 
         border-radius:
-            10px;
+            9px;
     }
 
 
@@ -432,18 +794,70 @@ st.markdown(
        ======================================================== */
 
     [data-testid="stAlert"] {
-        border-radius: 10px;
+
+        background:
+            #0F172A;
+
+        border-radius:
+            8px;
     }
 
 
     /* ========================================================
-       DIVIDERS
+       DIVIDER
        ======================================================== */
 
     hr {
-        border-color: #1E3A8A;
+
+        border-color:
+            #1E293B !important;
     }
 
+
+    /* ========================================================
+       CAPTIONS
+       ======================================================== */
+
+    .stCaption {
+
+        color:
+            #64748B !important;
+    }
+
+
+    /* ========================================================
+       SCROLLBAR
+       ======================================================== */
+
+    ::-webkit-scrollbar {
+
+        width:
+            8px;
+    }
+
+
+    ::-webkit-scrollbar-track {
+
+        background:
+            #020617;
+    }
+
+
+    ::-webkit-scrollbar-thumb {
+
+        background:
+            #1E3A8A;
+
+        border-radius:
+            10px;
+    }
+
+
+    ::-webkit-scrollbar-thumb:hover {
+
+        background:
+            #2563EB;
+    }
 
     </style>
     """,
@@ -463,28 +877,42 @@ db = load_memory()
 # ============================================================
 
 if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
+
+    st.session_state[
+        "authenticated"
+    ] = False
+
 
 if "user" not in st.session_state:
-    st.session_state["user"] = None
+
+    st.session_state[
+        "user"
+    ] = None
+
 
 if "app_mode" not in st.session_state:
-    st.session_state["app_mode"] = "Project Directory"
+
+    st.session_state[
+        "app_mode"
+    ] = "Project Directory"
 
 
 # ============================================================
-# LOGIN PAGE
+# LOGIN
 # ============================================================
 
-if not st.session_state["authenticated"]:
+if not st.session_state[
+    "authenticated"
+]:
 
-    # Hide sidebar while logged out
     st.markdown(
         """
         <style>
+
         section[data-testid="stSidebar"] {
-            display: none;
+            display:none;
         }
+
         </style>
         """,
         unsafe_allow_html=True,
@@ -492,7 +920,7 @@ if not st.session_state["authenticated"]:
 
 
     left, center, right = st.columns(
-        [1, 1.15, 1]
+        [1, 1.1, 1]
     )
 
 
@@ -507,14 +935,14 @@ if not st.session_state["authenticated"]:
         st.markdown(
             """
             <div style="
-                background:#FFFFFF;
+                background:#050B18;
+                border:1px solid #1E293B;
+                border-top:4px solid #2563EB;
+                border-radius:16px;
                 padding:40px;
-                border-radius:20px;
-                border:1px solid #DBEAFE;
-                border-top:5px solid #2563EB;
                 box-shadow:
                     0 25px 60px
-                    rgba(15,23,42,0.12);
+                    rgba(0,0,0,.45);
             ">
             """,
             unsafe_allow_html=True,
@@ -523,7 +951,7 @@ if not st.session_state["authenticated"]:
 
         st.markdown(
             get_logo_html(
-                width=130
+                width=125
             ),
             unsafe_allow_html=True,
         )
@@ -533,8 +961,8 @@ if not st.session_state["authenticated"]:
             """
             <div style="
                 text-align:center;
-                color:#020617;
-                font-size:30px;
+                color:#FFFFFF;
+                font-size:29px;
                 font-weight:850;
                 margin-top:12px;
             ">
@@ -544,7 +972,7 @@ if not st.session_state["authenticated"]:
             <div style="
                 text-align:center;
                 color:#64748B;
-                font-size:14px;
+                font-size:13px;
                 margin-top:5px;
                 margin-bottom:25px;
             ">
@@ -557,7 +985,7 @@ if not st.session_state["authenticated"]:
 
 
         with st.form(
-            "login_form"
+            "creative_studios_login"
         ):
 
             username = st.text_input(
@@ -593,14 +1021,14 @@ if not st.session_state["authenticated"]:
                 if not username:
 
                     st.warning(
-                        "Please enter your username."
+                        "Username is required."
                     )
 
 
                 elif not password:
 
                     st.warning(
-                        "Please enter your password."
+                        "Password is required."
                     )
 
 
@@ -609,10 +1037,6 @@ if not st.session_state["authenticated"]:
                     username,
                     password,
                 ):
-
-                    st.success(
-                        "Authentication successful."
-                    )
 
                     st.rerun()
 
@@ -628,11 +1052,11 @@ if not st.session_state["authenticated"]:
             """
             <div style="
                 text-align:center;
-                color:#94A3B8;
-                font-size:11px;
+                color:#475569;
+                font-size:10px;
                 margin-top:20px;
             ">
-                Creative Studios AEC Platform
+                CREATIVE STUDIOS AEC PLATFORM
             </div>
 
             </div>
@@ -645,7 +1069,7 @@ if not st.session_state["authenticated"]:
 
 
 # ============================================================
-# AUTHENTICATION
+# AUTH
 # ============================================================
 
 require_auth()
@@ -658,7 +1082,7 @@ require_auth()
 with st.sidebar:
 
     # --------------------------------------------------------
-    # LOGO
+    # BRAND
     # --------------------------------------------------------
 
     st.markdown(
@@ -699,7 +1123,7 @@ with st.sidebar:
 
 
     # --------------------------------------------------------
-    # WORKSPACE NAVIGATION
+    # NAVIGATION
     # --------------------------------------------------------
 
     st.markdown(
@@ -722,21 +1146,22 @@ with st.sidebar:
     ]
 
 
-    current_mode = st.session_state.get(
+    current = st.session_state.get(
         "app_mode",
         "Project Directory",
     )
 
 
-    if current_mode not in navigation:
-        current_mode = "Project Directory"
+    if current not in navigation:
+
+        current = "Project Directory"
 
 
     selected_module = st.radio(
-        "Navigation",
+        "AEC Navigation",
         navigation,
         index=navigation.index(
-            current_mode
+            current
         ),
         label_visibility="collapsed",
     )
@@ -751,7 +1176,7 @@ with st.sidebar:
 
 
     # --------------------------------------------------------
-    # USER INFORMATION
+    # USER
     # --------------------------------------------------------
 
     user = st.session_state.get(
@@ -767,8 +1192,11 @@ with st.sidebar:
         display_name = user.get(
             "name",
             user.get(
-                "username",
-                "User",
+                "full_name",
+                user.get(
+                    "username",
+                    "User",
+                ),
             ),
         )
 
@@ -792,58 +1220,50 @@ with st.sidebar:
         role = "User"
 
 
+    # IMPORTANT:
+    # Keep the sidebar card as plain Streamlit
+    # components rather than nested raw HTML.
+
     st.markdown(
-        f"""
-        <div style="
-            background:#020617;
-            border:1px solid #1E3A8A;
-            border-left:3px solid #2563EB;
-            border-radius:10px;
-            padding:12px;
-        ">
+        '<div class="sidebar-user-card">',
+        unsafe_allow_html=True,
+    )
 
-            <div style="
-                color:#60A5FA;
-                font-size:9px;
-                font-weight:850;
-                letter-spacing:1px;
-                text-transform:uppercase;
-            ">
-                Signed In
-            </div>
 
-            <div style="
-                color:#FFFFFF;
-                font-size:15px;
-                font-weight:800;
-                margin-top:5px;
-            ">
-                {display_name}
-            </div>
+    st.markdown(
+        '<div class="sidebar-user-label">'
+        'Signed In'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
-            <div style="
-                color:#94A3B8;
-                font-size:11px;
-                margin-top:3px;
-            ">
-                @{username}
-            </div>
 
-            <div style="
-                display:inline-block;
-                margin-top:8px;
-                padding:4px 9px;
-                background:#2563EB;
-                color:#FFFFFF;
-                border-radius:999px;
-                font-size:9px;
-                font-weight:850;
-            ">
-                {role}
-            </div>
+    st.markdown(
+        f'<div class="sidebar-user-name">'
+        f'{display_name}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
-        </div>
-        """,
+
+    st.markdown(
+        f'<div class="sidebar-user-login">'
+        f'@{username}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+    st.markdown(
+        f'<div class="sidebar-user-role">'
+        f'{role}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+    st.markdown(
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -858,7 +1278,7 @@ with st.sidebar:
     if st.button(
         "Sign Out",
         use_container_width=True,
-        key="sidebar_signout",
+        key="sidebar_logout",
     ):
 
         st.session_state[
@@ -877,7 +1297,7 @@ with st.sidebar:
 
 
 # ============================================================
-# MAIN APPLICATION ROUTER
+# MODULE ROUTER
 # ============================================================
 
 if selected_module == "Project Directory":
