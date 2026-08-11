@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime
-from database import save_memory
+from .database import save_memory
 
 def render_drawings_module(db):
     st.title("📐 Drawing & Document Repository")
