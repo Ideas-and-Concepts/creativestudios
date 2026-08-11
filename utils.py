@@ -3,10 +3,9 @@ import json
 import hashlib
 import pandas as pd
 import streamlit as st
-from pathlib import Path
 from sqlalchemy import create_engine, text
 
-MEMORY_FILE = Path("creativestudios_db.json")
+MEMORY_FILE = Path_File = "creativestudios_db.json"
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
@@ -97,9 +96,9 @@ def init_db():
 def load_memory():
     engine = get_engine()
     if not engine:
-        if MEMORY_FILE.exists():
+        if Path(MEMORY_FILE).exists():
             try:
-                data = json.loads(MEMORY_FILE.read_text())
+                data = json.loads(Path(MEMORY_FILE).read_text())
                 if "users" not in data:
                     data["users"] = DEFAULT_USERS
                 return data
@@ -126,7 +125,7 @@ def load_memory():
 def save_memory(mem):
     engine = get_engine()
     if not engine:
-        MEMORY_FILE.write_text(json.dumps(mem, indent=2))
+        Path(MEMORY_FILE).write_text(json.dumps(mem, indent=2))
         return
 
     try:
@@ -155,9 +154,22 @@ def safe_dataframe(data_list, preferred_columns):
     available_cols = [col for col in preferred_columns if col in df.columns]
     return df[available_cols]
 
+def get_logo_html(width=140):
+    return f"""
+    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
+        <svg width="{width}" height="{width}" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: white; border-radius: 12px; padding: 10px;">
+            <rect width="500" height="500" fill="white"/>
+            <path d="M150 250H350" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
+            <path d="M180 160C145 205 145 295 180 340" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
+            <path d="M320 160C285 205 285 295 320 340" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
+            <path d="M240 138C280 138 335 155 370 188" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
+            <path d="M260 362C220 362 165 345 130 312" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
+        </svg>
+    </div>
+    """
+
 def render_sidebar_logo():
-    if Path("logo.jpg").exists():
-        st.sidebar.image("logo.jpg", use_container_width=True)
+    st.sidebar.markdown(get_logo_html(width=110), unsafe_allow_html=True)
     st.sidebar.markdown("---")
 
 def require_auth():
