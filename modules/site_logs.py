@@ -28,7 +28,9 @@ def render_site_logs_module(db):
                     c1.markdown(f"**Logged By:** {log['logged_by']}")
                     c2.markdown(f"**Workforce Count:** {log['workforce']} personnel")
                     st.markdown(f"**Major Activities Completed:**\n{log['activities']}")
-                    st.markdown(f"**Safety / Site Issues:**\n{log['safety_notes']}")
+                    # Display safety notes, default to a clean message if empty
+                    safety = log.get('safety_notes', '').strip()
+                    st.markdown(f"**Safety / Site Issues:**\n{safety if safety else 'No incidents reported.'}")
 
     with tab2:
         st.subheader("Submit Today's Site Progress Log")
@@ -37,22 +39,29 @@ def render_site_logs_module(db):
             weather = st.selectbox("Weather Condition", ["Sunny / Clear", "Partly Cloudy", "Rainy / Wet", "Windy / Stormy", "Extreme Heat"])
             workforce = st.number_input("Total Workers on Site", min_value=1, value=25, step=1)
             activities = st.text_area("Major Activities / Milestones Completed Today")
-            safety_notes = st.text_area("Safety Incidents or Site Notes (Leave blank if none)", value="None reported.")
-            
+            safety_notes = st.text_area("Safety Incidents or Site Notes (leave blank if none)", placeholder="Leave blank if none")
+
             submitted = st.form_submit_button("Submit Daily Log", use_container_width=True)
             if submitted:
                 if not activities:
                     st.error("Activities description is required.")
                 else:
                     current_user = st.session_state.get("user", {})
+                    # Robust ID generation: parse existing LOG-X, find max number + 1
+                    existing_ids = [
+                        int(l["id"].split("-")[1])
+                        for l in db.get("site_logs", [])
+                        if isinstance(l.get("id"), str) and l["id"].startswith("LOG-")
+                    ]
+                    new_id_num = max(existing_ids, default=0) + 1
                     new_log = {
-                        "id": f"LOG-{len(db.get('site_logs', [])) + 1}",
+                        "id": f"LOG-{new_id_num}",
                         "project_id": selected_proj_id,
                         "log_date": str(log_date),
                         "weather": weather,
                         "workforce": workforce,
                         "activities": activities,
-                        "safety_notes": safety_notes,
+                        "safety_notes": safety_notes.strip(),
                         "logged_by": current_user.get("name", "Unknown User")
                     }
                     if "site_logs" not in db:
