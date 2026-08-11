@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import load_memory, hash_password, render_sidebar_logo
+from utils import load_memory, hash_password, render_sidebar_logo, get_logo_html
 
 st.set_page_config(
     page_title="Architectural & MEP Management System",
@@ -22,14 +22,10 @@ def login(username, password):
     return False
 
 if not st.session_state["authenticated"]:
-    # Clean centered login layout with logo
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        try:
-            st.image("logo.jpg", width=150)
-        except Exception:
-            st.warning("Logo image 'logo.jpg' not found in root directory. Please save the provided image as 'logo.jpg'.")
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown(get_logo_html(width=160), unsafe_allow_html=True)
         
         with st.form("login_form"):
             user_input = st.text_input("Username")
