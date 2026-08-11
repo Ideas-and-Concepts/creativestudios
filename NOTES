@@ -8,3 +8,19 @@ creative-studios-app/
     ├── 4_🛡_Procurement_Approvals.py
     ├── 5_🧱_BoQ_Ledger.py
     └── 6_👤_User_Management.py
+
+
+creative-studios/
+│
+├── logo.svg               # Automatically generated vector brand logo
+├── creativestudios_db.json # Local fallback JSON database storage
+├── requirements.txt       # Project dependencies (streamlit, pandas, sqlalchemy, etc.)
+│
+├── utils.py               # Module 1A: Branding, SVG logo generator, & password hashing
+├── database.py            # Module 1B: State management & PostgreSQL/JSON persistence handler
+├── auth.py                # Module 1C: User authentication, session management, & sidebar
+├── projects.py            # Module 2: Project directory, metadata, budgets, & creation
+├── drawings.py            # Module 3: Drawing repository (Architectural, Structural, Electrical, Plumbing)
+├── approvals.py           # Module 4: Cross-disciplinary review & sign-off workflows
+├── boq.py                 # Module 5: Bill of Quantities & material cost estimation
+└── streamlit_app.py       # Main Entrypoint: Navigation router and application layout
