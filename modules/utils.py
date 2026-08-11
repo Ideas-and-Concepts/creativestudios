@@ -19,7 +19,7 @@ def ensure_logo_svg():
 </svg>"""
     Path(LOGO_FILE).write_text(svg_content)
 
-def get_logo_html(width=110):
+def get_logo_html(width=130):
     ensure_logo_svg()
     if Path(LOGO_FILE).exists():
         encoded = base64.b64encode(Path(LOGO_FILE).read_bytes()).decode()
