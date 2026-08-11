@@ -39,7 +39,6 @@ def get_logo_html(width=130):
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-# Defined AEC Roles
 DEFAULT_USERS = [
     {"username": "admin", "password_hash": hash_password("admin123"), "name": "System Administrator", "role": "Admin"},
     {"username": "arch_lead", "password_hash": hash_password("arch123"), "name": "Lead Architect", "role": "Architect"},
@@ -50,7 +49,17 @@ DEFAULT_USERS = [
 
 DEFAULT_MEMORY = {
     "users": DEFAULT_USERS,
-    "projects": [],
+    "projects": [
+        {
+            "id": "PRJ-001",
+            "name": "Grand Horizon Commercial Complex",
+            "type": "Commercial",
+            "phase": "Schematic Design",
+            "budget": 1250000.0,
+            "created_at": "2026-02-10",
+            "description": "10-story mixed-use commercial space with basement parking and green roofing."
+        }
+    ],
     "drawings": [],
     "approvals": [],
     "boq": []
@@ -85,6 +94,8 @@ def load_memory():
                 data = json.loads(Path(MEMORY_FILE).read_text())
                 if "users" not in data:
                     data["users"] = DEFAULT_USERS
+                if "projects" not in data:
+                    data["projects"] = DEFAULT_MEMORY["projects"]
                 return data
             except Exception:
                 pass
@@ -99,6 +110,8 @@ def load_memory():
                 data_dict = data if isinstance(data, dict) else json.loads(data)
                 if "users" not in data_dict:
                     data_dict["users"] = DEFAULT_USERS
+                if "projects" not in data_dict:
+                    data_dict["projects"] = DEFAULT_MEMORY["projects"]
                 return data_dict
         
         save_memory(DEFAULT_MEMORY)
