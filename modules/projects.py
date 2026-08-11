@@ -2,7 +2,7 @@
 Creative Studios
 Project Directory Module
 
-AEC Project Management
+AEC Collaboration Platform
 """
 
 from datetime import date
@@ -61,9 +61,7 @@ def safe_float(value, default=0.0):
     try:
         if value is None or value == "":
             return default
-
         return float(value)
-
     except (TypeError, ValueError):
         return default
 
@@ -77,36 +75,30 @@ def safe_date(value):
         return value
 
     try:
-        return date.fromisoformat(
-            str(value)
-        )
+        return date.fromisoformat(str(value))
     except (TypeError, ValueError):
         return date.today()
 
 
 def get_projects(db):
-    projects = get_collection(
-        db,
-        "projects",
-    )
+    try:
+        records = get_collection(db, "projects")
 
-    if not isinstance(projects, list):
+        if isinstance(records, list):
+            return records
+
         return []
 
-    return projects
+    except Exception:
+        return []
 
 
-def find_project(
-    projects,
-    project_id,
-):
+def find_project(projects, project_id):
+
     for project in projects:
 
         if str(
-            project.get(
-                "id",
-                "",
-            )
+            project.get("id", "")
         ) == str(project_id):
 
             return project
@@ -114,20 +106,46 @@ def find_project(
     return None
 
 
-def current_user():
-    user = st.session_state.get(
-        "user"
-    )
+def notify(message, level="info"):
+    """
+    Safe notification system.
 
-    if isinstance(user, dict):
+    IMPORTANT:
+    Do not use st.success/st.error/st.warning with icons.
+    This avoids Streamlit emoji validation errors.
+    """
 
-        return user.get(
-            "username",
-            "system",
-        )
+    border = "#2563EB"
+    background = "#071B3A"
 
-    return str(
-        user or "system"
+    if level == "success":
+        border = "#22C55E"
+        background = "#052E16"
+
+    elif level == "error":
+        border = "#EF4444"
+        background = "#450A0A"
+
+    elif level == "warning":
+        border = "#F59E0B"
+        background = "#422006"
+
+    st.markdown(
+        f"""
+        <div style="
+            background:{background};
+            border:1px solid {border};
+            border-left:4px solid {border};
+            border-radius:8px;
+            padding:11px 14px;
+            color:#E2E8F0;
+            font-size:13px;
+            margin:10px 0;
+        ">
+            {message}
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 
@@ -135,51 +153,40 @@ def current_user():
 # STATUS BADGE
 # ============================================================
 
-def render_status(status):
+def status_badge(status):
 
     status = str(
         status or "Active"
     )
 
-    styles = {
-
+    palette = {
         "Active": (
             "#052E16",
             "#22C55E",
-            "ACTIVE",
         ),
-
         "Planning": (
             "#172554",
             "#60A5FA",
-            "PLANNING",
         ),
-
         "On Hold": (
             "#422006",
             "#F59E0B",
-            "ON HOLD",
         ),
-
         "Completed": (
             "#1E1B4B",
             "#818CF8",
-            "COMPLETED",
         ),
-
         "Cancelled": (
             "#450A0A",
             "#F87171",
-            "CANCELLED",
         ),
     }
 
-    background, foreground, label = styles.get(
+    background, foreground = palette.get(
         status,
         (
             "#1E293B",
             "#CBD5E1",
-            status.upper(),
         ),
     )
 
@@ -188,15 +195,16 @@ def render_status(status):
         <span style="
             display:inline-block;
             padding:5px 10px;
-            border-radius:20px;
+            border-radius:999px;
             background:{background};
             color:{foreground};
             border:1px solid {foreground};
-            font-size:10px;
-            font-weight:800;
-            letter-spacing:.5px;
+            font-size:9px;
+            font-weight:850;
+            letter-spacing:.7px;
+            text-transform:uppercase;
         ">
-            {label}
+            {status}
         </span>
         """,
         unsafe_allow_html=True,
@@ -207,10 +215,7 @@ def render_status(status):
 # PROJECT CARD
 # ============================================================
 
-def render_project_card(
-    db,
-    project,
-):
+def render_project_card(db, project):
 
     project_id = project.get(
         "id",
@@ -264,31 +269,31 @@ def render_project_card(
 
 
     # --------------------------------------------------------
-    # CARD HEADER
+    # HEADER
     # --------------------------------------------------------
 
     st.markdown(
         f"""
         <div style="
-            background:#0B1120;
+            background:#050B18;
             border:1px solid #1E293B;
             border-left:4px solid #2563EB;
             border-radius:12px;
-            padding:18px 20px;
+            padding:18px 20px 14px 20px;
             margin-top:15px;
         ">
 
             <div style="
                 color:#FFFFFF;
-                font-size:20px;
-                font-weight:800;
+                font-size:19px;
+                font-weight:850;
             ">
                 {name}
             </div>
 
             <div style="
                 color:#64748B;
-                font-size:12px;
+                font-size:11px;
                 margin-top:5px;
             ">
                 {project_id}
@@ -303,155 +308,32 @@ def render_project_card(
 
 
     # --------------------------------------------------------
-    # STATUS / PHASE
+    # STATUS
     # --------------------------------------------------------
 
-    col_status, col_phase = st.columns(
-        [1, 4]
-    )
-
-    with col_status:
-
-        render_status(
-            status
-        )
-
-    with col_phase:
-
-        st.markdown(
-            f"""
-            <div style="
-                color:#94A3B8;
-                padding-top:5px;
-                font-size:12px;
-            ">
-                <strong style="color:#E2E8F0;">
-                    Phase:
-                </strong>
-                {phase}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-    # --------------------------------------------------------
-    # INFORMATION
-    # --------------------------------------------------------
-
-    c1, c2, c3, c4 = st.columns(
-        4
+    c1, c2 = st.columns(
+        [1, 5]
     )
 
     with c1:
 
-        st.markdown(
-            """
-            <div class="dark-info">
-                <div class="dark-label">
-                    CLIENT
-                </div>
-            """,
-            unsafe_allow_html=True,
+        status_badge(
+            status
         )
-
-        st.markdown(
-            f"""
-                <div class="dark-value">
-                    {client}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
 
     with c2:
 
         st.markdown(
-            """
-            <div class="dark-info">
-                <div class="dark-label">
-                    LOCATION
-                </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            f"""
-                <div class="dark-value">
-                    {location}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-    with c3:
-
-        st.markdown(
-            """
-            <div class="dark-info">
-                <div class="dark-label">
-                    PROJECT MANAGER
-                </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            f"""
-                <div class="dark-value">
-                    {manager}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-    with c4:
-
-        st.markdown(
-            """
-            <div class="dark-info">
-                <div class="dark-label">
-                    BUDGET
-                </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            f"""
-                <div class="dark-value blue-value">
-                    {money(budget)}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-    if description:
-
-        st.markdown(
             f"""
             <div style="
-                background:#020617;
-                border:1px solid #1E293B;
-                border-radius:8px;
-                padding:12px;
-                margin-top:10px;
                 color:#94A3B8;
-                font-size:12px;
+                font-size:11px;
+                padding-top:5px;
             ">
-                <strong style="color:#E2E8F0;">
-                    Scope:
+                <strong style="color:#CBD5E1;">
+                    Current Phase:
                 </strong>
-                {description}
+                {phase}
             </div>
             """,
             unsafe_allow_html=True,
@@ -462,83 +344,95 @@ def render_project_card(
     # DETAILS
     # --------------------------------------------------------
 
-    with st.expander(
-        "Project Details"
+    d1, d2, d3, d4 = st.columns(
+        4
+    )
+
+    details = [
+        ("CLIENT", client),
+        ("LOCATION", location),
+        ("PROJECT MANAGER", manager),
+        ("BUDGET", money(budget)),
+    ]
+
+
+    for column, (label, value) in zip(
+        [d1, d2, d3, d4],
+        details,
     ):
 
-        d1, d2 = st.columns(2)
-
-        with d1:
+        with column:
 
             st.markdown(
                 f"""
-                **Project ID:** {project_id}
+                <div style="
+                    background:#050B18;
+                    border:1px solid #1E293B;
+                    border-radius:8px;
+                    padding:10px;
+                    min-height:58px;
+                ">
 
-                **Project Type:** {project_type}
+                    <div style="
+                        color:#64748B;
+                        font-size:8px;
+                        font-weight:850;
+                        letter-spacing:.7px;
+                    ">
+                        {label}
+                    </div>
 
-                **Client:** {client}
+                    <div style="
+                        color:#E2E8F0;
+                        font-size:11px;
+                        font-weight:650;
+                        margin-top:5px;
+                    ">
+                        {value}
+                    </div>
 
-                **Location:** {location}
-
-                **Project Manager:** {manager}
-
-                **Lead Architect:** {
-                    project.get(
-                        "lead_architect",
-                        "Not assigned",
-                    )
-                }
-                """
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
-        with d2:
 
-            st.markdown(
-                f"""
-                **Status:** {status}
+    if description:
 
-                **Phase:** {phase}
-
-                **Budget:** {money(budget)}
-
-                **Contract Value:** {
-                    money(
-                        project.get(
-                            "contract_value",
-                            0,
-                        )
-                    )
-                }
-
-                **Start Date:** {
-                    project.get(
-                        "start_date",
-                        "Not specified",
-                    )
-                }
-
-                **Target Completion:** {
-                    project.get(
-                        "target_completion",
-                        "Not specified",
-                    )
-                }
-                """
-            )
+        st.markdown(
+            f"""
+            <div style="
+                background:#020617;
+                border:1px solid #1E293B;
+                border-radius:8px;
+                padding:11px;
+                margin-top:10px;
+                color:#94A3B8;
+                font-size:11px;
+            ">
+                <strong style="color:#CBD5E1;">
+                    Scope:
+                </strong>
+                {description}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
     # --------------------------------------------------------
     # ACTIONS
     # --------------------------------------------------------
 
-    edit_col, delete_col = st.columns(
-        2
+    a1, a2, a3 = st.columns(
+        [1, 1, 4]
     )
 
-    with edit_col:
+
+    with a1:
 
         if st.button(
-            "Edit Project",
+            "Edit",
             key=f"edit_{project_id}",
             use_container_width=True,
         ):
@@ -555,10 +449,10 @@ def render_project_card(
             st.rerun()
 
 
-    with delete_col:
+    with a2:
 
         if st.button(
-            "Delete Project",
+            "Delete",
             key=f"delete_{project_id}",
             use_container_width=True,
         ):
@@ -589,8 +483,7 @@ def create_project_form(db):
             </div>
 
             <div class="section-description">
-                Register a new architectural,
-                engineering or construction project.
+                Register a new AEC project.
             </div>
         </div>
         """,
@@ -599,11 +492,12 @@ def create_project_form(db):
 
 
     with st.form(
-        "create_project_form",
+        "create_project",
         clear_on_submit=True,
     ):
 
         c1, c2 = st.columns(2)
+
 
         with c1:
 
@@ -614,7 +508,6 @@ def create_project_form(db):
 
             name = st.text_input(
                 "Project Name *",
-                placeholder="New Commercial Development",
             )
 
             project_type = st.selectbox(
@@ -633,6 +526,7 @@ def create_project_form(db):
             manager = st.text_input(
                 "Project Manager",
             )
+
 
         with c2:
 
@@ -664,20 +558,19 @@ def create_project_form(db):
                 value=date.today(),
             )
 
-            completion_date = st.date_input(
+            target_date = st.date_input(
                 "Target Completion",
                 value=date.today(),
             )
 
 
-        lead_architect = st.text_input(
-            "Lead Architect / Consultant"
+        architect = st.text_input(
+            "Lead Architect / Consultant",
         )
-
 
         description = st.text_area(
             "Project Description",
-            height=120,
+            height=100,
         )
 
 
@@ -698,8 +591,9 @@ def create_project_form(db):
 
     if not project_id:
 
-        st.error(
-            "Project ID is required."
+        notify(
+            "Project ID is required.",
+            "error",
         )
 
         return
@@ -707,19 +601,18 @@ def create_project_form(db):
 
     if not name:
 
-        st.error(
-            "Project Name is required."
+        notify(
+            "Project Name is required.",
+            "error",
         )
 
         return
 
 
-    existing = get_projects(
-        db
-    )
+    projects = get_projects(db)
 
 
-    for project in existing:
+    for project in projects:
 
         if str(
             project.get(
@@ -728,24 +621,26 @@ def create_project_form(db):
             )
         ).lower() == project_id.lower():
 
-            st.error(
-                "That Project ID already exists."
+            notify(
+                "That Project ID already exists.",
+                "error",
             )
 
             return
 
 
-    if completion_date < start_date:
+    if target_date < start_date:
 
-        st.error(
-            "Target completion cannot be "
-            "before the start date."
+        notify(
+            "Target completion cannot be before "
+            "the start date.",
+            "error",
         )
 
         return
 
 
-    new_project = {
+    record = {
         "id": project_id,
         "name": name,
         "type": project_type,
@@ -754,67 +649,56 @@ def create_project_form(db):
         "client": client.strip(),
         "location": location.strip(),
         "project_manager": manager.strip(),
-        "lead_architect": lead_architect.strip(),
+        "lead_architect": architect.strip(),
         "budget": budget,
         "contract_value": contract_value,
         "start_date": str(start_date),
-        "target_completion": str(
-            completion_date
-        ),
+        "target_completion": str(target_date),
         "description": description.strip(),
-        "created_by": current_user(),
-        "created_at": str(
-            date.today()
-        ),
     }
 
 
-    add_record(
-        db,
-        "projects",
-        new_project,
-    )
+    try:
 
+        add_record(
+            db,
+            "projects",
+            record,
+        )
 
-    st.success(
-        "Project created successfully."
-    )
+        notify(
+            "Project created successfully.",
+            "success",
+        )
 
-    st.rerun()
+        st.rerun()
+
+    except Exception as exc:
+
+        notify(
+            f"Unable to create project: {exc}",
+            "error",
+        )
 
 
 # ============================================================
 # EDIT PROJECT
 # ============================================================
 
-def edit_project_form(
-    db,
-    project,
-):
+def edit_project_form(db, project):
 
-    st.markdown(
-        f"""
-        <div class="section-header">
-            <div class="section-title">
-                Edit Project
-            </div>
-
-            <div class="section-description">
-                {project.get("id", "")}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    project_id = project.get(
+        "id"
     )
 
 
     project_type = project.get(
         "type",
-        PROJECT_TYPES[0],
+        "Commercial",
     )
 
     if project_type not in PROJECT_TYPES:
-        project_type = PROJECT_TYPES[0]
+        project_type = "Commercial"
 
 
     status = project.get(
@@ -835,11 +719,28 @@ def edit_project_form(
         phase = PROJECT_PHASES[0]
 
 
+    st.markdown(
+        f"""
+        <div class="section-header">
+            <div class="section-title">
+                Edit Project
+            </div>
+
+            <div class="section-description">
+                {project_id}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
     with st.form(
-        f"edit_form_{project.get('id')}"
+        f"edit_project_{project_id}"
     ):
 
         c1, c2 = st.columns(2)
+
 
         with c1:
 
@@ -890,6 +791,7 @@ def edit_project_form(
                     )
                 ),
             )
+
 
         with c2:
 
@@ -942,7 +844,7 @@ def edit_project_form(
                 ),
             )
 
-            completion_date = st.date_input(
+            target_date = st.date_input(
                 "Target Completion",
                 value=safe_date(
                     project.get(
@@ -952,7 +854,7 @@ def edit_project_form(
             )
 
 
-        lead_architect = st.text_input(
+        architect = st.text_input(
             "Lead Architect / Consultant",
             value=str(
                 project.get(
@@ -971,123 +873,109 @@ def edit_project_form(
                     "",
                 )
             ),
-            height=120,
+            height=100,
         )
 
 
-        save_col, cancel_col = st.columns(
-            2
+        save = st.form_submit_button(
+            "Save Changes",
+            type="primary",
+            use_container_width=True,
         )
-
-
-        with save_col:
-
-            save = st.form_submit_button(
-                "Save Changes",
-                type="primary",
-                use_container_width=True,
-            )
-
-
-        with cancel_col:
-
-            cancel = st.form_submit_button(
-                "Cancel",
-                use_container_width=True,
-            )
-
-
-    if cancel:
-
-        st.session_state.pop(
-            "editing_project",
-            None,
-        )
-
-        st.rerun()
 
 
     if not save:
         return
 
 
-    name = name.strip()
+    if not name.strip():
 
-
-    if not name:
-
-        st.error(
-            "Project Name is required."
+        notify(
+            "Project Name is required.",
+            "error",
         )
 
         return
 
 
-    if completion_date < start_date:
+    if target_date < start_date:
 
-        st.error(
-            "Target completion cannot be "
-            "before the start date."
+        notify(
+            "Target completion cannot be before "
+            "the start date.",
+            "error",
         )
 
         return
 
 
     updates = {
-        "name": name,
+        "name": name.strip(),
         "type": selected_type,
         "status": selected_status,
         "phase": selected_phase,
         "client": client.strip(),
         "location": location.strip(),
         "project_manager": manager.strip(),
-        "lead_architect": lead_architect.strip(),
+        "lead_architect": architect.strip(),
         "budget": budget,
         "contract_value": contract_value,
         "start_date": str(start_date),
-        "target_completion": str(
-            completion_date
-        ),
+        "target_completion": str(target_date),
         "description": description.strip(),
     }
 
 
-    result = update_record(
-        db,
-        "projects",
-        project.get("id"),
-        updates,
-    )
+    try:
 
-
-    if result:
-
-        st.session_state.pop(
-            "editing_project",
-            None,
+        result = update_record(
+            db,
+            "projects",
+            project_id,
+            updates,
         )
 
-        st.success(
-            "Project updated successfully."
-        )
+        if result:
 
-        st.rerun()
+            st.session_state.pop(
+                "editing_project",
+                None,
+            )
 
-    else:
+            notify(
+                "Project updated successfully.",
+                "success",
+            )
 
-        st.error(
-            "Unable to update the project."
+            st.rerun()
+
+        else:
+
+            notify(
+                "The project could not be updated.",
+                "error",
+            )
+
+    except Exception as exc:
+
+        notify(
+            f"Update failed: {exc}",
+            "error",
         )
 
 
 # ============================================================
-# DELETE PROJECT
+# DELETE
 # ============================================================
 
 def delete_project_confirmation(
     db,
     project,
 ):
+
+    project_id = project.get(
+        "id"
+    )
 
     name = project.get(
         "name",
@@ -1101,13 +989,14 @@ def delete_project_confirmation(
             background:#1C0A0A;
             border:1px solid #7F1D1D;
             border-left:4px solid #EF4444;
-            padding:18px;
             border-radius:10px;
+            padding:16px;
+            margin:12px 0;
         ">
 
             <div style="
                 color:#FCA5A5;
-                font-size:18px;
+                font-size:17px;
                 font-weight:800;
             ">
                 Delete Project
@@ -1115,10 +1004,11 @@ def delete_project_confirmation(
 
             <div style="
                 color:#FECACA;
-                margin-top:6px;
-                font-size:13px;
+                font-size:12px;
+                margin-top:5px;
             ">
                 Delete <strong>{name}</strong>?
+                This action cannot be undone.
             </div>
 
         </div>
@@ -1127,57 +1017,61 @@ def delete_project_confirmation(
     )
 
 
-    st.warning(
-        "This action removes the project record."
-    )
+    c1, c2 = st.columns(2)
 
 
-    yes_col, no_col = st.columns(
-        2
-    )
-
-
-    with yes_col:
+    with c1:
 
         if st.button(
             "Confirm Delete",
             type="primary",
             use_container_width=True,
-            key="confirm_delete",
+            key=f"confirm_{project_id}",
         ):
 
-            result = delete_record(
-                db,
-                "projects",
-                project.get("id"),
-            )
+            try:
 
-            st.session_state.pop(
-                "deleting_project",
-                None,
-            )
-
-            if result:
-
-                st.success(
-                    "Project deleted."
+                result = delete_record(
+                    db,
+                    "projects",
+                    project_id,
                 )
 
-            else:
-
-                st.error(
-                    "Unable to delete project."
+                st.session_state.pop(
+                    "deleting_project",
+                    None,
                 )
 
-            st.rerun()
+                if result:
+
+                    notify(
+                        "Project deleted.",
+                        "success",
+                    )
+
+                else:
+
+                    notify(
+                        "Project could not be deleted.",
+                        "error",
+                    )
+
+                st.rerun()
+
+            except Exception as exc:
+
+                notify(
+                    f"Delete failed: {exc}",
+                    "error",
+                )
 
 
-    with no_col:
+    with c2:
 
         if st.button(
             "Cancel",
             use_container_width=True,
-            key="cancel_delete",
+            key=f"cancel_{project_id}",
         ):
 
             st.session_state.pop(
@@ -1189,7 +1083,7 @@ def delete_project_confirmation(
 
 
 # ============================================================
-# MAIN MODULE
+# MAIN PROJECT MODULE
 # ============================================================
 
 def render_projects_module(db):
@@ -1200,7 +1094,7 @@ def render_projects_module(db):
 
 
     # ========================================================
-    # PAGE HEADER
+    # HEADER
     # ========================================================
 
     st.markdown(
@@ -1224,12 +1118,10 @@ def render_projects_module(db):
 
 
     # ========================================================
-    # KPIs
+    # KPI
     # ========================================================
 
-    total = len(
-        projects
-    )
+    total = len(projects)
 
     active = sum(
         1
@@ -1258,7 +1150,7 @@ def render_projects_module(db):
         ) == "Completed"
     )
 
-    total_budget = sum(
+    portfolio_budget = sum(
         safe_float(
             p.get(
                 "budget",
@@ -1276,36 +1168,36 @@ def render_projects_module(db):
 
     with k1:
         st.metric(
-            "TOTAL PROJECTS",
+            "Total Projects",
             total,
         )
 
 
     with k2:
         st.metric(
-            "ACTIVE",
+            "Active",
             active,
         )
 
 
     with k3:
         st.metric(
-            "PLANNING",
+            "Planning",
             planning,
         )
 
 
     with k4:
         st.metric(
-            "COMPLETED",
+            "Completed",
             completed,
         )
 
 
     with k5:
         st.metric(
-            "PORTFOLIO BUDGET",
-            money(total_budget),
+            "Portfolio Budget",
+            money(portfolio_budget),
         )
 
 
@@ -1316,12 +1208,13 @@ def render_projects_module(db):
 
 
     # ========================================================
-    # EDIT / DELETE PANELS
+    # EDIT MODE
     # ========================================================
 
     editing_id = st.session_state.get(
         "editing_project"
     )
+
 
     if editing_id:
 
@@ -1340,9 +1233,14 @@ def render_projects_module(db):
             st.divider()
 
 
+    # ========================================================
+    # DELETE MODE
+    # ========================================================
+
     deleting_id = st.session_state.get(
         "deleting_project"
     )
+
 
     if deleting_id:
 
@@ -1365,7 +1263,7 @@ def render_projects_module(db):
     # TABS
     # ========================================================
 
-    portfolio_tab, create_tab = st.tabs(
+    portfolio, create = st.tabs(
         [
             "Project Portfolio",
             "Create New Project",
@@ -1377,12 +1275,13 @@ def render_projects_module(db):
     # PORTFOLIO
     # ========================================================
 
-    with portfolio_tab:
+    with portfolio:
 
         if not projects:
 
-            st.info(
-                "No projects have been created yet."
+            notify(
+                "No projects have been created yet.",
+                "info",
             )
 
         else:
@@ -1397,9 +1296,7 @@ def render_projects_module(db):
             )
 
 
-            f1, f2 = st.columns(
-                2
-            )
+            f1, f2 = st.columns(2)
 
 
             with f1:
@@ -1407,7 +1304,6 @@ def render_projects_module(db):
                 status_filter = st.selectbox(
                     "Status",
                     ["All"] + PROJECT_STATUSES,
-                    key="status_filter",
                 )
 
 
@@ -1416,7 +1312,6 @@ def render_projects_module(db):
                 type_filter = st.selectbox(
                     "Project Type",
                     ["All"] + PROJECT_TYPES,
-                    key="type_filter",
                 )
 
 
@@ -1485,11 +1380,11 @@ def render_projects_module(db):
                 f"""
                 <div style="
                     color:#64748B;
-                    font-size:12px;
+                    font-size:11px;
                     margin:12px 0;
                 ">
                     Showing
-                    <strong style="color:#2563EB;">
+                    <strong style="color:#60A5FA;">
                         {len(filtered)}
                     </strong>
                     of
@@ -1501,13 +1396,6 @@ def render_projects_module(db):
                 """,
                 unsafe_allow_html=True,
             )
-
-
-            if not filtered:
-
-                st.info(
-                    "No projects match your search."
-                )
 
 
             for project in filtered:
@@ -1522,7 +1410,7 @@ def render_projects_module(db):
     # CREATE
     # ========================================================
 
-    with create_tab:
+    with create:
 
         create_project_form(
             db
