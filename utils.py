@@ -3,9 +3,10 @@ import json
 import hashlib
 import pandas as pd
 import streamlit as st
+from pathlib import Path
 from sqlalchemy import create_engine, text
 
-MEMORY_FILE = Path_File = "creativestudios_db.json"
+MEMORY_FILE = "creativestudios_db.json"
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
