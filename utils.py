@@ -10,14 +10,19 @@ MEMORY_FILE = "creativestudios_db.json"
 LOGO_FILE = "logo.svg"
 
 def ensure_logo_svg():
-    """Automatically writes the transparent, Pisces-inspired vector SVG logo file to the root directory."""
+    """Automatically writes the new modern architectural vector SVG logo file to the root directory."""
     svg_content = """<svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Transparent background allowing it to blend in seamlessly -->
-    <path d="M165 248H335" stroke="#0066FF" stroke-width="32" stroke-linecap="round"/>
-    <path d="M190 155C150 200 150 300 190 345" stroke="#0066FF" stroke-width="32" stroke-linecap="round"/>
-    <path d="M310 155C270 195 270 305 310 345" stroke="#0066FF" stroke-width="32" stroke-linecap="round"/>
-    <path d="M235 142C275 142 325 158 355 185" stroke="#0066FF" stroke-width="32" stroke-linecap="round"/>
-    <path d="M265 358C225 358 175 342 145 315" stroke="#0066FF" stroke-width="32" stroke-linecap="round"/>
+    <defs>
+        <linearGradient id="newLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0F172A"/>
+            <stop offset="50%" stop-color="#2563EB"/>
+            <stop offset="100%" stop-color="#06B6D4"/>
+        </linearGradient>
+    </defs>
+    <!-- Transparent Background with Sleek Modern Structural Monogram -->
+    <path d="M140 340L250 140L360 340H290L250 260L210 340H140Z" fill="url(#newLogoGrad)"/>
+    <path d="M200 280H300L250 190L200 280Z" fill="#FFFFFF" opacity="0.9"/>
+    <circle cx="250" cy="110" r="22" fill="url(#newLogoGrad)"/>
 </svg>"""
     Path(LOGO_FILE).write_text(svg_content)
 
