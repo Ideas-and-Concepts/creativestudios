@@ -1,11 +1,11 @@
 import streamlit as st
 from pathlib import Path
-from utils import load_memory, hash_password, render_sidebar_logo, ensure_logo_svg, get_logo_html, LOGO_FILE
+from utils import load_memory, hash_password, render_sidebar, ensure_logo_svg, get_logo_html, LOGO_FILE
 
 ensure_logo_svg()
 
 st.set_page_config(
-    page_title="Architectural & MEP Management System",
+    page_title="Creative Studios — AEC Collaboration Platform",
     page_icon=LOGO_FILE if Path(LOGO_FILE).exists() else "📐",
     layout="wide"
 )
@@ -29,6 +29,8 @@ if not st.session_state["authenticated"]:
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(get_logo_html(width=140), unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: #1E293B;'>Creative Studios</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748B;'>Architectural, Engineering & Construction Collaboration</p><br>", unsafe_allow_html=True)
         
         with st.form("login_form"):
             user_input = st.text_input("Username")
@@ -41,17 +43,18 @@ if not st.session_state["authenticated"]:
                     st.rerun()
                 else:
                     st.error("Invalid username or password.")
+        
+        with st.expander("Default Test Credentials"):
+            st.markdown("""
+            * **Architect**: `arch_lead` / `arch123`
+            * **Structural Engineer**: `struct_eng` / `struct123`
+            * **Electrical Engineer**: `elec_eng` / `elec123`
+            * **Plumber**: `plumber_lead` / `plum123`
+            * **Admin**: `admin` / `admin123`
+            """)
 else:
-    render_sidebar_logo()
-    
+    render_sidebar()
     user = st.session_state["user"]
-    st.title("Management System Dashboard")
-    st.success(f"Welcome, **{user['name']}** ({user['role']}). Use the sidebar menu to open pages.")
-    
-    st.sidebar.markdown(f"👤 **{user['name']}**")
-    st.sidebar.caption(f"Role: `{user['role']}`")
-    if st.sidebar.button("🚪 Sign Out"):
-        st.session_state["authenticated"] = False
-        st.session_state["user"] = None
-        st.rerun()
-
+    st.title("Creative Studios Hub")
+    st.success(f"Welcome back, **{user['name']}** ({user['role']}).")
+    st.info("Module 1 (Authentication & Role Management) is active. Ready to build Module 2.")
