@@ -15,7 +15,7 @@ ensure_logo_svg()
 
 st.set_page_config(
     page_title="Creative Studios — AEC Platform",
-    page_icon=LOGO_FILE if Path(LOGO_FILE).exists() else "📐",
+    page_icon=LOGO_FILE,
     layout="wide"
 )
 
