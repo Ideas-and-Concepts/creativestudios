@@ -1,587 +1,884 @@
 """
 Creative Studios
-Database Module
+AEC Collaboration Platform
 
-JSON-based persistence layer for the Creative Studios
-AEC Collaboration Platform.
-
-This module is intentionally lightweight and defensive so
-the Streamlit application can start even if the database
-file is missing, empty, malformed, or partially populated.
+Main Streamlit Application
 """
 
-from __future__ import annotations
-
-import json
-from copy import deepcopy
 from pathlib import Path
-from typing import Any
+import base64
+
+import streamlit as st
 
 
 # ============================================================
-# DATABASE PATH
+# PATHS
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent
+LOGO_FILE = BASE_DIR / "logo.svg"
 
-DATABASE_FILE = (
-    BASE_DIR / "creativestudios_db.json"
+
+# ============================================================
+# PAGE CONFIG
+# ============================================================
+
+st.set_page_config(
+    page_title="Creative Studios — AEC Platform",
+    page_icon="🏗️",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# DEFAULT DATABASE
+# CSS
 # ============================================================
 
-DEFAULT_DATABASE = {
+st.markdown(
+    """
+    <style>
 
-    "users": [
-        {
-            "id": 1,
-            "username": "admin",
-            "password": "admin123",
-            "name": "System Administrator",
-            "full_name": "System Administrator",
-            "role": "Admin",
-            "email": "admin@creativestudios.local",
-            "active": True,
+    /* ======================================================
+       GLOBAL
+       ====================================================== */
+
+    html,
+    body,
+    [data-testid="stApp"],
+    [data-testid="stAppViewContainer"] {
+
+        background-color: #000000 !important;
+        color: #FFFFFF !important;
+    }
+
+
+    [data-testid="stHeader"] {
+        background-color: #000000 !important;
+    }
+
+
+    [data-testid="stToolbar"] {
+        background-color: #000000 !important;
+    }
+
+
+    #MainMenu {
+        visibility: hidden;
+    }
+
+
+    footer {
+        visibility: hidden;
+    }
+
+
+    .block-container {
+
+        max-width: 1500px;
+
+        padding-top: 1.5rem;
+        padding-bottom: 3rem;
+    }
+
+
+    /* ======================================================
+       SIDEBAR
+       ====================================================== */
+
+    [data-testid="stSidebar"] {
+
+        background-color: #050505 !important;
+
+        border-right:
+            1px solid #172033 !important;
+    }
+
+
+    [data-testid="stSidebar"] > div:first-child {
+
+        background-color: #050505 !important;
+    }
+
+
+    [data-testid="stSidebar"] * {
+
+        color: #E5E7EB;
+    }
+
+
+    .sidebar-brand {
+
+        text-align: center;
+
+        padding:
+            10px 5px 18px 5px;
+    }
+
+
+    .sidebar-logo {
+
+        width: 78px;
+        height: 78px;
+
+        object-fit: contain;
+
+        display: block;
+
+        margin: 0 auto 9px auto;
+    }
+
+
+    .sidebar-brand-name {
+
+        color: #FFFFFF;
+
+        font-size: 19px;
+
+        font-weight: 800;
+    }
+
+
+    .sidebar-brand-subtitle {
+
+        color: #60A5FA;
+
+        font-size: 9px;
+
+        font-weight: 800;
+
+        letter-spacing: 1.2px;
+
+        text-transform: uppercase;
+
+        margin-top: 4px;
+    }
+
+
+    .sidebar-line {
+
+        height: 1px;
+
+        background: #172033;
+
+        margin: 5px 0 18px 0;
+    }
+
+
+    /* ======================================================
+       USER PANEL
+       ====================================================== */
+
+    .user-panel {
+
+        background: #080B10;
+
+        border: 1px solid #172033;
+
+        border-radius: 10px;
+
+        padding: 13px;
+
+        margin-bottom: 18px;
+    }
+
+
+    .user-label {
+
+        color: #60A5FA;
+
+        font-size: 9px;
+
+        font-weight: 800;
+
+        letter-spacing: 1px;
+
+        text-transform: uppercase;
+    }
+
+
+    .user-name {
+
+        color: #FFFFFF;
+
+        font-size: 14px;
+
+        font-weight: 800;
+
+        margin-top: 5px;
+    }
+
+
+    .user-login {
+
+        color: #94A3B8;
+
+        font-size: 11px;
+
+        margin-top: 3px;
+    }
+
+
+    .user-role {
+
+        display: inline-block;
+
+        margin-top: 9px;
+
+        padding: 4px 9px;
+
+        background: #2563EB;
+
+        color: #FFFFFF;
+
+        border-radius: 999px;
+
+        font-size: 9px;
+
+        font-weight: 800;
+    }
+
+
+    .nav-title {
+
+        color: #64748B;
+
+        font-size: 9px;
+
+        font-weight: 800;
+
+        letter-spacing: 1.2px;
+
+        text-transform: uppercase;
+
+        margin:
+            0 0 8px 3px;
+    }
+
+
+    [data-testid="stSidebar"] .stRadio > label {
+
+        display: none;
+    }
+
+
+    [data-testid="stSidebar"] .stRadio label {
+
+        border-radius: 8px;
+
+        padding: 8px 10px;
+
+        border: 1px solid transparent;
+    }
+
+
+    [data-testid="stSidebar"] .stRadio label:hover {
+
+        background: #0B1220;
+
+        border-color: #172033;
+    }
+
+
+    /* ======================================================
+       HEADERS
+       ====================================================== */
+
+    .page-title {
+
+        color: #FFFFFF;
+
+        font-size: 30px;
+
+        font-weight: 850;
+
+        letter-spacing: -0.8px;
+    }
+
+
+    .page-subtitle {
+
+        color: #94A3B8;
+
+        font-size: 13px;
+
+        margin-top: 5px;
+
+        margin-bottom: 20px;
+    }
+
+
+    /* ======================================================
+       KPI
+       ====================================================== */
+
+    [data-testid="stMetric"] {
+
+        background: #070707;
+
+        border: 1px solid #172033;
+
+        border-radius: 10px;
+
+        padding: 14px;
+    }
+
+
+    [data-testid="stMetricLabel"] {
+
+        color: #64748B !important;
+
+        font-size: 10px !important;
+
+        text-transform: uppercase;
+    }
+
+
+    [data-testid="stMetricValue"] {
+
+        color: #FFFFFF !important;
+    }
+
+
+    /* ======================================================
+       PROJECT CARD
+       ====================================================== */
+
+    .project-card {
+
+        background: #070707;
+
+        border: 1px solid #172033;
+
+        border-radius: 12px;
+
+        padding: 18px;
+
+        margin: 12px 0;
+    }
+
+
+    .project-card:hover {
+
+        border-color: #2563EB;
+    }
+
+
+    .project-header {
+
+        display: flex;
+
+        justify-content: space-between;
+
+        align-items: flex-start;
+
+        gap: 15px;
+    }
+
+
+    .project-name {
+
+        color: #FFFFFF;
+
+        font-size: 18px;
+
+        font-weight: 800;
+    }
+
+
+    .project-code {
+
+        color: #60A5FA;
+
+        font-size: 11px;
+
+        margin-top: 4px;
+    }
+
+
+    .project-phase {
+
+        color: #94A3B8;
+
+        font-size: 11px;
+
+        padding:
+            13px 0;
+
+        border-bottom:
+            1px solid #111827;
+    }
+
+
+    .project-phase strong {
+
+        color: #E2E8F0;
+    }
+
+
+    .project-details {
+
+        display: grid;
+
+        grid-template-columns:
+            repeat(4, 1fr);
+
+        gap: 15px;
+
+        margin-top: 14px;
+    }
+
+
+    .detail-label {
+
+        color: #475569;
+
+        font-size: 8px;
+
+        font-weight: 800;
+
+        letter-spacing: .8px;
+    }
+
+
+    .detail-value {
+
+        color: #CBD5E1;
+
+        font-size: 11px;
+
+        margin-top: 4px;
+    }
+
+
+    .project-description {
+
+        color: #64748B;
+
+        font-size: 11px;
+
+        line-height: 1.6;
+
+        margin-top: 14px;
+    }
+
+
+    /* ======================================================
+       STATUS BADGES
+       ====================================================== */
+
+    .status {
+
+        display: inline-block;
+
+        padding: 5px 9px;
+
+        border-radius: 999px;
+
+        font-size: 8px;
+
+        font-weight: 850;
+
+        white-space: nowrap;
+    }
+
+
+    .status-active {
+
+        background: #052E16;
+
+        color: #4ADE80;
+
+        border: 1px solid #166534;
+    }
+
+
+    .status-planning {
+
+        background: #172554;
+
+        color: #60A5FA;
+
+        border: 1px solid #1D4ED8;
+    }
+
+
+    .status-completed {
+
+        background: #042F2E;
+
+        color: #5EEAD4;
+
+        border: 1px solid #0F766E;
+    }
+
+
+    .status-hold {
+
+        background: #422006;
+
+        color: #FBBF24;
+
+        border: 1px solid #92400E;
+    }
+
+
+    .status-cancelled {
+
+        background: #450A0A;
+
+        color: #F87171;
+
+        border: 1px solid #991B1B;
+    }
+
+
+    .status-default {
+
+        background: #111827;
+
+        color: #94A3B8;
+
+        border: 1px solid #334155;
+    }
+
+
+    /* ======================================================
+       INPUTS
+       ====================================================== */
+
+    .stTextInput input,
+    .stTextArea textarea,
+    .stNumberInput input {
+
+        background: #050505 !important;
+
+        color: #FFFFFF !important;
+
+        border:
+            1px solid #1E293B !important;
+    }
+
+
+    /* ======================================================
+       BUTTONS
+       ====================================================== */
+
+    .stButton button,
+    .stFormSubmitButton button {
+
+        background: #2563EB !important;
+
+        color: #FFFFFF !important;
+
+        border:
+            1px solid #3B82F6 !important;
+
+        border-radius: 7px !important;
+
+        font-weight: 750 !important;
+    }
+
+
+    .stButton button:hover,
+    .stFormSubmitButton button:hover {
+
+        background: #1D4ED8 !important;
+    }
+
+
+    /* ======================================================
+       LOGIN
+       ====================================================== */
+
+    .login-container {
+
+        max-width: 390px;
+
+        margin:
+            70px auto 0 auto;
+
+        text-align: center;
+    }
+
+
+    .login-logo {
+
+        width: 120px;
+
+        height: 120px;
+
+        object-fit: contain;
+
+        margin:
+            0 auto 18px auto;
+    }
+
+
+    .login-title {
+
+        color: #FFFFFF;
+
+        font-size: 27px;
+
+        font-weight: 850;
+    }
+
+
+    .login-subtitle {
+
+        color: #64748B;
+
+        font-size: 11px;
+
+        margin:
+            6px 0 25px 0;
+    }
+
+
+    /* ======================================================
+       EMPTY STATE
+       ====================================================== */
+
+    .empty-state {
+
+        background: #070707;
+
+        border:
+            1px dashed #1E293B;
+
+        border-radius: 12px;
+
+        padding: 50px 20px;
+
+        text-align: center;
+
+        margin-top: 15px;
+    }
+
+
+    .empty-title {
+
+        color: #FFFFFF;
+
+        font-size: 18px;
+
+        font-weight: 800;
+    }
+
+
+    .empty-text {
+
+        color: #64748B;
+
+        font-size: 12px;
+
+        margin-top: 7px;
+    }
+
+
+    @media (max-width: 800px) {
+
+        .project-details {
+
+            grid-template-columns:
+                repeat(2, 1fr);
         }
-    ],
 
-    "projects": [
-        {
-            "id": "PRJ-001",
-            "project_id": "PRJ-001",
-            "name": "Grand Horizon Commercial Complex",
-            "project_name": "Grand Horizon Commercial Complex",
-            "type": "Commercial",
-            "project_type": "Commercial",
-            "status": "Active",
-            "phase": "Design Development",
-            "client": "Grand Horizon Developments",
-            "client_name": "Grand Horizon Developments",
-            "location": "Kampala, Uganda",
-            "project_manager": "System Administrator",
-            "manager": "System Administrator",
-            "budget": 1250000,
-            "estimated_budget": 1250000,
-            "description": (
-                "A commercial development project managed "
-                "through the Creative Studios AEC "
-                "collaboration platform."
-            ),
-        }
-    ],
+    }
 
-    "drawings": [],
-
-    "approvals": [],
-
-    "boq": [],
-
-    "rfi": [],
-
-    "site_logs": [],
-
-    "documents": [],
-
-    "notifications": [],
-
-    "activity_logs": [],
-}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # ============================================================
-# REQUIRED COLLECTIONS
+# LOGO
 # ============================================================
 
-REQUIRED_COLLECTIONS = [
-
-    "users",
-    "projects",
-    "drawings",
-    "approvals",
-    "boq",
-    "rfi",
-    "site_logs",
-    "documents",
-    "notifications",
-    "activity_logs",
-
-]
-
-
-# ============================================================
-# INTERNAL HELPERS
-# ============================================================
-
-def _new_default_database() -> dict[str, Any]:
+def get_logo_data():
 
     """
-    Return a completely independent copy of the default
-    database.
-    """
+    Safely read logo.svg.
 
-    return deepcopy(
-        DEFAULT_DATABASE
-    )
-
-
-def _normalise_database(
-    data: Any,
-) -> dict[str, Any]:
-
-    """
-    Make sure the loaded database always has the expected
-    dictionary structure and collections.
-    """
-
-    if not isinstance(
-        data,
-        dict,
-    ):
-
-        data = _new_default_database()
-
-
-    for collection in REQUIRED_COLLECTIONS:
-
-        value = data.get(
-            collection
-        )
-
-
-        if not isinstance(
-            value,
-            list,
-        ):
-
-            data[
-                collection
-            ] = []
-
-
-    # --------------------------------------------------------
-    # If there are no users, restore the default administrator.
-    # --------------------------------------------------------
-
-    if not data["users"]:
-
-        data["users"] = deepcopy(
-            DEFAULT_DATABASE["users"]
-        )
-
-
-    return data
-
-
-# ============================================================
-# LOAD DATABASE
-# ============================================================
-
-def load_memory() -> dict[str, Any]:
-
-    """
-    Load the JSON database.
-
-    If the file does not exist, it is created.
-
-    If the file is invalid or unreadable, a safe default
-    database is returned and an attempt is made to repair
-    the file.
+    Returns a base64 data URI or None.
     """
 
     try:
 
-        if not DATABASE_FILE.exists():
+        if not LOGO_FILE.exists():
 
-            data = _new_default_database()
+            return None
 
-            save_memory(
-                data
-            )
+        content = LOGO_FILE.read_bytes()
 
-            return data
+        encoded = base64.b64encode(
+            content
+        ).decode("utf-8")
 
-
-        raw = DATABASE_FILE.read_text(
-            encoding="utf-8"
-        ).strip()
-
-
-        if not raw:
-
-            data = _new_default_database()
-
-            save_memory(
-                data
-            )
-
-            return data
-
-
-        data = json.loads(
-            raw
+        return (
+            "data:image/svg+xml;base64,"
+            + encoded
         )
 
+    except Exception:
 
-        data = _normalise_database(
-            data
-        )
-
-
-        return data
-
-
-    except (
-        json.JSONDecodeError,
-        OSError,
-        TypeError,
-        ValueError,
-    ):
-
-        data = _new_default_database()
-
-
-        # ----------------------------------------------------
-        # Try to repair an invalid database.
-        # ----------------------------------------------------
-
-        try:
-
-            save_memory(
-                data
-            )
-
-        except Exception:
-
-            pass
-
-
-        return data
+        return None
 
 
 # ============================================================
-# SAVE DATABASE
+# DATABASE
 # ============================================================
 
-def save_memory(
-    data: dict[str, Any],
-) -> bool:
+try:
 
-    """
-    Save the supplied database dictionary to JSON.
+    from modules.database import load_memory
 
-    Returns:
-        True  -> saved successfully
-        False -> save failed
-    """
+    db = load_memory()
 
-    try:
+except Exception:
 
-        data = _normalise_database(
-            data
-        )
+    db = {}
 
 
-        DATABASE_FILE.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+if not isinstance(db, dict):
 
-
-        # ----------------------------------------------------
-        # Write to a temporary file first.
-        #
-        # This prevents a failed write from leaving the main
-        # JSON database partially corrupted.
-        # ----------------------------------------------------
-
-        temporary_file = DATABASE_FILE.with_suffix(
-            ".tmp"
-        )
-
-
-        temporary_file.write_text(
-            json.dumps(
-                data,
-                indent=2,
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
-        )
-
-
-        temporary_file.replace(
-            DATABASE_FILE
-        )
-
-
-        return True
-
-
-    except (
-        OSError,
-        TypeError,
-        ValueError,
-    ):
-
-        return False
+    db = {}
 
 
 # ============================================================
-# RESET DATABASE
+# SESSION STATE
 # ============================================================
 
-def reset_database() -> dict[str, Any]:
+if "authenticated" not in st.session_state:
 
-    """
-    Replace the current database with the default database.
-
-    Returns the new database dictionary.
-    """
-
-    data = _new_default_database()
+    st.session_state[
+        "authenticated"
+    ] = False
 
 
-    save_memory(
-        data
+if "user" not in st.session_state:
+
+    st.session_state[
+        "user"
+    ] = None
+
+
+# ============================================================
+# LOGIN
+# ============================================================
+
+def authenticate(
+    username,
+    password,
+):
+
+    username = str(
+        username or ""
+    ).strip().lower()
+
+    password = str(
+        password or ""
     )
 
 
-    return data
-
-
-# ============================================================
-# GET COLLECTION
-# ============================================================
-
-def get_collection(
-    data: dict[str, Any],
-    collection: str,
-) -> list:
-
-    """
-    Safely retrieve a collection from the database.
-
-    Example:
-
-        projects = get_collection(db, "projects")
-    """
-
-    if not isinstance(
-        data,
-        dict,
-    ):
-
-        return []
-
-
-    value = data.get(
-        collection,
+    users = db.get(
+        "users",
         [],
     )
 
 
     if not isinstance(
-        value,
+        users,
         list,
     ):
 
-        value = []
-
-        data[
-            collection
-        ] = value
+        users = []
 
 
-    return value
+    for user in users:
+
+        if not isinstance(
+            user,
+            dict,
+        ):
+
+            continue
 
 
-# ============================================================
-# ADD RECORD
-# ============================================================
+        stored_username = str(
+            user.get(
+                "username",
+                "",
+            )
+        ).strip().lower()
 
-def add_record(
-    data: dict[str, Any],
-    collection: str,
-    record: dict[str, Any],
-) -> dict[str, Any]:
 
-    """
-    Add a dictionary record to a collection.
-
-    The updated record is returned.
-    """
-
-    if not isinstance(
-        data,
-        dict,
-    ):
-
-        raise TypeError(
-            "Database must be a dictionary."
+        stored_password = str(
+            user.get(
+                "password",
+                user.get(
+                    "password_hash",
+                    "",
+                ),
+            )
         )
 
 
-    if not isinstance(
-        record,
-        dict,
-    ):
-
-        raise TypeError(
-            "Record must be a dictionary."
-        )
-
-
-    records = get_collection(
-        data,
-        collection,
-    )
-
-
-    records.append(
-        record
-    )
-
-
-    return record
-
-
-# ============================================================
-# FIND RECORD
-# ============================================================
-
-def find_record(
-    data: dict[str, Any],
-    collection: str,
-    field: str,
-    value: Any,
-):
-
-    """
-    Find the first record matching a field.
-
-    Returns:
-        record dictionary or None
-    """
-
-    records = get_collection(
-        data,
-        collection,
-    )
-
-
-    for record in records:
-
-        if not isinstance(
-            record,
-            dict,
+        if (
+            username == stored_username
+            and password == stored_password
         ):
 
-            continue
+            st.session_state[
+                "authenticated"
+            ] = True
+
+            st.session_state[
+                "user"
+            ] = user
+
+            return True
 
 
-        if record.get(
-            field
-        ) == value:
+    # --------------------------------------------------------
+    # Development fallback
+    #
+    # This only works when no users exist in the database.
+    # --------------------------------------------------------
 
-            return record
+    if not users:
 
-
-    return None
-
-
-# ============================================================
-# FIND ALL RECORDS
-# ============================================================
-
-def find_records(
-    data: dict[str, Any],
-    collection: str,
-    field: str,
-    value: Any,
-) -> list[dict[str, Any]]:
-
-    """
-    Find all records matching a field.
-    """
-
-    records = get_collection(
-        data,
-        collection,
-    )
-
-
-    results = []
-
-
-    for record in records:
-
-        if not isinstance(
-            record,
-            dict,
+        if (
+            username == "admin"
+            and password == "admin123"
         ):
 
-            continue
+            user = {
+
+                "username":
+                    "admin",
+
+                "name":
+                    "System Administrator",
+
+                "full_name":
+                    "System Administrator",
+
+                "role":
+                    "Admin",
+
+            }
 
 
-        if record.get(
-            field
-        ) == value:
+            st.session_state[
+                "authenticated"
+            ] = True
 
-            results.append(
-                record
-            )
-
-
-    return results
-
-
-# ============================================================
-# DELETE RECORD
-# ============================================================
-
-def delete_record(
-    data: dict[str, Any],
-    collection: str,
-    field: str,
-    value: Any,
-) -> bool:
-
-    """
-    Delete the first record matching a field.
-
-    Returns:
-        True  -> record deleted
-        False -> record not found
-    """
-
-    records = get_collection(
-        data,
-        collection,
-    )
-
-
-    for index, record in enumerate(
-        records
-    ):
-
-        if not isinstance(
-            record,
-            dict,
-        ):
-
-            continue
-
-
-        if record.get(
-            field
-        ) == value:
-
-            records.pop(
-                index
-            )
+            st.session_state[
+                "user"
+            ] = user
 
             return True
 
@@ -590,113 +887,426 @@ def delete_record(
 
 
 # ============================================================
-# UPDATE RECORD
+# LOGIN PAGE
 # ============================================================
 
-def update_record(
-    data: dict[str, Any],
-    collection: str,
-    field: str,
-    value: Any,
-    updates: dict[str, Any],
-) -> bool:
+def show_login():
 
-    """
-    Update the first matching record.
+    logo = get_logo_data()
 
-    Returns:
-        True  -> updated
-        False -> not found
-    """
 
-    if not isinstance(
-        updates,
-        dict,
+    st.markdown(
+        '<div class="login-container">',
+        unsafe_allow_html=True,
+    )
+
+
+    if logo:
+
+        st.markdown(
+            f"""
+            <img
+                src="{logo}"
+                class="login-logo"
+            >
+            """,
+            unsafe_allow_html=True,
+        )
+
+    else:
+
+        st.markdown(
+            """
+            <div
+                style="
+                    width:120px;
+                    height:120px;
+                    margin:0 auto 18px auto;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    border:2px solid #2563EB;
+                    border-radius:28px;
+                    color:#60A5FA;
+                    font-size:42px;
+                    font-weight:900;
+                "
+            >
+                CS
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+    st.markdown(
+        """
+        <div class="login-title">
+            Creative Studios
+        </div>
+
+        <div class="login-subtitle">
+            AEC Collaboration Platform
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+    with st.form(
+        "login_form",
+        clear_on_submit=False,
     ):
 
-        return False
+        username = st.text_input(
+            "Username",
+            placeholder="Enter username",
+        )
 
 
-    record = find_record(
-        data,
-        collection,
-        field,
-        value,
-    )
+        password = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Enter password",
+        )
 
 
-    if record is None:
-
-        return False
-
-
-    record.update(
-        updates
-    )
+        submit = st.form_submit_button(
+            "Sign In",
+            use_container_width=True,
+        )
 
 
-    return True
+    if submit:
+
+        if authenticate(
+            username,
+            password,
+        ):
+
+            st.rerun()
+
+        else:
+
+            st.error(
+                "Invalid username or password."
+            )
 
 
-# ============================================================
-# DATABASE STATUS
-# ============================================================
-
-def database_exists() -> bool:
-
-    """
-    Return True when the database file exists.
-    """
-
-    return DATABASE_FILE.exists()
-
-
-def database_path() -> str:
-
-    """
-    Return the absolute database path.
-    """
-
-    return str(
-        DATABASE_FILE
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
     )
 
 
 # ============================================================
-# OPTIONAL COMPATIBILITY ALIASES
+# SIDEBAR
 # ============================================================
 
-# Some older Creative Studios modules may use these names.
+def show_sidebar():
 
-load_database = load_memory
+    user = st.session_state.get(
+        "user"
+    ) or {}
 
-save_database = save_memory
 
-get_data = load_memory
+    username = str(
+        user.get(
+            "username",
+            "admin",
+        )
+    )
+
+
+    name = str(
+        user.get(
+            "name",
+            user.get(
+                "full_name",
+                "System Administrator",
+            ),
+        )
+    )
+
+
+    role = str(
+        user.get(
+            "role",
+            "Admin",
+        )
+    )
+
+
+    logo = get_logo_data()
+
+
+    with st.sidebar:
+
+        if logo:
+
+            st.markdown(
+                f"""
+                <div class="sidebar-brand">
+
+                    <img
+                        src="{logo}"
+                        class="sidebar-logo"
+                    >
+
+                    <div class="sidebar-brand-name">
+                        Creative Studios
+                    </div>
+
+                    <div class="sidebar-brand-subtitle">
+                        AEC Workspace
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        else:
+
+            st.markdown(
+                """
+                <div class="sidebar-brand">
+
+                    <div style="
+                        color:#2563EB;
+                        font-size:38px;
+                        font-weight:900;
+                    ">
+                        CS
+                    </div>
+
+                    <div class="sidebar-brand-name">
+                        Creative Studios
+                    </div>
+
+                    <div class="sidebar-brand-subtitle">
+                        AEC Workspace
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+        st.markdown(
+            '<div class="sidebar-line"></div>',
+            unsafe_allow_html=True,
+        )
+
+
+        st.markdown(
+            f"""
+            <div class="user-panel">
+
+                <div class="user-label">
+                    Signed In
+                </div>
+
+                <div class="user-name">
+                    {name}
+                </div>
+
+                <div class="user-login">
+                    @{username}
+                </div>
+
+                <div class="user-role">
+                    {role}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+        st.markdown(
+            """
+            <div class="nav-title">
+                Navigation
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+        menu = [
+            "Project Directory",
+            "Drawing Repository",
+            "Sign-Off & Approvals",
+            "Bill of Quantities (BOQ)",
+            "RFI & Technical Queries",
+            "Daily Site Logs",
+        ]
+
+
+        selected = st.radio(
+            "Navigation",
+            menu,
+            label_visibility="collapsed",
+        )
+
+
+        st.markdown(
+            "<br>",
+            unsafe_allow_html=True,
+        )
+
+
+        if st.button(
+            "Sign Out",
+            use_container_width=True,
+        ):
+
+            st.session_state[
+                "authenticated"
+            ] = False
+
+            st.session_state[
+                "user"
+            ] = None
+
+            st.rerun()
+
+
+    return selected
 
 
 # ============================================================
-# STARTUP CHECK
+# STARTUP
 # ============================================================
 
-if __name__ == "__main__":
+if not st.session_state[
+    "authenticated"
+]:
 
-    database = load_memory()
+    show_login()
 
-    print(
-        "Creative Studios database loaded."
+    st.stop()
+
+
+# ============================================================
+# AUTHENTICATED APPLICATION
+# ============================================================
+
+selected_module = show_sidebar()
+
+
+# ============================================================
+# PROJECT DIRECTORY
+# ============================================================
+
+if selected_module == "Project Directory":
+
+    from modules.projects import (
+        render_projects_module
     )
 
-    print(
-        f"Database: {DATABASE_FILE}"
+    render_projects_module(
+        db
     )
 
-    print(
-        f"Projects: "
-        f"{len(database.get('projects', []))}"
-    )
 
-    print(
-        f"Users: "
-        f"{len(database.get('users', []))}"
-    )
+# ============================================================
+# OTHER MODULES
+# ============================================================
+
+elif selected_module == "Drawing Repository":
+
+    try:
+
+        from modules.drawings import (
+            render_drawings_module
+        )
+
+        render_drawings_module(
+            db
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"Drawing Repository is unavailable: {exc}"
+        )
+
+
+elif selected_module == "Sign-Off & Approvals":
+
+    try:
+
+        from modules.approvals import (
+            render_approvals_module
+        )
+
+        render_approvals_module(
+            db
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"Sign-Off & Approvals is unavailable: {exc}"
+        )
+
+
+elif selected_module == "Bill of Quantities (BOQ)":
+
+    try:
+
+        from modules.boq import (
+            render_boq_module
+        )
+
+        render_boq_module(
+            db
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"BOQ is unavailable: {exc}"
+        )
+
+
+elif selected_module == "RFI & Technical Queries":
+
+    try:
+
+        from modules.rfi import (
+            render_rfi_module
+        )
+
+        render_rfi_module(
+            db
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"RFI module is unavailable: {exc}"
+        )
+
+
+elif selected_module == "Daily Site Logs":
+
+    try:
+
+        from modules.site_logs import (
+            render_site_logs_module
+        )
+
+        render_site_logs_module(
+            db
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"Daily Site Logs is unavailable: {exc}"
+        )
