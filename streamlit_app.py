@@ -1,8 +1,8 @@
 import streamlit as st
 from pathlib import Path
-from modules.utils import ensure_logo_svg, get_logo_html, LOGO_FILE
+from modules.utils import ensure_logo_svg, LOGO_FILE
 from modules.database import load_memory
-from modules.auth import login_user, require_auth, render_sidebar
+from modules.auth import login_user, require_auth
 from modules.projects import render_projects_module
 from modules.drawings import render_drawings_module
 from modules.approvals import render_approvals_module
@@ -11,7 +11,7 @@ from modules.boq import render_boq_module
 ensure_logo_svg()
 
 st.set_page_config(
-    page_title="Creative Studios — AEC Collaboration Platform",
+    page_title="Creative Studios — AEC Platform",
     page_icon=LOGO_FILE if Path(LOGO_FILE).exists() else "📐",
     layout="wide"
 )
@@ -25,9 +25,8 @@ if "authenticated" not in st.session_state:
 if not st.session_state["authenticated"]:
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(get_logo_html(width=140), unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align: center; color: #1E293B;'>Creative Studios</h2>", unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #0F172A; font-weight: 700;'>Creative Studios</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #64748B;'>Architectural, Engineering & Construction Collaboration</p><br>", unsafe_allow_html=True)
         
         with st.form("login_form"):
@@ -75,4 +74,3 @@ else:
         render_approvals_module(db)
     elif app_mode == "📊 Bill of Quantities (BOQ)":
         render_boq_module(db)
-
