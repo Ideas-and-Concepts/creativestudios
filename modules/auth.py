@@ -1,14 +1,6 @@
 """
 Creative Studios
 Authentication Module
-
-Handles:
-- Login
-- Logout
-- Session management
-- Authentication protection
-- Current user information
-- Sidebar navigation
 """
 
 import streamlit as st
@@ -20,8 +12,7 @@ from .utils import hash_password
 # SESSION
 # ============================================================
 
-def initialize_auth_session() -> None:
-    """Initialize authentication session variables."""
+def initialize_auth_session():
 
     if "authenticated" not in st.session_state:
         st.session_state["authenticated"] = False
@@ -40,17 +31,10 @@ def initialize_auth_session() -> None:
 # ============================================================
 
 def login_user(
-    db: dict,
-    username: str,
-    password: str,
-) -> bool:
-    """
-    Authenticate a user.
-
-    Returns:
-        True if authentication succeeds.
-        False otherwise.
-    """
+    db,
+    username,
+    password,
+):
 
     initialize_auth_session()
 
@@ -70,22 +54,16 @@ def login_user(
         [],
     )
 
-    if not isinstance(
-        users,
-        list,
-    ):
+    if not isinstance(users, list):
         return False
 
-    entered_hash = hash_password(
+    password_hash = hash_password(
         password
     )
 
     for user in users:
 
-        if not isinstance(
-            user,
-            dict,
-        ):
+        if not isinstance(user, dict):
             continue
 
         stored_username = str(
@@ -105,7 +83,6 @@ def login_user(
             "active",
             True,
         ) is False:
-
             return False
 
         stored_hash = str(
@@ -117,14 +94,13 @@ def login_user(
 
         if (
             stored_hash
-            and stored_hash == entered_hash
+            and stored_hash == password_hash
         ):
 
             st.session_state[
                 "authenticated"
             ] = True
 
-            # Store complete user record.
             st.session_state[
                 "user"
             ] = user
@@ -140,8 +116,7 @@ def login_user(
 # LOGOUT
 # ============================================================
 
-def logout_user() -> None:
-    """Clear the current login session."""
+def logout_user():
 
     st.session_state[
         "authenticated"
@@ -160,8 +135,7 @@ def logout_user() -> None:
 # AUTHENTICATION
 # ============================================================
 
-def is_authenticated() -> bool:
-    """Check whether a valid user is logged in."""
+def is_authenticated():
 
     initialize_auth_session()
 
@@ -184,10 +158,7 @@ def is_authenticated() -> bool:
     )
 
 
-def require_auth() -> None:
-    """Prevent unauthenticated access."""
-
-    initialize_auth_session()
+def require_auth():
 
     if not is_authenticated():
 
@@ -199,27 +170,22 @@ def require_auth() -> None:
 
 
 # ============================================================
-# CURRENT USER
+# USER
 # ============================================================
 
 def get_current_user():
-    """Return the current user record."""
 
     user = st.session_state.get(
         "user"
     )
 
-    if isinstance(
-        user,
-        dict,
-    ):
+    if isinstance(user, dict):
         return user
 
     return None
 
 
-def get_current_username() -> str:
-    """Return the current username."""
+def get_current_username():
 
     user = get_current_user()
 
@@ -234,8 +200,7 @@ def get_current_username() -> str:
     )
 
 
-def get_current_user_name() -> str:
-    """Return the user's display name."""
+def get_current_user_name():
 
     user = get_current_user()
 
@@ -253,8 +218,7 @@ def get_current_user_name() -> str:
     )
 
 
-def get_current_user_role() -> str:
-    """Return the user's role."""
+def get_current_user_role():
 
     user = get_current_user()
 
@@ -269,41 +233,26 @@ def get_current_user_role() -> str:
     )
 
 
-def has_role(
-    *roles: str,
-) -> bool:
-    """Check whether the current user has one of the roles."""
+def has_role(*roles):
 
-    current_role = (
-        get_current_user_role()
-    )
+    role = get_current_user_role()
 
-    if not current_role:
+    if not role:
         return False
 
-    current_role = (
-        current_role.lower()
-    )
+    role = role.lower()
 
-    allowed_roles = {
-        str(role).lower()
-        for role in roles
+    return role in {
+        str(item).lower()
+        for item in roles
     }
-
-    return (
-        current_role
-        in allowed_roles
-    )
 
 
 # ============================================================
 # SIDEBAR
 # ============================================================
 
-def render_sidebar() -> None:
-    """
-    Render the complete Creative Studios sidebar.
-    """
+def render_sidebar():
 
     if not is_authenticated():
         return
@@ -346,34 +295,27 @@ def render_sidebar() -> None:
         "Daily Site Logs",
     ]
 
-    current_mode = st.session_state.get(
+    current = st.session_state.get(
         "app_mode",
         "Project Directory",
     )
 
-    if current_mode not in menu_items:
-        current_mode = (
-            "Project Directory"
-        )
+    if current not in menu_items:
+        current = "Project Directory"
 
     with st.sidebar:
-
-        # ----------------------------------------------------
-        # BRAND
-        # ----------------------------------------------------
 
         st.markdown(
             """
             <div style="
                 text-align:center;
-                padding:8px 0 15px;
+                padding:8px 0 16px;
             ">
 
                 <div style="
                     font-size:21px;
                     font-weight:800;
                     color:#FFFFFF;
-                    letter-spacing:-0.5px;
                 ">
                     Creative Studios
                 </div>
@@ -382,7 +324,7 @@ def render_sidebar() -> None:
                     font-size:9px;
                     color:#DBEAFE;
                     font-weight:700;
-                    letter-spacing:1.2px;
+                    letter-spacing:1px;
                     text-transform:uppercase;
                     margin-top:4px;
                 ">
@@ -396,18 +338,14 @@ def render_sidebar() -> None:
 
         st.divider()
 
-        # ----------------------------------------------------
-        # NAVIGATION
-        # ----------------------------------------------------
-
         st.markdown(
             """
             <div style="
-                font-size:10px;
                 color:#BFDBFE;
+                font-size:10px;
                 font-weight:800;
-                letter-spacing:1px;
                 text-transform:uppercase;
+                letter-spacing:1px;
                 margin-bottom:6px;
             ">
                 Workspace
@@ -420,9 +358,9 @@ def render_sidebar() -> None:
             "Navigation",
             menu_items,
             index=menu_items.index(
-                current_mode
+                current
             ),
-            key="creative_studios_navigation",
+            key="creative_navigation",
             label_visibility="collapsed",
         )
 
@@ -432,42 +370,36 @@ def render_sidebar() -> None:
 
         st.divider()
 
-        # ----------------------------------------------------
-        # USER
-        # ----------------------------------------------------
-
         st.markdown(
             f"""
             <div style="
-                padding:12px;
                 background:rgba(255,255,255,0.13);
                 border:1px solid rgba(255,255,255,0.15);
                 border-radius:12px;
-                margin-bottom:10px;
+                padding:12px;
             ">
 
                 <div style="
                     font-size:9px;
                     color:#BFDBFE;
                     font-weight:800;
-                    letter-spacing:1px;
                     text-transform:uppercase;
                 ">
                     Signed In
                 </div>
 
                 <div style="
+                    color:#FFFFFF;
                     font-size:15px;
                     font-weight:800;
-                    color:#FFFFFF;
                     margin-top:4px;
                 ">
                     {name}
                 </div>
 
                 <div style="
-                    font-size:11px;
                     color:#DBEAFE;
+                    font-size:11px;
                     margin-top:3px;
                 ">
                     @{username}
@@ -491,14 +423,12 @@ def render_sidebar() -> None:
             unsafe_allow_html=True,
         )
 
-        # ----------------------------------------------------
-        # LOGOUT
-        # ----------------------------------------------------
+        st.write("")
 
         if st.button(
             "Sign Out",
             use_container_width=True,
-            key="creative_studios_signout",
+            key="creative_signout",
         ):
 
             logout_user()
@@ -507,58 +437,12 @@ def render_sidebar() -> None:
 
 
 # ============================================================
-# BACKWARD COMPATIBILITY
+# COMPATIBILITY FUNCTIONS
 # ============================================================
 
-def render_user_profile() -> None:
-    """
-    Compatibility function for older modules.
-    """
-
-    user = get_current_user()
-
-    if not user:
-        return
-
-    name = user.get(
-        "name",
-        user.get(
-            "username",
-            "User",
-        ),
-    )
-
-    username = user.get(
-        "username",
-        "",
-    )
-
-    role = user.get(
-        "role",
-        "User",
-    )
-
-    st.sidebar.markdown(
-        f"""
-        <div style="
-            padding:10px;
-            border-radius:10px;
-            background:rgba(255,255,255,0.10);
-        ">
-            <strong>{name}</strong><br>
-            <small>@{username}</small><br>
-            <small>{role}</small>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def render_user_profile():
+    return
 
 
-def render_sidebar_logout() -> None:
-    """
-    Compatibility function for older modules.
-
-    Logout is now rendered by render_sidebar().
-    """
-
+def render_sidebar_logout():
     return
