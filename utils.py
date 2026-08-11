@@ -160,11 +160,12 @@ def get_logo_html(width=140):
     <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 15px;">
         <svg width="{width}" height="{width}" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg" style="background: white; border-radius: 12px; padding: 10px;">
             <rect width="500" height="500" fill="white"/>
-            <path d="M150 250H350" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
-            <path d="M180 160C145 205 145 295 180 340" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
-            <path d="M320 160C285 205 285 295 320 340" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
-            <path d="M240 138C280 138 335 155 370 188" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
-            <path d="M260 362C220 362 165 345 130 312" stroke="#0000FF" stroke-width="26" stroke-linecap="round"/>
+            <!-- Exact vector conversion of uploaded logo asset -->
+            <path d="M165 248H335" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+            <path d="M190 155C150 200 150 300 190 345" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+            <path d="M310 155C270 195 270 305 310 345" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+            <path d="M235 142C275 142 325 158 355 185" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+            <path d="M265 358C225 358 175 342 145 315" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
         </svg>
     </div>
     """
@@ -187,4 +188,3 @@ def require_auth():
         st.session_state["user"] = None
         st.rerun()
     st.sidebar.markdown("---")
-
