@@ -187,3 +187,4 @@ def require_auth():
         st.session_state["user"] = None
         st.rerun()
     st.sidebar.markdown("---")
+
