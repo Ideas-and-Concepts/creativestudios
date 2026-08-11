@@ -3,10 +3,16 @@ Creative Studios
 Architectural, Engineering & Construction Collaboration Platform
 
 Main Streamlit Application Controller
+
 Version 1.1.0
 """
 
 import streamlit as st
+
+
+# ============================================================
+# CORE IMPORTS
+# ============================================================
 
 from modules.utils import (
     ensure_logo_svg,
@@ -45,25 +51,42 @@ from modules.boq import (
 # ============================================================
 
 try:
-    from modules.rfi import render_rfi_module
+
+    from modules.rfi import (
+        render_rfi_module,
+    )
+
 except ImportError:
+
     render_rfi_module = None
 
 
 try:
-    from modules.site_logs import render_site_logs_module
+
+    from modules.site_logs import (
+        render_site_logs_module,
+    )
+
 except ImportError:
+
     render_site_logs_module = None
+
+
+# ============================================================
+# LOGO
+# ============================================================
+
+ensure_logo_svg()
 
 
 # ============================================================
 # PAGE CONFIGURATION
 # ============================================================
 
-ensure_logo_svg()
-
 st.set_page_config(
-    page_title="Creative Studios | AEC Platform",
+    page_title=(
+        "Creative Studios | AEC Platform"
+    ),
     page_icon=LOGO_FILE,
     layout="wide",
     initial_sidebar_state="expanded",
@@ -71,7 +94,7 @@ st.set_page_config(
 
 
 # ============================================================
-# BLUE THEME
+# CREATIVE STUDIOS BLUE + BLACK DESIGN SYSTEM
 # ============================================================
 
 st.markdown(
@@ -79,51 +102,104 @@ st.markdown(
     <style>
 
     /* ========================================================
-       APPLICATION
+       GLOBAL
        ======================================================== */
 
     .stApp {
-        background-color: #F8FAFC;
+
+        background:
+            linear-gradient(
+                135deg,
+                #F8FAFC 0%,
+                #EFF6FF 100%
+            );
+
+        color:
+            #0F172A;
     }
 
+
     [data-testid="stHeader"] {
-        background-color: transparent;
+
+        background:
+            transparent;
     }
 
 
     /* ========================================================
-       BLUE SIDEBAR
+       SIDEBAR
        ======================================================== */
 
     section[data-testid="stSidebar"] {
+
         background:
             linear-gradient(
                 180deg,
-                #1D4ED8 0%,
-                #2563EB 50%,
-                #1E40AF 100%
+                #020617 0%,
+                #0F172A 45%,
+                #172554 100%
             );
 
         border-right:
-            1px solid
-            rgba(255,255,255,0.15);
+            2px solid #2563EB;
+
+        box-shadow:
+            8px 0 30px
+            rgba(15,23,42,0.18);
     }
 
+
     section[data-testid="stSidebar"] * {
-        color: #FFFFFF;
+
+        color:
+            #FFFFFF;
     }
+
 
     section[data-testid="stSidebar"]
     .stRadio label {
-        padding: 9px 11px;
-        border-radius: 9px;
-        font-weight: 600;
+
+        color:
+            #CBD5E1;
+
+        padding:
+            10px 12px;
+
+        margin:
+            3px 0;
+
+        border-radius:
+            9px;
+
+        font-weight:
+            650;
     }
+
 
     section[data-testid="stSidebar"]
     .stRadio label:hover {
+
         background:
-            rgba(255,255,255,0.13);
+            rgba(37,99,235,0.25);
+
+        color:
+            #FFFFFF;
+    }
+
+
+    /* ========================================================
+       MAIN HEADINGS
+       ======================================================== */
+
+    h1,
+    h2,
+    h3 {
+
+        color:
+            #0F172A !important;
+
+        font-weight:
+            800;
     }
 
 
@@ -132,45 +208,66 @@ st.markdown(
        ======================================================== */
 
     .login-card {
-        background: #FFFFFF;
-        padding: 40px;
-        border-radius: 20px;
-        border: 1px solid #DBEAFE;
+
+        background:
+            #FFFFFF;
+
+        padding:
+            42px;
+
+        border-radius:
+            20px;
+
+        border:
+            1px solid #DBEAFE;
+
+        border-top:
+            5px solid #2563EB;
+
         box-shadow:
-            0 20px 55px
-            rgba(37,99,235,0.12);
+            0 25px 60px
+            rgba(15,23,42,0.12);
     }
+
 
     .login-title {
-        text-align: center;
-        color: #1E3A8A;
-        font-size: 30px;
-        font-weight: 800;
-        margin-top: 15px;
-        margin-bottom: 5px;
+
+        text-align:
+            center;
+
+        color:
+            #020617;
+
+        font-size:
+            31px;
+
+        font-weight:
+            850;
+
+        margin-top:
+            14px;
+
+        margin-bottom:
+            5px;
     }
+
 
     .login-subtitle {
-        text-align: center;
-        color: #64748B;
-        font-size: 14px;
-        margin-bottom: 25px;
-    }
 
+        text-align:
+            center;
 
-    /* ========================================================
-       CONTENT
-       ======================================================== */
+        color:
+            #64748B;
 
-    .module-title {
-        color: #1E3A8A;
-        font-size: 29px;
-        font-weight: 800;
-    }
+        font-size:
+            14px;
 
-    .module-subtitle {
-        color: #64748B;
-        font-size: 14px;
+        line-height:
+            1.5;
+
+        margin-bottom:
+            25px;
     }
 
 
@@ -179,14 +276,66 @@ st.markdown(
        ======================================================== */
 
     .stButton > button {
-        border-radius: 9px;
-        font-weight: 700;
-        border: 1px solid #2563EB;
+
+        background:
+            #020617;
+
+        color:
+            #FFFFFF;
+
+        border:
+            1px solid #020617;
+
+        border-radius:
+            9px;
+
+        font-weight:
+            750;
+
+        min-height:
+            42px;
+
+        transition:
+            all 0.15s ease;
     }
 
+
     .stButton > button:hover {
-        border-color: #1D4ED8;
-        color: #1D4ED8;
+
+        background:
+            #2563EB;
+
+        border-color:
+            #2563EB;
+
+        color:
+            #FFFFFF;
+    }
+
+
+    .stFormSubmitButton > button {
+
+        background:
+            #2563EB !important;
+
+        border-color:
+            #2563EB !important;
+
+        color:
+            #FFFFFF !important;
+
+        font-weight:
+            800 !important;
+    }
+
+
+    .stFormSubmitButton > button:hover {
+
+        background:
+            #1D4ED8 !important;
+
+        border-color:
+            #1D4ED8 !important;
     }
 
 
@@ -194,11 +343,50 @@ st.markdown(
        INPUTS
        ======================================================== */
 
+    .stTextInput input,
+    .stTextArea textarea,
+    .stNumberInput input {
+
+        background:
+            #FFFFFF;
+
+        color:
+            #0F172A;
+
+        border:
+            1px solid #CBD5E1;
+
+        border-radius:
+            9px;
+    }
+
+
     .stTextInput input:focus,
-    .stTextArea textarea:focus {
-        border-color: #2563EB;
+    .stTextArea textarea:focus,
+    .stNumberInput input:focus {
+
+        border-color:
+            #2563EB;
+
         box-shadow:
             0 0 0 1px #2563EB;
+    }
+
+
+    /* ========================================================
+       SELECTBOX
+       ======================================================== */
+
+    div[data-baseweb="select"] > div {
+
+        background:
+            #FFFFFF;
+
+        border-radius:
+            9px;
+
+        border-color:
+            #CBD5E1;
     }
 
 
@@ -207,11 +395,107 @@ st.markdown(
        ======================================================== */
 
     [data-testid="stMetric"] {
-        background: #FFFFFF;
-        border: 1px solid #DBEAFE;
-        border-radius: 12px;
-        padding: 12px;
+
+        background:
+            #FFFFFF;
+
+        border:
+            1px solid #CBD5E1;
+
+        border-top:
+            4px solid #2563EB;
+
+        border-radius:
+            13px;
+
+        padding:
+            15px;
+
+        box-shadow:
+            0 7px 20px
+            rgba(15,23,42,0.06);
     }
+
+
+    [data-testid="stMetricLabel"] {
+
+        color:
+            #64748B !important;
+
+        font-weight:
+            700;
+    }
+
+
+    [data-testid="stMetricValue"] {
+
+        color:
+            #020617 !important;
+
+        font-weight:
+            850;
+    }
+
+
+    /* ========================================================
+       TABS
+       ======================================================== */
+
+    button[data-baseweb="tab"] {
+
+        color:
+            #475569;
+
+        font-weight:
+            750;
+    }
+
+
+    button[data-baseweb="tab"][aria-selected="true"] {
+
+        color:
+            #2563EB;
+    }
+
+
+    /* ========================================================
+       EXPANDERS
+       ======================================================== */
+
+    [data-testid="stExpander"] {
+
+        background:
+            #FFFFFF;
+
+        border:
+            1px solid #CBD5E1;
+
+        border-radius:
+            10px;
+    }
+
+
+    /* ========================================================
+       ALERTS
+       ======================================================== */
+
+    [data-testid="stAlert"] {
+
+        border-radius:
+            10px;
+    }
+
+
+    /* ========================================================
+       DIVIDERS
+       ======================================================== */
+
+    hr {
+
+        border-color:
+            #CBD5E1;
+    }
+
 
     </style>
     """,
@@ -231,15 +515,24 @@ db = load_memory()
 # ============================================================
 
 if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
+
+    st.session_state[
+        "authenticated"
+    ] = False
+
 
 if "user" not in st.session_state:
-    st.session_state["user"] = None
+
+    st.session_state[
+        "user"
+    ] = None
+
 
 if "app_mode" not in st.session_state:
-    st.session_state["app_mode"] = (
-        "Project Directory"
-    )
+
+    st.session_state[
+        "app_mode"
+    ] = "Project Directory"
 
 
 # ============================================================
@@ -251,21 +544,25 @@ if not st.session_state.get(
     False,
 ):
 
-    # Hide sidebar while logged out.
+    # Hide sidebar on login.
     st.markdown(
         """
         <style>
+
         section[data-testid="stSidebar"] {
-            display: none;
+            display:none;
         }
+
         </style>
         """,
         unsafe_allow_html=True,
     )
 
+
     left, center, right = st.columns(
         [1, 1.15, 1]
     )
+
 
     with center:
 
@@ -274,10 +571,12 @@ if not st.session_state.get(
             unsafe_allow_html=True,
         )
 
+
         st.markdown(
             '<div class="login-card">',
             unsafe_allow_html=True,
         )
+
 
         # ----------------------------------------------------
         # LOGO
@@ -289,6 +588,7 @@ if not st.session_state.get(
             ),
             unsafe_allow_html=True,
         )
+
 
         # ----------------------------------------------------
         # TITLE
@@ -303,14 +603,17 @@ if not st.session_state.get(
             unsafe_allow_html=True,
         )
 
+
         st.markdown(
             """
             <div class="login-subtitle">
-                Architectural, Engineering & Construction Collaboration
+                Architectural, Engineering & Construction
+                Collaboration Platform
             </div>
             """,
             unsafe_allow_html=True,
         )
+
 
         # ----------------------------------------------------
         # LOGIN FORM
@@ -322,19 +625,26 @@ if not st.session_state.get(
 
             username = st.text_input(
                 "Username",
-                placeholder="Enter your username",
+                placeholder=(
+                    "Enter your username"
+                ),
             )
+
 
             password = st.text_input(
                 "Password",
                 type="password",
-                placeholder="Enter your password",
+                placeholder=(
+                    "Enter your password"
+                ),
             )
+
 
             submitted = st.form_submit_button(
                 "Sign In",
                 use_container_width=True,
             )
+
 
             if submitted:
 
@@ -342,9 +652,11 @@ if not st.session_state.get(
                     username or ""
                 ).strip()
 
+
                 password = (
                     password or ""
                 )
+
 
                 if not username:
 
@@ -352,11 +664,13 @@ if not st.session_state.get(
                         "Please enter your username."
                     )
 
+
                 elif not password:
 
                     st.warning(
                         "Please enter your password."
                     )
+
 
                 elif login_user(
                     db,
@@ -364,12 +678,15 @@ if not st.session_state.get(
                     password,
                 ):
 
-                    # login_user() already stores:
+                    # IMPORTANT:
+                    #
+                    # login_user() already sets:
                     #
                     # authenticated = True
                     # user = complete user dictionary
                     #
-                    # Do NOT replace user with username.
+                    # Therefore we DO NOT overwrite
+                    # session_state["user"] here.
 
                     st.success(
                         "Authentication successful."
@@ -377,11 +694,13 @@ if not st.session_state.get(
 
                     st.rerun()
 
+
                 else:
 
                     st.error(
                         "Invalid username or password."
                     )
+
 
         st.markdown(
             """
@@ -397,16 +716,18 @@ if not st.session_state.get(
             unsafe_allow_html=True,
         )
 
+
         st.markdown(
             "</div>",
             unsafe_allow_html=True,
         )
 
+
     st.stop()
 
 
 # ============================================================
-# AUTHENTICATION CHECK
+# AUTHENTICATION
 # ============================================================
 
 require_auth()
@@ -419,43 +740,44 @@ require_auth()
 with st.sidebar:
 
     # --------------------------------------------------------
-    # LOGO / BRAND
+    # BRAND
     # --------------------------------------------------------
 
     st.markdown(
         get_logo_html(
-            width=90
+            width=85
         ),
         unsafe_allow_html=True,
     )
+
 
     st.markdown(
         """
         <div style="
             text-align:center;
-            font-size:19px;
-            font-weight:800;
             color:#FFFFFF;
+            font-size:20px;
+            font-weight:850;
             margin-top:5px;
-            margin-bottom:3px;
         ">
             Creative Studios
         </div>
 
         <div style="
             text-align:center;
+            color:#93C5FD;
             font-size:9px;
-            color:#DBEAFE;
-            font-weight:700;
-            letter-spacing:1px;
+            font-weight:800;
+            letter-spacing:1.1px;
             text-transform:uppercase;
-            margin-bottom:15px;
+            margin-top:4px;
         ">
             AEC Collaboration Platform
         </div>
         """,
         unsafe_allow_html=True,
     )
+
 
     st.divider()
 
@@ -467,18 +789,19 @@ with st.sidebar:
     st.markdown(
         """
         <div style="
+            color:#60A5FA;
             font-size:10px;
-            font-weight:800;
-            color:#BFDBFE;
-            text-transform:uppercase;
+            font-weight:850;
             letter-spacing:1px;
-            margin-bottom:8px;
+            text-transform:uppercase;
+            margin-bottom:7px;
         ">
             AEC Workspace
         </div>
         """,
         unsafe_allow_html=True,
     )
+
 
     menu_items = [
         "Project Directory",
@@ -489,13 +812,19 @@ with st.sidebar:
         "Daily Site Logs",
     ]
 
+
     current_mode = st.session_state.get(
         "app_mode",
         "Project Directory",
     )
 
+
     if current_mode not in menu_items:
-        current_mode = "Project Directory"
+
+        current_mode = (
+            "Project Directory"
+        )
+
 
     app_mode = st.radio(
         "Navigation",
@@ -506,6 +835,7 @@ with st.sidebar:
         label_visibility="collapsed",
     )
 
+
     st.session_state[
         "app_mode"
     ] = app_mode
@@ -515,12 +845,13 @@ with st.sidebar:
 
 
     # --------------------------------------------------------
-    # CURRENT USER
+    # USER PROFILE
     # --------------------------------------------------------
 
     current_user = st.session_state.get(
         "user"
     )
+
 
     if isinstance(
         current_user,
@@ -535,12 +866,12 @@ with st.sidebar:
             ),
         )
 
-        username_display = current_user.get(
+        username = current_user.get(
             "username",
             "",
         )
 
-        role_display = current_user.get(
+        role = current_user.get(
             "role",
             "User",
         )
@@ -551,64 +882,67 @@ with st.sidebar:
             current_user or "User"
         )
 
-        username_display = ""
-        role_display = "User"
+        username = ""
+        role = "User"
 
 
     st.markdown(
         f"""
         <div style="
+            background:#020617;
+            border:1px solid #1E3A8A;
+            border-left:3px solid #2563EB;
+            border-radius:10px;
             padding:12px;
-            background:rgba(255,255,255,0.13);
-            border:1px solid rgba(255,255,255,0.15);
-            border-radius:12px;
-            margin-bottom:10px;
         ">
 
             <div style="
+                color:#60A5FA;
                 font-size:9px;
-                color:#BFDBFE;
-                font-weight:800;
-                text-transform:uppercase;
+                font-weight:850;
                 letter-spacing:1px;
+                text-transform:uppercase;
             ">
                 Signed In
             </div>
 
             <div style="
+                color:#FFFFFF;
                 font-size:15px;
                 font-weight:800;
-                color:#FFFFFF;
-                margin-top:4px;
+                margin-top:5px;
             ">
                 {display_name}
             </div>
 
             <div style="
+                color:#94A3B8;
                 font-size:11px;
-                color:#DBEAFE;
                 margin-top:3px;
             ">
-                @{username_display}
+                @{username}
             </div>
 
             <div style="
                 display:inline-block;
                 margin-top:8px;
                 padding:4px 9px;
+                background:#2563EB;
+                color:#FFFFFF;
                 border-radius:999px;
-                background:#FFFFFF;
-                color:#1D4ED8;
                 font-size:9px;
-                font-weight:800;
+                font-weight:850;
             ">
-                {role_display}
+                {role}
             </div>
 
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+
+    st.write("")
 
 
     # --------------------------------------------------------
@@ -618,7 +952,7 @@ with st.sidebar:
     if st.button(
         "Sign Out",
         use_container_width=True,
-        key="creative_studios_logout",
+        key="creative_studios_signout",
     ):
 
         st.session_state[
@@ -637,43 +971,74 @@ with st.sidebar:
 
 
 # ============================================================
-# MAIN ROUTER
+# APPLICATION ROUTER
 # ============================================================
 
 if app_mode == "Project Directory":
 
-    render_projects_module(db)
+    render_projects_module(
+        db
+    )
 
 
 elif app_mode == "Drawing Repository":
 
-    render_drawings_module(db)
+    render_drawings_module(
+        db
+    )
 
 
 elif app_mode == "Sign-Off & Approvals":
 
-    render_approvals_module(db)
+    render_approvals_module(
+        db
+    )
 
 
 elif app_mode == "Bill of Quantities (BOQ)":
 
-    render_boq_module(db)
+    render_boq_module(
+        db
+    )
 
 
 elif app_mode == "RFI & Technical Queries":
 
     if render_rfi_module:
 
-        render_rfi_module(db)
+        render_rfi_module(
+            db
+        )
 
     else:
 
-        st.title(
-            "RFI & Technical Queries"
-        )
+        st.markdown(
+            """
+            <div style="
+                background:#020617;
+                color:#FFFFFF;
+                padding:25px;
+                border-radius:14px;
+                border-left:5px solid #2563EB;
+            ">
 
-        st.info(
-            "The RFI module has not yet been installed."
+                <div style="
+                    font-size:24px;
+                    font-weight:800;
+                ">
+                    RFI & Technical Queries
+                </div>
+
+                <div style="
+                    color:#CBD5E1;
+                    margin-top:6px;
+                ">
+                    The RFI module is not currently installed.
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
 
@@ -681,14 +1046,38 @@ elif app_mode == "Daily Site Logs":
 
     if render_site_logs_module:
 
-        render_site_logs_module(db)
+        render_site_logs_module(
+            db
+        )
 
     else:
 
-        st.title(
-            "Daily Site Logs"
-        )
+        st.markdown(
+            """
+            <div style="
+                background:#020617;
+                color:#FFFFFF;
+                padding:25px;
+                border-radius:14px;
+                border-left:5px solid #2563EB;
+            ">
 
-        st.info(
-            "The Daily Site Logs module has not yet been installed."
+                <div style="
+                    font-size:24px;
+                    font-weight:800;
+                ">
+                    Daily Site Logs
+                </div>
+
+                <div style="
+                    color:#CBD5E1;
+                    margin-top:6px;
+                ">
+                    The Daily Site Logs module is not
+                    currently installed.
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
