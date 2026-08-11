@@ -10,17 +10,23 @@ MEMORY_FILE = "creativestudios_db.json"
 LOGO_FILE = "logo.svg"
 
 def ensure_logo_svg():
-    """Automatically writes the SVG logo file to the root directory if it doesn't exist."""
+    """Automatically writes the new modern vector SVG logo file to the root directory."""
     svg_content = """<svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="500" height="500" fill="white"/>
-    <path d="M165 248H335" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
-    <path d="M190 155C150 200 150 300 190 345" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
-    <path d="M310 155C270 195 270 305 310 345" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
-    <path d="M235 142C275 142 325 158 355 185" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
-    <path d="M265 358C225 358 175 342 145 315" stroke="#0000FF" stroke-width="28" stroke-linecap="round"/>
+    <defs>
+        <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0066FF"/>
+            <stop offset="100%" stop-color="#00D4FF"/>
+        </linearGradient>
+    </defs>
+    <rect width="500" height="500" rx="90" fill="#F8FAFC"/>
+    <!-- Modern Architectural & Geometric Motif -->
+    <circle cx="250" cy="250" r="160" stroke="url(#logoGrad)" stroke-width="20" stroke-dasharray="25 15" stroke-linecap="round" opacity="0.3"/>
+    <path d="M170 170H330V330H170V170Z" stroke="url(#logoGrad)" stroke-width="24" stroke-linejoin="round" fill="none"/>
+    <path d="M250 130V370" stroke="url(#logoGrad)" stroke-width="20" stroke-linecap="round"/>
+    <path d="M130 250H370" stroke="url(#logoGrad)" stroke-width="20" stroke-linecap="round"/>
+    <circle cx="250" cy="250" r="45" fill="url(#logoGrad)"/>
 </svg>"""
-    if not Path(LOGO_FILE).exists():
-        Path(LOGO_FILE).write_text(svg_content)
+    Path(LOGO_FILE).write_text(svg_content)
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
