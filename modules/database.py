@@ -3,7 +3,7 @@ import json
 import streamlit as st
 from pathlib import Path
 from sqlalchemy import create_engine, text
-from utils import hash_password
+from .utils import hash_password
 
 MEMORY_FILE = "creativestudios_db.json"
 
