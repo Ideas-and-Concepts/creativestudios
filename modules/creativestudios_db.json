@@ -1,0 +1,42 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "admin123",
+      "name": "System Administrator",
+      "full_name": "System Administrator",
+      "role": "Admin",
+      "email": "admin@creativestudios.local",
+      "active": true
+    }
+  ],
+  "projects": [
+    {
+      "id": "PRJ-001",
+      "project_id": "PRJ-001",
+      "name": "Grand Horizon Commercial Complex",
+      "project_name": "Grand Horizon Commercial Complex",
+      "type": "Commercial",
+      "project_type": "Commercial",
+      "status": "Active",
+      "phase": "Design Development",
+      "client": "Grand Horizon Developments",
+      "client_name": "Grand Horizon Developments",
+      "location": "Kampala, Uganda",
+      "project_manager": "System Administrator",
+      "manager": "System Administrator",
+      "budget": 1250000,
+      "estimated_budget": 1250000,
+      "description": "A commercial development project managed through the Creative Studios AEC collaboration platform."
+    }
+  ],
+  "drawings": [],
+  "approvals": [],
+  "boq": [],
+  "rfi": [],
+  "site_logs": [],
+  "documents": [],
+  "notifications": [],
+  "activity_logs": []
+}
