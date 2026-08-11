@@ -1,5 +1,5 @@
 import streamlit as st
-from database import save_memory
+from .database import save_memory
 
 def render_boq_module(db):
     st.title("📊 Bill of Quantities & Cost Estimation")
