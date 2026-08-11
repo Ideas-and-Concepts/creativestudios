@@ -1,11 +1,6 @@
 """
 Creative Studios
 Utility Functions
-
-Shared helpers for:
-- Logo management
-- Password hashing
-- UI utilities
 """
 
 import base64
@@ -14,7 +9,7 @@ from pathlib import Path
 
 
 # ============================================================
-# PATHS
+# PROJECT PATH
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,10 +25,7 @@ LOGO_FILE = str(
 
 def hash_password(password: str) -> str:
     """
-    Create a SHA-256 password hash.
-
-    The same function is used by both the database bootstrap
-    process and the authentication module.
+    Return a SHA-256 hash for a password.
     """
 
     if password is None:
@@ -50,9 +42,7 @@ def hash_password(password: str) -> str:
 
 def ensure_logo_svg() -> None:
     """
-    Ensure that the Creative Studios logo exists.
-
-    If logo.svg is missing, create a clean fallback logo.
+    Make sure logo.svg exists.
     """
 
     logo_path = Path(LOGO_FILE)
@@ -60,15 +50,13 @@ def ensure_logo_svg() -> None:
     if logo_path.exists():
         return
 
-    svg_content = """
+    svg = """
 <svg xmlns="http://www.w3.org/2000/svg"
-     viewBox="0 0 200 200"
-     width="200"
-     height="200">
+     viewBox="0 0 200 200">
 
     <defs>
         <linearGradient
-            id="bg"
+            id="blue"
             x1="0%"
             y1="0%"
             x2="100%"
@@ -76,11 +64,11 @@ def ensure_logo_svg() -> None:
 
             <stop
                 offset="0%"
-                style="stop-color:#1D4ED8"/>
+                stop-color="#1D4ED8"/>
 
             <stop
                 offset="100%"
-                style="stop-color:#3B82F6"/>
+                stop-color="#3B82F6"/>
 
         </linearGradient>
     </defs>
@@ -89,17 +77,16 @@ def ensure_logo_svg() -> None:
         width="200"
         height="200"
         rx="40"
-        fill="url(#bg)"/>
+        fill="url(#blue)"/>
 
     <text
         x="100"
-        y="115"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="110"
-        font-weight="bold"
-        fill="#FFFFFF"
+        y="120"
         text-anchor="middle"
-        letter-spacing="10">
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="82"
+        font-weight="700"
+        fill="white">
         CS
     </text>
 
@@ -107,15 +94,12 @@ def ensure_logo_svg() -> None:
 """
 
     try:
-
         logo_path.write_text(
-            svg_content.strip(),
+            svg.strip(),
             encoding="utf-8",
         )
 
     except OSError:
-        # Do not crash the application if the deployment
-        # environment does not permit writing.
         pass
 
 
@@ -127,7 +111,7 @@ def get_logo_html(
     width: int = 130,
 ) -> str:
     """
-    Return the logo as an embedded base64 image.
+    Return the logo as embedded base64 HTML.
     """
 
     logo_path = Path(LOGO_FILE)
@@ -140,23 +124,19 @@ def get_logo_html(
 
     try:
 
-        svg_bytes = logo_path.read_bytes()
+        data = logo_path.read_bytes()
 
         encoded = base64.b64encode(
-            svg_bytes
+            data
         ).decode("utf-8")
 
         return (
             '<div style="text-align:center;">'
-            f'<img src="data:image/svg+xml;base64,'
-            f'{encoded}" '
+            f'<img src="data:image/svg+xml;base64,{encoded}" '
             f'width="{int(width)}" '
             'alt="Creative Studios Logo">'
             '</div>'
         )
 
-    except (
-        OSError,
-        ValueError,
-    ):
+    except OSError:
         return ""
