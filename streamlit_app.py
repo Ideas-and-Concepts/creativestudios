@@ -9,17 +9,6 @@ from modules.approvals import render_approvals_module
 from modules.boq import render_boq_module
 from modules.rfi import render_rfi_module
 from modules.site_logs import render_site_logs_module
-import streamlit as st
-from pathlib import Path
-from modules.utils import ensure_logo_svg, get_logo_html, LOGO_FILE
-from modules.database import load_memory
-from modules.auth import login_user, require_auth
-from modules.projects import render_projects_module
-from modules.drawings import render_drawings_module
-from modules.approvals import render_approvals_module
-from modules.boq import render_boq_module
-from modules.rfi import render_rfi_module
-from modules.site_logs import render_site_logs_module
 
 # Ensure the logo SVG exists before setting page config
 ensure_logo_svg()
@@ -70,7 +59,7 @@ else:
     # -------- AUTHENTICATED APP --------
     require_auth()
 
-    # -------- SIDEBAR (NO LOGO) --------
+    # -------- SIDEBAR (NO LOGO, PLAIN TEXT) --------
     with st.sidebar:
         st.markdown("Navigation")
         app_mode = st.radio(
