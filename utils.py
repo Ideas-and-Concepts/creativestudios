@@ -11,18 +11,17 @@ MEMORY_FILE = "creativestudios_db.json"
 LOGO_FILE = "logo.svg"
 
 def ensure_logo_svg():
-    """Automatically writes a new unique geometric wave vector SVG logo file."""
+    """Generates the transparent Pisces-inspired vector SVG logo."""
     svg_content = """<svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
-        <linearGradient id="uniqueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#059669"/>
-            <stop offset="100%" stop-color="#2563EB"/>
+        <linearGradient id="piscesGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#2563EB"/>
+            <stop offset="100%" stop-color="#06B6D4"/>
         </linearGradient>
     </defs>
-    <!-- Transparent background with intersecting sleek modern waves -->
-    <circle cx="250" cy="250" r="140" stroke="url(#uniqueGrad)" stroke-width="22" stroke-dasharray="35 20" stroke-linecap="round" fill="none"/>
-    <path d="M175 190C215 225 285 275 325 310" stroke="url(#uniqueGrad)" stroke-width="24" stroke-linecap="round"/>
-    <path d="M325 190C285 225 215 275 175 310" stroke="url(#uniqueGrad)" stroke-width="24" stroke-linecap="round"/>
+    <path d="M150 250H350" stroke="url(#piscesGrad)" stroke-width="32" stroke-linecap="round"/>
+    <path d="M190 150C135 205 135 295 190 350" stroke="url(#piscesGrad)" stroke-width="32" stroke-linecap="round" fill="none"/>
+    <path d="M310 150C365 205 365 295 310 350" stroke="url(#piscesGrad)" stroke-width="32" stroke-linecap="round" fill="none"/>
 </svg>"""
     Path(LOGO_FILE).write_text(svg_content)
 
@@ -40,67 +39,21 @@ def get_logo_html(width=130):
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
+# Defined AEC Roles
 DEFAULT_USERS = [
-    {"username": "admin", "password_hash": hash_password("admin123"), "name": "System Admin", "role": "Admin"},
-    {"username": "jane_arch", "password_hash": hash_password("arch123"), "name": "Arch. Jane Doe", "role": "Architect"},
-    {"username": "john_struct", "password_hash": hash_password("struct123"), "name": "Eng. John Smith", "role": "Structural Engineer"},
-    {"username": "mark_mep", "password_hash": hash_password("mep123"), "name": "Eng. Mark Miller", "role": "MEP Engineer"},
-    {"username": "sam_proc", "password_hash": hash_password("proc123"), "name": "Sam Procurement", "role": "Procurement Officer"}
+    {"username": "admin", "password_hash": hash_password("admin123"), "name": "System Administrator", "role": "Admin"},
+    {"username": "arch_lead", "password_hash": hash_password("arch123"), "name": "Lead Architect", "role": "Architect"},
+    {"username": "struct_eng", "password_hash": hash_password("struct123"), "name": "Structural Specialist", "role": "Structural Engineer"},
+    {"username": "elec_eng", "password_hash": hash_password("elec123"), "name": "Electrical Systems Lead", "role": "Electrical Engineer"},
+    {"username": "plumber_lead", "password_hash": hash_password("plum123"), "name": "Master Plumber", "role": "Plumber"}
 ]
 
 DEFAULT_MEMORY = {
     "users": DEFAULT_USERS,
-    "projects": [
-        {
-            "id": "PRJ-001",
-            "name": "Skyline Commercial Hub",
-            "type": "New Construction",
-            "status": "In Review",
-            "created": "2026-01-15T09:00:00",
-            "budget": 250000.0,
-            "description": "5-story commercial complex with subterranean parking."
-        }
-    ],
-    "drawings": [
-        {
-            "id": "DWG-101",
-            "project_id": "PRJ-001",
-            "discipline": "Architectural",
-            "title": "Ground Floor Plan & Layout",
-            "version": "v1.2",
-            "file_name": "A-101_Ground_Floor.pdf",
-            "status": "Approved",
-            "uploaded_by": "Arch. Jane Doe",
-            "uploaded_at": "2026-01-18T10:30:00"
-        }
-    ],
-    "procurement_approvals": [
-        {
-            "id": "APP-001",
-            "project_id": "PRJ-001",
-            "item_name": "Main Electrical Panel & Transformers",
-            "arch_status": "Approved",
-            "arch_approved_by": "Arch. Jane Doe",
-            "eng_status": "Approved",
-            "eng_approved_by": "Eng. John Smith",
-            "mep_status": "Pending",
-            "mep_approved_by": None,
-            "procurement_status": "Locked",
-            "notes": "Awaiting MEP sign-off on breaker panel ratings."
-        }
-    ],
-    "boq": [
-        {
-            "id": "BOQ-001",
-            "project_id": "PRJ-001",
-            "category": "Plumbing & Fixtures",
-            "item": "PEX Water Supply Piping & Valves",
-            "quantity": 500.0,
-            "unit": "Meters",
-            "unit_cost": 18.5,
-            "total": 9250.0
-        }
-    ]
+    "projects": [],
+    "drawings": [],
+    "approvals": [],
+    "boq": []
 }
 
 @st.cache_resource
@@ -174,32 +127,20 @@ def save_memory(mem):
     except Exception as e:
         st.error(f"Failed to save changes to Database: {e}")
 
-def get_project_name(db, project_id):
-    proj = next((p for p in db.get("projects", []) if p["id"] == project_id), None)
-    return proj["name"] if proj else "Unknown"
-
-def safe_dataframe(data_list, preferred_columns):
-    if not data_list:
-        return pd.DataFrame()
-    df = pd.DataFrame(data_list)
-    available_cols = [col for col in preferred_columns if col in df.columns]
-    return df[available_cols]
-
-def render_sidebar_logo():
+def render_sidebar():
     st.sidebar.markdown(get_logo_html(width=100), unsafe_allow_html=True)
+    current_user = st.session_state.get("user")
+    if current_user:
+        st.sidebar.markdown(f"👤 **{current_user['name']}**")
+        st.sidebar.caption(f"Role: `{current_user['role']}`")
+        if st.sidebar.button("🚪 Sign Out", use_container_width=True):
+            st.session_state["authenticated"] = False
+            st.session_state["user"] = None
+            st.rerun()
+    st.sidebar.markdown("---")
 
 def require_auth():
     if not st.session_state.get("authenticated", False):
-        st.warning("Please sign in from the main Login page to access this system.")
+        st.warning("Please sign in from the main login screen to access Creative Studios.")
         st.stop()
-    
-    render_sidebar_logo()
-    
-    current_user = st.session_state["user"]
-    st.sidebar.markdown(f"👤 **{current_user['name']}**")
-    st.sidebar.caption(f"Role: `{current_user['role']}`")
-    if st.sidebar.button("🚪 Sign Out"):
-        st.session_state["authenticated"] = False
-        st.session_state["user"] = None
-        st.rerun()
-    st.sidebar.markdown("---")
+    render_sidebar()
