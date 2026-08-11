@@ -1,0 +1,10 @@
+creative-studios-app/
+├── streamlit_app.py           # App entry point & Authentication
+├── utils.py                   # Shared DB, Security, & Helper utilities
+└── pages/
+    ├── 1_📊_Dashboard.py
+    ├── 2_📁_Project_Directory.py
+    ├── 3_📐_Drawing_Vault.py
+    ├── 4_🛡_Procurement_Approvals.py
+    ├── 5_🧱_BoQ_Ledger.py
+    └── 6_👤_User_Management.py
