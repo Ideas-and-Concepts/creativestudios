@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import get_logo_html, hash_password
+from .utils import hash_password
 
 def login_user(db, username, password):
     user = next((u for u in db.get("users", []) if u["username"].lower() == username.lower()), None)
@@ -10,7 +10,6 @@ def login_user(db, username, password):
     return False
 
 def render_sidebar():
-    st.sidebar.markdown(get_logo_html(width=100), unsafe_allow_html=True)
     current_user = st.session_state.get("user")
     if current_user:
         st.sidebar.markdown(f"👤 **{current_user['name']}**")
