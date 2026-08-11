@@ -57,22 +57,21 @@ else:
     app_mode = st.sidebar.radio(
         "Select Module",
         [
-            "🏗️ Project Directory", 
-            "📐 Drawing Repository", 
-            "✍️ Sign-Off & Approvals", 
-            "📊 Bill of Quantities (BOQ)"
+            "Project Directory", 
+            "Drawing Repository", 
+            "Sign-Off & Approvals", 
+            "Bill of Quantities (BOQ)"
         ],
         label_visibility="collapsed"
     )
     
     st.sidebar.markdown("---")
     
-    if app_mode == "🏗️ Project Directory":
+    if app_mode == "Project Directory":
         render_projects_module(db)
-    elif app_mode == "📐 Drawing Repository":
+    elif app_mode == "Drawing Repository":
         render_drawings_module(db)
-    elif app_mode == "✍️ Sign-Off & Approvals":
+    elif app_mode == "Sign-Off & Approvals":
         render_approvals_module(db)
-    elif app_mode == "📊 Bill of Quantities (BOQ)":
+    elif app_mode == "Bill of Quantities (BOQ)":
         render_boq_module(db)
-
