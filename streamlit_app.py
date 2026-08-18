@@ -16,15 +16,14 @@ Features
 - Tasks
 - Approvals
 - Settings
-- SVG-based branding
-- No emoji-font dependency
+- PNG-based branding
 - Sidebar branding
 - Login branding
+- Module header branding
 - Session-state navigation
 """
-from __future__ import annotations
 
-from pathlib import Path
+from __future__ import annotations
 
 import base64
 import html
@@ -44,14 +43,41 @@ BASE_DIR = Path(__file__).resolve().parent
 LOGO_PATH = (
     BASE_DIR
     / "assets"
-    / "creative_studios_logo.png"
+    / "Artboard 1.png"
 )
 
 
 def logo_exists() -> bool:
+    """
+    Check whether the Creative Studios logo exists.
+    """
+
     return (
         LOGO_PATH.exists()
         and LOGO_PATH.is_file()
+    )
+
+
+def _logo_data_uri() -> str:
+    """
+    Convert the Creative Studios PNG logo into a
+    browser-safe base64 data URI.
+
+    This allows the logo to be embedded directly
+    inside custom HTML without requiring a separate
+    static-file server.
+    """
+
+    if not logo_exists():
+        return ""
+
+    encoded = base64.b64encode(
+        LOGO_PATH.read_bytes()
+    ).decode("ascii")
+
+    return (
+        "data:image/png;base64,"
+        + encoded
     )
 
 
@@ -72,15 +98,15 @@ st.set_page_config(
 # ============================================================
 
 from modules.database import (
-    load_memory,
-    save_memory,
-    initialize_database,
     add_record,
-    update_record,
     delete_record,
-    next_id,
     get_record,
     get_records,
+    initialize_database,
+    load_memory,
+    next_id,
+    save_memory,
+    update_record,
 )
 
 
@@ -177,7 +203,7 @@ body,
     background:
         radial-gradient(
             circle at top right,
-            rgba(37,99,235,0.10),
+            rgba(37, 99, 235, 0.10),
             transparent 35%
         ),
         #05070B !important;
@@ -237,24 +263,32 @@ span {
 
 .cs-login-card {
     background: #0B0F17;
+
     border: 1px solid #1E293B;
+
     border-radius: 20px;
+
     padding: 36px;
+
     box-shadow:
-        0 20px 70px rgba(0,0,0,0.55),
-        0 0 40px rgba(37,99,235,0.06);
+        0 20px 70px rgba(0, 0, 0, 0.55),
+        0 0 40px rgba(37, 99, 235, 0.06);
 }
 
 
 /* ==========================================================
-   SVG LOGO CONTAINERS
+   LOGIN LOGO
    ========================================================== */
 
 .cs-logo-wrap {
-    width: 76px;
-    height: 76px;
-    min-width: 76px;
-    max-width: 76px;
+    width: 82px;
+    height: 82px;
+
+    min-width: 82px;
+    max-width: 82px;
+
+    min-height: 82px;
+    max-height: 82px;
 
     margin: 0 auto 18px auto;
 
@@ -262,21 +296,24 @@ span {
     align-items: center;
     justify-content: center;
 
-    overflow: visible;
+    overflow: hidden;
+
+    border-radius: 18px;
+
     flex-shrink: 0;
 }
 
 .cs-logo-wrap img {
     display: block;
 
-    width: 76px !important;
-    height: 76px !important;
+    width: 82px !important;
+    height: 82px !important;
 
-    min-width: 76px !important;
-    min-height: 76px !important;
+    min-width: 82px !important;
+    min-height: 82px !important;
 
-    max-width: 76px !important;
-    max-height: 76px !important;
+    max-width: 82px !important;
+    max-height: 82px !important;
 
     object-fit: contain;
 
@@ -290,18 +327,27 @@ span {
 
 .cs-brand-name {
     color: #FFFFFF;
+
     font-size: 27px;
+
     font-weight: 900;
+
     text-align: center;
+
     line-height: 1.15;
 }
 
 .cs-brand-subtitle {
     color: #64748B;
+
     font-size: 12px;
+
     text-align: center;
+
     margin-top: 5px;
+
     letter-spacing: 1px;
+
     text-transform: uppercase;
 }
 
@@ -314,6 +360,7 @@ span {
     width: 100%;
 
     padding: 6px 2px 18px 2px;
+
     margin-bottom: 14px;
 
     border-bottom: 1px solid #172033;
@@ -325,6 +372,7 @@ span {
     width: 100%;
 
     display: flex;
+
     align-items: center;
 
     gap: 11px;
@@ -345,10 +393,15 @@ span {
     max-height: 46px;
 
     display: flex;
+
     align-items: center;
+
     justify-content: center;
 
-    overflow: visible;
+    overflow: hidden;
+
+    border-radius: 11px;
+
     flex-shrink: 0;
 }
 
@@ -371,26 +424,106 @@ span {
 
 .cs-sidebar-brand-text {
     min-width: 0;
+
     overflow: hidden;
 }
 
 .cs-sidebar-name {
     color: #FFFFFF;
+
     font-size: 15px;
+
     font-weight: 850;
+
     line-height: 1.15;
+
     white-space: nowrap;
+
     overflow: hidden;
+
     text-overflow: ellipsis;
 }
 
 .cs-sidebar-subtitle {
     color: #64748B;
+
     font-size: 9px;
+
     margin-top: 4px;
+
     text-transform: uppercase;
+
     letter-spacing: 0.7px;
+
     white-space: nowrap;
+}
+
+
+/* ==========================================================
+   MODULE HEADER
+   ========================================================== */
+
+.cs-module-header {
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    width: 100%;
+
+    margin-bottom: 25px;
+}
+
+.cs-module-logo-wrap {
+    width: 52px;
+    height: 52px;
+
+    min-width: 52px;
+    max-width: 52px;
+
+    min-height: 52px;
+    max-height: 52px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    overflow: hidden;
+
+    flex-shrink: 0;
+
+    border-radius: 13px;
+
+    background: #0B0F17;
+
+    border: 1px solid #172033;
+
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.30);
+}
+
+.cs-module-logo-wrap img {
+    display: block;
+
+    width: 52px !important;
+    height: 52px !important;
+
+    min-width: 52px !important;
+    min-height: 52px !important;
+
+    max-width: 52px !important;
+    max-height: 52px !important;
+
+    object-fit: contain;
+
+    flex-shrink: 0;
+}
+
+.cs-module-header-text {
+    min-width: 0;
 }
 
 
@@ -400,12 +533,17 @@ span {
 
 .cs-section-label {
     color: #475569;
+
     font-size: 10px;
+
     font-weight: 850;
+
     letter-spacing: 1.3px;
+
     text-transform: uppercase;
 
     margin-top: 17px;
+
     margin-bottom: 7px;
 }
 
@@ -416,31 +554,43 @@ span {
 
 .cs-user-card {
     background: #0B0F17;
+
     border: 1px solid #172033;
+
     border-radius: 13px;
 
     padding: 13px;
+
     margin-top: 15px;
 }
 
 .user-label {
     color: #60A5FA;
+
     font-size: 9px;
+
     font-weight: 850;
+
     letter-spacing: 1px;
+
     text-transform: uppercase;
 }
 
 .user-name {
     color: #FFFFFF;
+
     font-size: 14px;
+
     font-weight: 800;
+
     margin-top: 5px;
 }
 
 .user-login {
     color: #64748B;
+
     font-size: 10px;
+
     margin-top: 3px;
 }
 
@@ -448,14 +598,17 @@ span {
     display: inline-block;
 
     margin-top: 8px;
+
     padding: 4px 9px;
 
     background: #2563EB;
+
     color: #FFFFFF !important;
 
     border-radius: 999px;
 
     font-size: 9px;
+
     font-weight: 850;
 }
 
@@ -466,17 +619,24 @@ span {
 
 .cs-page-title {
     color: #FFFFFF;
+
     font-size: 30px;
+
     font-weight: 900;
+
     letter-spacing: -0.7px;
+
     line-height: 1.15;
 }
 
 .cs-page-subtitle {
     color: #64748B;
+
     font-size: 13px;
+
     margin-top: 5px;
-    margin-bottom: 25px;
+
+    margin-bottom: 0;
 }
 
 
@@ -486,31 +646,43 @@ span {
 
 .cs-card {
     background: #0B0F17;
+
     border: 1px solid #172033;
+
     border-radius: 15px;
+
     padding: 20px;
 }
 
 .cs-kpi {
     background: #0B0F17;
+
     border: 1px solid #172033;
+
     border-radius: 15px;
 
     padding: 18px;
+
     min-height: 110px;
 }
 
 .cs-kpi-label {
     color: #64748B;
+
     font-size: 11px;
+
     text-transform: uppercase;
+
     letter-spacing: 0.8px;
 }
 
 .cs-kpi-value {
     color: #FFFFFF;
+
     font-size: 26px;
+
     font-weight: 900;
+
     margin-top: 7px;
 }
 
@@ -521,23 +693,29 @@ span {
 
 div[data-testid="stButton"] > button {
     background: #111827 !important;
+
     color: #E2E8F0 !important;
 
     border: 1px solid #1E293B !important;
+
     border-radius: 9px !important;
 }
 
 div[data-testid="stButton"] > button:hover {
     background: #172554 !important;
+
     border-color: #2563EB !important;
+
     color: #FFFFFF !important;
 }
 
 div[data-testid="stFormSubmitButton"] > button {
     background: #2563EB !important;
+
     color: #FFFFFF !important;
 
     border: 0 !important;
+
     border-radius: 10px !important;
 
     font-weight: 800 !important;
@@ -556,7 +734,9 @@ input,
 textarea,
 [data-baseweb="select"] > div {
     background: #0B0F17 !important;
+
     color: #FFFFFF !important;
+
     border-color: #1E293B !important;
 }
 
@@ -581,108 +761,54 @@ textarea,
     font-size: 12px;
 }
 
+
+/* ==========================================================
+   RESPONSIVE MODULE HEADER
+   ========================================================== */
+
+@media (max-width: 640px) {
+
+    .cs-module-header {
+        gap: 11px;
+    }
+
+    .cs-module-logo-wrap {
+        width: 44px;
+        height: 44px;
+
+        min-width: 44px;
+        max-width: 44px;
+
+        min-height: 44px;
+        max-height: 44px;
+
+        border-radius: 11px;
+    }
+
+    .cs-module-logo-wrap img {
+        width: 44px !important;
+        height: 44px !important;
+
+        min-width: 44px !important;
+        min-height: 44px !important;
+
+        max-width: 44px !important;
+        max-height: 44px !important;
+    }
+
+    .cs-page-title {
+        font-size: 24px;
+    }
+
+    .cs-page-subtitle {
+        font-size: 12px;
+    }
+
+}
+
 </style>
 """,
         unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# SVG LOGO
-# ============================================================
-
-def _creative_studios_svg() -> str:
-    """
-    Return the canonical Creative Studios SVG logo.
-
-    The SVG is self-contained and does not depend on:
-    - emoji fonts
-    - external image files
-    - static directories
-    - browser-installed fonts
-    """
-
-    return """
-<svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="128"
-    height="128"
-    viewBox="0 0 128 128"
-    fill="none"
->
-    <defs>
-        <linearGradient
-            id="csGradient"
-            x1="12"
-            y1="10"
-            x2="116"
-            y2="118"
-            gradientUnits="userSpaceOnUse"
-        >
-            <stop offset="0" stop-color="#3B82F6"/>
-            <stop offset="1" stop-color="#1D4ED8"/>
-        </linearGradient>
-    </defs>
-
-    <rect
-        x="4"
-        y="4"
-        width="120"
-        height="120"
-        rx="28"
-        fill="url(#csGradient)"
-    />
-
-    <rect
-        x="5"
-        y="5"
-        width="118"
-        height="118"
-        rx="27"
-        stroke="#60A5FA"
-        stroke-opacity="0.35"
-        stroke-width="2"
-    />
-
-    <path
-        d="M83 40C77 35 69 32 60 32C43 32 30 45 30 64C30 83 43 96 60 96C69 96 77 93 83 88"
-        stroke="white"
-        stroke-width="9"
-        stroke-linecap="round"
-    />
-
-    <path
-        d="M73 64H101"
-        stroke="white"
-        stroke-width="9"
-        stroke-linecap="round"
-    />
-
-    <path
-        d="M92 55L101 64L92 73"
-        stroke="white"
-        stroke-width="7"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-    />
-</svg>
-"""
-
-
-def _svg_data_uri() -> str:
-    """
-    Convert the SVG to a browser-safe base64 data URI.
-    """
-
-    svg = _creative_studios_svg().strip()
-
-    encoded = base64.b64encode(
-        svg.encode("utf-8")
-    ).decode("ascii")
-
-    return (
-        "data:image/svg+xml;base64,"
-        + encoded
     )
 
 
@@ -692,20 +818,30 @@ def _svg_data_uri() -> str:
 
 def render_login_branding() -> None:
 
-    logo_uri = _svg_data_uri()
+    logo_uri = _logo_data_uri()
+
+    if logo_uri:
+
+        logo_html = f"""
+        <div class="cs-logo-wrap">
+
+            <img
+                src="{logo_uri}"
+                alt="Creative Studios"
+            />
+
+        </div>
+        """
+
+    else:
+
+        logo_html = ""
 
     st.markdown(
         f"""
         <div class="cs-login-card">
 
-            <div class="cs-logo-wrap">
-                <img
-                    src="{logo_uri}"
-                    alt="Creative Studios"
-                    width="76"
-                    height="76"
-                />
-            </div>
+            {logo_html}
 
             <div class="cs-brand-name">
                 Creative Studios
@@ -727,7 +863,24 @@ def render_login_branding() -> None:
 
 def render_sidebar_branding() -> None:
 
-    logo_uri = _svg_data_uri()
+    logo_uri = _logo_data_uri()
+
+    if logo_uri:
+
+        logo_html = f"""
+        <div class="cs-sidebar-logo-wrap">
+
+            <img
+                src="{logo_uri}"
+                alt="Creative Studios"
+            />
+
+        </div>
+        """
+
+    else:
+
+        logo_html = ""
 
     st.sidebar.markdown(
         f"""
@@ -735,16 +888,7 @@ def render_sidebar_branding() -> None:
 
             <div class="cs-sidebar-brand-row">
 
-                <div class="cs-sidebar-logo-wrap">
-
-                    <img
-                        src="{logo_uri}"
-                        alt="Creative Studios"
-                        width="46"
-                        height="46"
-                    />
-
-                </div>
+                {logo_html}
 
                 <div class="cs-sidebar-brand-text">
 
@@ -1102,7 +1246,9 @@ def render_sidebar() -> str:
     ):
 
         st.session_state.authenticated = False
+
         st.session_state.user = None
+
         st.session_state.active_module = "Overview"
 
         st.rerun()
@@ -1127,14 +1273,43 @@ def render_module_header(
         subtitle
     )
 
+    logo_uri = _logo_data_uri()
+
+    if logo_uri:
+
+        logo_html = f"""
+        <div class="cs-module-logo-wrap">
+
+            <img
+                src="{logo_uri}"
+                alt="Creative Studios"
+            />
+
+        </div>
+        """
+
+    else:
+
+        logo_html = ""
+
     st.markdown(
         f"""
-        <div class="cs-page-title">
-            {safe_title}
-        </div>
+        <div class="cs-module-header">
 
-        <div class="cs-page-subtitle">
-            {safe_subtitle}
+            {logo_html}
+
+            <div class="cs-module-header-text">
+
+                <div class="cs-page-title">
+                    {safe_title}
+                </div>
+
+                <div class="cs-page-subtitle">
+                    {safe_subtitle}
+                </div>
+
+            </div>
+
         </div>
         """,
         unsafe_allow_html=True,
