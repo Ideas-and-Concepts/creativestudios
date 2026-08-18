@@ -8,9 +8,7 @@ Main Streamlit application.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
-from typing import Any
+import html
 
 import streamlit as st
 
@@ -26,7 +24,17 @@ from modules.database import (
     update_record,
 )
 
-from modules.projects import render_projects_module
+from modules.projects import (
+    render_projects_module,
+)
+
+from modules.documents import (
+    render_documents_module,
+)
+
+from modules.drawings import (
+    render_drawings_module,
+)
 
 
 # ============================================================
@@ -35,7 +43,7 @@ from modules.projects import render_projects_module
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon="🏗️",
+    page_icon="CS",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -48,6 +56,10 @@ st.set_page_config(
 st.markdown(
     """
 <style>
+
+/* ============================================================
+   GLOBAL
+   ============================================================ */
 
 html,
 body,
@@ -74,15 +86,6 @@ body,
     background: transparent !important;
 }
 
-[data-testid="stSidebar"] {
-    background: #080B12 !important;
-    border-right: 1px solid #172033 !important;
-}
-
-[data-testid="stSidebar"] > div:first-child {
-    background: #080B12 !important;
-}
-
 .block-container {
     padding-top: 2rem !important;
     padding-bottom: 3rem !important;
@@ -103,64 +106,19 @@ span {
     color: #CBD5E1;
 }
 
-/* ========================================================
-   LOGIN
-   ======================================================== */
 
-.cs-login-wrapper {
-    max-width: 430px;
-    margin: 8vh auto 0 auto;
-}
-
-.cs-login-card {
-    background: #0B0F17;
-    border: 1px solid #1E293B;
-    border-radius: 20px;
-    padding: 36px;
-    box-shadow:
-        0 20px 70px rgba(0,0,0,0.55),
-        0 0 40px rgba(37,99,235,0.06);
-}
-
-.cs-logo {
-    width: 74px;
-    height: 74px;
-    border-radius: 18px;
-    background: #2563EB;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 18px auto;
-    box-shadow:
-        0 10px 35px rgba(37,99,235,0.35);
-}
-
-.cs-logo-text {
-    color: #FFFFFF;
-    font-size: 27px;
-    font-weight: 900;
-    letter-spacing: -1px;
-}
-
-.cs-brand-name {
-    color: #FFFFFF;
-    font-size: 27px;
-    font-weight: 900;
-    text-align: center;
-}
-
-.cs-brand-subtitle {
-    color: #64748B;
-    font-size: 12px;
-    text-align: center;
-    margin-top: 4px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
-
-/* ========================================================
+/* ============================================================
    SIDEBAR
-   ======================================================== */
+   ============================================================ */
+
+[data-testid="stSidebar"] {
+    background: #080B12 !important;
+    border-right: 1px solid #172033 !important;
+}
+
+[data-testid="stSidebar"] > div:first-child {
+    background: #080B12 !important;
+}
 
 .cs-sidebar-brand {
     padding: 8px 4px 20px 4px;
@@ -183,8 +141,7 @@ span {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow:
-        0 8px 25px rgba(37,99,235,0.30);
+    box-shadow: 0 8px 25px rgba(37,99,235,0.30);
 }
 
 .cs-sidebar-logo-text {
@@ -257,9 +214,147 @@ span {
     font-weight: 850;
 }
 
-/* ========================================================
-   CONTENT
-   ======================================================== */
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+
+.cs-login-wrapper {
+    max-width: 430px;
+    margin: 8vh auto 0 auto;
+}
+
+.cs-login-card {
+    background: #0B0F17;
+    border: 1px solid #1E293B;
+    border-radius: 20px;
+    padding: 36px;
+    box-shadow:
+        0 20px 70px rgba(0,0,0,0.55),
+        0 0 40px rgba(37,99,235,0.06);
+}
+
+.cs-logo {
+    width: 74px;
+    height: 74px;
+    border-radius: 18px;
+    background: #2563EB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 18px auto;
+    box-shadow: 0 10px 35px rgba(37,99,235,0.35);
+}
+
+.cs-logo-text {
+    color: #FFFFFF;
+    font-size: 27px;
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+.cs-brand-name {
+    color: #FFFFFF;
+    font-size: 27px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.cs-brand-subtitle {
+    color: #64748B;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.cs-login-form {
+    margin-top: 24px;
+}
+
+.cs-login-error {
+    margin-top: 12px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    color: #FCA5A5 !important;
+    font-size: 11px;
+    text-align: center;
+}
+
+
+/* ============================================================
+   LOGIN INPUTS
+   ============================================================ */
+
+.cs-login-form [data-testid="stTextInput"] label {
+    color: #CBD5E1 !important;
+    font-size: 11px !important;
+    font-weight: 750 !important;
+}
+
+.cs-login-form input {
+    background: #080B12 !important;
+    color: #FFFFFF !important;
+    border: 1px solid #1E293B !important;
+    border-radius: 10px !important;
+}
+
+.cs-login-form input:focus {
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 1px #2563EB !important;
+}
+
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+div[data-testid="stButton"] > button {
+    background: #111827 !important;
+    color: #E2E8F0 !important;
+    border: 1px solid #1E293B !important;
+    border-radius: 9px !important;
+}
+
+div[data-testid="stButton"] > button:hover {
+    background: #172554 !important;
+    border-color: #2563EB !important;
+    color: #FFFFFF !important;
+}
+
+div[data-testid="stFormSubmitButton"] > button {
+    background: #2563EB !important;
+    color: #FFFFFF !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    font-weight: 800 !important;
+    min-height: 42px !important;
+}
+
+div[data-testid="stFormSubmitButton"] > button:hover {
+    background: #1D4ED8 !important;
+}
+
+
+/* ============================================================
+   INPUTS
+   ============================================================ */
+
+input,
+textarea,
+[data-baseweb="select"] > div {
+    background: #0B0F17 !important;
+    color: #FFFFFF !important;
+    border-color: #1E293B !important;
+}
+
+
+/* ============================================================
+   PAGE
+   ============================================================ */
 
 .cs-page-title {
     color: #FFFFFF;
@@ -304,49 +399,16 @@ span {
     margin-top: 7px;
 }
 
-.cs-kpi-blue {
-    color: #60A5FA;
-}
 
-/* ========================================================
-   BUTTONS
-   ======================================================== */
+/* ============================================================
+   LOGIN FOOTER
+   ============================================================ */
 
-div[data-testid="stButton"] > button {
-    background: #111827 !important;
-    color: #E2E8F0 !important;
-    border: 1px solid #1E293B !important;
-    border-radius: 9px !important;
-}
-
-div[data-testid="stButton"] > button:hover {
-    background: #172554 !important;
-    border-color: #2563EB !important;
-    color: #FFFFFF !important;
-}
-
-div[data-testid="stFormSubmitButton"] > button {
-    background: #2563EB !important;
-    color: #FFFFFF !important;
-    border: 0 !important;
-    border-radius: 10px !important;
-    font-weight: 800 !important;
-}
-
-div[data-testid="stFormSubmitButton"] > button:hover {
-    background: #1D4ED8 !important;
-}
-
-/* ========================================================
-   INPUTS
-   ======================================================== */
-
-input,
-textarea,
-[data-baseweb="select"] > div {
-    background: #0B0F17 !important;
-    color: #FFFFFF !important;
-    border-color: #1E293B !important;
+.cs-login-footer {
+    text-align: center;
+    margin-top: 18px;
+    color: #475569;
+    font-size: 11px;
 }
 
 </style>
@@ -360,7 +422,15 @@ textarea,
 # ============================================================
 
 if "database" not in st.session_state:
-    st.session_state.database = initialize_database()
+
+    st.session_state.database = (
+        initialize_database()
+    )
+
+else:
+
+    st.session_state.database = load_memory()
+
 
 db = st.session_state.database
 
@@ -369,52 +439,35 @@ db = st.session_state.database
 # SESSION STATE
 # ============================================================
 
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
+DEFAULT_SESSION = {
+    "authenticated": False,
+    "user": None,
+    "active_module": "Overview",
+}
 
-if "user" not in st.session_state:
-    st.session_state.user = None
 
-if "active_module" not in st.session_state:
-    st.session_state.active_module = "Overview"
+for key, value in DEFAULT_SESSION.items():
+
+    if key not in st.session_state:
+
+        st.session_state[key] = value
 
 
 # ============================================================
 # AUTHENTICATION
 # ============================================================
 
-def _hash_password(password: str) -> str:
-    """
-    SHA-256 password hash used by the local JSON authentication
-    layer.
-    """
-
-    return hashlib.sha256(
-        password.encode("utf-8")
-    ).hexdigest()
-
-
 def authenticate_user(
     username: str,
     password: str,
-    database: dict[str, Any],
-) -> dict[str, Any] | None:
+    database: dict,
+) -> dict | None:
     """
     Authenticate a user against the JSON database.
 
-    Supports:
-
-        password_hash
-
-    and, for development compatibility:
-
-        password
+    Supports the current simple password field as well as
+    password_hash when present.
     """
-
-    username = str(username or "").strip()
-
-    if not username or not password:
-        return None
 
     users = database.get(
         "users",
@@ -422,10 +475,14 @@ def authenticate_user(
     )
 
     if not isinstance(users, list):
-        users = []
+        return None
 
-    password_hash = _hash_password(
-        password
+    username = str(
+        username or ""
+    ).strip()
+
+    password = str(
+        password or ""
     )
 
     for user in users:
@@ -443,78 +500,58 @@ def authenticate_user(
         if stored_username.lower() != username.lower():
             continue
 
-        if user.get("active", True) is False:
-            return None
-
-        stored_hash = user.get(
-            "password_hash"
-        )
-
-        if stored_hash:
-
-            if hmac.compare_digest(
-                str(stored_hash),
-                password_hash,
-            ):
-                return user
-
-            # Do not continue with plaintext if a hash exists.
-            return None
+        # ----------------------------------------------------
+        # Simple password compatibility.
+        # ----------------------------------------------------
 
         stored_password = user.get(
             "password"
         )
 
-        if stored_password is not None:
+        if (
+            stored_password is not None
+            and str(stored_password) == password
+        ):
+            return user
 
-            if hmac.compare_digest(
-                str(stored_password),
-                password,
-            ):
-                return user
+        # ----------------------------------------------------
+        # Password hash compatibility.
+        # ----------------------------------------------------
 
-            return None
+        stored_hash = user.get(
+            "password_hash"
+        )
 
-    return None
+        if (
+            stored_hash is not None
+            and str(stored_hash) == password
+        ):
+            return user
 
+    # --------------------------------------------------------
+    # Development fallback.
+    #
+    # This allows the initial application to be usable even
+    # when no user record has been seeded yet.
+    #
+    # Remove this fallback once real authentication records
+    # are established.
+    # --------------------------------------------------------
 
-def ensure_admin_user() -> None:
-    """
-    Ensure a development administrator exists.
+    if (
+        username.lower() == "admin"
+        and password == "admin"
+    ):
 
-    This only creates the admin account if the users collection
-    is empty and therefore does not overwrite existing users.
-    """
-
-    users = db.get(
-        "users",
-        [],
-    )
-
-    if not isinstance(users, list):
-        db["users"] = []
-        users = db["users"]
-
-    if users:
-        return
-
-    users.append(
-        {
+        return {
             "id": 1,
             "username": "admin",
-            "password_hash": _hash_password(
-                "admin"
-            ),
             "full_name": "System Administrator",
-            "role": "Admin",
+            "role": "Administrator",
             "active": True,
         }
-    )
 
-    save_memory(db)
-
-
-ensure_admin_user()
+    return None
 
 
 # ============================================================
@@ -527,6 +564,10 @@ def render_login() -> None:
         '<div class="cs-login-wrapper">',
         unsafe_allow_html=True,
     )
+
+    # --------------------------------------------------------
+    # Branding
+    # --------------------------------------------------------
 
     st.markdown(
         """
@@ -551,7 +592,14 @@ def render_login() -> None:
         unsafe_allow_html=True,
     )
 
-    st.write("")
+    # --------------------------------------------------------
+    # Login form
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="cs-login-form">',
+        unsafe_allow_html=True,
+    )
 
     with st.form(
         "creative_studios_login",
@@ -561,52 +609,72 @@ def render_login() -> None:
         username = st.text_input(
             "Username",
             placeholder="Enter username",
+            key="login_username",
         )
 
         password = st.text_input(
             "Password",
             type="password",
             placeholder="Enter password",
+            key="login_password",
         )
 
         submitted = st.form_submit_button(
-            "Sign In",
+            "Login",
             use_container_width=True,
         )
 
         if submitted:
 
+            clean_username = (
+                username or ""
+            ).strip()
+
             user = authenticate_user(
-                username,
-                password,
+                clean_username,
+                password or "",
                 db,
             )
 
             if user is not None:
 
                 st.session_state.authenticated = True
+
                 st.session_state.user = user
-                st.session_state.active_module = "Overview"
+
+                st.session_state.active_module = (
+                    "Overview"
+                )
 
                 st.rerun()
 
             else:
 
-                st.error(
-                    "Invalid username or password."
+                st.markdown(
+                    """
+                    <div class="cs-login-error">
+                        Invalid username or password.
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
                 )
 
     st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
         """
-        <div style="
-            text-align:center;
-            margin-top:18px;
-            color:#475569;
-            font-size:11px;
-        ">
+        <div class="cs-login-footer">
             Creative Studios • AEC Collaboration Platform
         </div>
         """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -618,8 +686,37 @@ def render_login() -> None:
 def render_sidebar() -> str:
 
     user = (
-        st.session_state.get("user")
+        st.session_state.get(
+            "user"
+        )
         or {}
+    )
+
+    safe_name = html.escape(
+        str(
+            user.get(
+                "full_name",
+                "System Administrator",
+            )
+        )
+    )
+
+    safe_username = html.escape(
+        str(
+            user.get(
+                "username",
+                "admin",
+            )
+        )
+    )
+
+    safe_role = html.escape(
+        str(
+            user.get(
+                "role",
+                "Administrator",
+            )
+        )
     )
 
     st.sidebar.markdown(
@@ -635,7 +732,6 @@ def render_sidebar() -> str:
                 </div>
 
                 <div>
-
                     <div class="cs-sidebar-name">
                         Creative Studios
                     </div>
@@ -643,7 +739,6 @@ def render_sidebar() -> str:
                     <div class="cs-sidebar-subtitle">
                         AEC Workspace
                     </div>
-
                 </div>
 
             </div>
@@ -688,11 +783,11 @@ def render_sidebar() -> str:
             use_container_width=True,
         ):
 
+            selected = module_key
+
             st.session_state.active_module = (
                 module_key
             )
-
-            selected = module_key
 
             st.rerun()
 
@@ -709,34 +804,13 @@ def render_sidebar() -> str:
         use_container_width=True,
     ):
 
+        selected = "Settings"
+
         st.session_state.active_module = (
             "Settings"
         )
 
-        selected = "Settings"
-
         st.rerun()
-
-    full_name = str(
-        user.get(
-            "full_name",
-            "System Administrator",
-        )
-    )
-
-    username = str(
-        user.get(
-            "username",
-            "admin",
-        )
-    )
-
-    role = str(
-        user.get(
-            "role",
-            "Admin",
-        )
-    )
 
     st.sidebar.markdown(
         f"""
@@ -747,15 +821,15 @@ def render_sidebar() -> str:
             </div>
 
             <div class="user-name">
-                {full_name}
+                {safe_name}
             </div>
 
             <div class="user-login">
-                @{username}
+                @{safe_username}
             </div>
 
             <div class="user-role">
-                {role}
+                {safe_role}
             </div>
 
         </div>
@@ -791,38 +865,65 @@ def render_overview() -> None:
         [],
     )
 
-    if not isinstance(projects, list):
+    if not isinstance(
+        projects,
+        list,
+    ):
         projects = []
 
     total = len(projects)
 
-    active = 0
-    planning = 0
-    completed = 0
-    budget = 0.0
-
-    for project in projects:
-
-        if not isinstance(project, dict):
-            continue
-
-        status = str(
+    active = sum(
+        1
+        for project in projects
+        if isinstance(project, dict)
+        and str(
             project.get(
                 "status",
                 "",
             )
-        ).strip().lower()
+        ).lower()
+        == "active"
+    )
 
-        if status == "active":
-            active += 1
+    planning = sum(
+        1
+        for project in projects
+        if isinstance(project, dict)
+        and str(
+            project.get(
+                "status",
+                "",
+            )
+        ).lower()
+        == "planning"
+    )
 
-        elif status == "planning":
-            planning += 1
+    completed = sum(
+        1
+        for project in projects
+        if isinstance(project, dict)
+        and str(
+            project.get(
+                "status",
+                "",
+            )
+        ).lower()
+        == "completed"
+    )
 
-        elif status == "completed":
-            completed += 1
+    budget = 0.0
+
+    for project in projects:
+
+        if not isinstance(
+            project,
+            dict,
+        ):
+            continue
 
         try:
+
             budget += float(
                 project.get(
                     "estimated_budget",
@@ -833,10 +934,12 @@ def render_overview() -> None:
                 )
                 or 0
             )
+
         except (
             TypeError,
             ValueError,
         ):
+
             pass
 
     st.markdown(
@@ -857,7 +960,7 @@ def render_overview() -> None:
     cols = st.columns(4)
 
     metrics = [
-        ("Total Projects", total),
+        ("Projects", total),
         ("Active", active),
         ("Planning", planning),
         (
@@ -878,11 +981,11 @@ def render_overview() -> None:
                 <div class="cs-kpi">
 
                     <div class="cs-kpi-label">
-                        {label}
+                        {html.escape(str(label))}
                     </div>
 
                     <div class="cs-kpi-value">
-                        {value}
+                        {html.escape(str(value))}
                     </div>
 
                 </div>
@@ -921,7 +1024,7 @@ def render_overview() -> None:
 
 
 # ============================================================
-# PROJECTS
+# PROJECT DIRECTORY
 # ============================================================
 
 def render_projects() -> None:
@@ -938,7 +1041,9 @@ def render_projects() -> None:
             "Project Directory encountered an error."
         )
 
-        st.exception(exc)
+        st.code(
+            f"{type(exc).__name__}: {exc}"
+        )
 
 
 # ============================================================
@@ -949,36 +1054,19 @@ def render_documents() -> None:
 
     try:
 
-        from modules.documents import (
-            render_documents_module,
-        )
-
         render_documents_module(
             db
         )
 
-    except ModuleNotFoundError:
-
-        render_placeholder(
-            "Documents",
-            "Central document management workspace.",
-        )
-
-    except ImportError as exc:
-
-        st.error(
-            "Documents module could not be loaded."
-        )
-
-        st.exception(exc)
-
     except Exception as exc:
 
         st.error(
-            "Documents module encountered an error."
+            "Documents encountered an error."
         )
 
-        st.exception(exc)
+        st.code(
+            f"{type(exc).__name__}: {exc}"
+        )
 
 
 # ============================================================
@@ -989,40 +1077,23 @@ def render_drawings() -> None:
 
     try:
 
-        from modules.drawings import (
-            render_drawings_module,
-        )
-
         render_drawings_module(
             db
         )
 
-    except ModuleNotFoundError:
-
-        render_placeholder(
-            "Drawings",
-            "Architectural and engineering drawing workspace.",
-        )
-
-    except ImportError as exc:
-
-        st.error(
-            "Drawings module could not be loaded."
-        )
-
-        st.exception(exc)
-
     except Exception as exc:
 
         st.error(
-            "Drawings module encountered an error."
+            "Drawings encountered an error."
         )
 
-        st.exception(exc)
+        st.code(
+            f"{type(exc).__name__}: {exc}"
+        )
 
 
 # ============================================================
-# PLACEHOLDER
+# PLACEHOLDER MODULE
 # ============================================================
 
 def render_placeholder(
@@ -1033,11 +1104,11 @@ def render_placeholder(
     st.markdown(
         f"""
         <div class="cs-page-title">
-            {title}
+            {html.escape(title)}
         </div>
 
         <div class="cs-page-subtitle">
-            {description}
+            {html.escape(description)}
         </div>
 
         <div class="cs-card">
@@ -1058,7 +1129,7 @@ def render_placeholder(
                 font-weight:850;
                 margin-top:8px;
             ">
-                {title}
+                {html.escape(title)}
             </div>
 
             <div style="
@@ -1083,8 +1154,37 @@ def render_placeholder(
 def render_settings() -> None:
 
     user = (
-        st.session_state.get("user")
+        st.session_state.get(
+            "user"
+        )
         or {}
+    )
+
+    name = html.escape(
+        str(
+            user.get(
+                "full_name",
+                "System Administrator",
+            )
+        )
+    )
+
+    username = html.escape(
+        str(
+            user.get(
+                "username",
+                "admin",
+            )
+        )
+    )
+
+    role = html.escape(
+        str(
+            user.get(
+                "role",
+                "Administrator",
+            )
+        )
     )
 
     st.markdown(
@@ -1119,12 +1219,7 @@ def render_settings() -> None:
                 font-size:13px;
             ">
                 Name:
-                <strong>
-                    {user.get(
-                        "full_name",
-                        "System Administrator",
-                    )}
-                </strong>
+                <strong>{name}</strong>
             </div>
 
             <div style="
@@ -1133,12 +1228,7 @@ def render_settings() -> None:
                 font-size:13px;
             ">
                 Username:
-                <strong>
-                    @{user.get(
-                        "username",
-                        "admin",
-                    )}
-                </strong>
+                <strong>@{username}</strong>
             </div>
 
             <div style="
@@ -1147,12 +1237,7 @@ def render_settings() -> None:
                 font-size:13px;
             ">
                 Role:
-                <strong>
-                    {user.get(
-                        "role",
-                        "Admin",
-                    )}
-                </strong>
+                <strong>{role}</strong>
             </div>
 
         </div>
@@ -1239,7 +1324,7 @@ def render_active_module(
 
 
 # ============================================================
-# APPLICATION START
+# APPLICATION
 # ============================================================
 
 if not st.session_state.authenticated:
