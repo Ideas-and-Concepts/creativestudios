@@ -16,11 +16,13 @@ Features
 - Tasks
 - Approvals
 - Settings
-- PNG-based branding
+- Native PNG branding
 - Sidebar branding
 - Login branding
 - Module header branding
+- Active sidebar navigation
 - Session-state navigation
+- No emoji-font dependency
 """
 
 from __future__ import annotations
@@ -34,32 +36,82 @@ import streamlit as st
 
 
 # ============================================================
-# PAGE CONFIG
-# ============================================================
-
-st.set_page_config(
-    page_title="Creative Studios",
-    page_icon="CS",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-
-# ============================================================
-# PATHS / BRAND ASSETS
+# PAGE CONFIGURATION
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
 LOGO_PATH = BASE_DIR / "assets" / "Artboard 1.png"
 
+st.set_page_config(
+    page_title="Creative Studios",
+    page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else None,
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
+# ============================================================
+# BRAND ASSET HELPERS
+# ============================================================
 
 def logo_exists() -> bool:
-    """Return True when the Creative Studios logo exists."""
+    """
+    Return True when the Creative Studios PNG logo exists.
+    """
 
     return (
         LOGO_PATH.exists()
         and LOGO_PATH.is_file()
+    )
+
+
+def render_logo(
+    width: int = 64,
+) -> None:
+    """
+    Render the Creative Studios logo using Streamlit's
+    native image renderer.
+
+    This avoids:
+    - base64 image embedding
+    - SVG rendering problems
+    - HTML image path problems
+    - emoji-font dependencies
+    """
+
+    if logo_exists():
+
+        st.image(
+            str(LOGO_PATH),
+            width=width,
+        )
+
+
+def safe_user_value(
+    value: Any,
+    fallback: str,
+) -> str:
+    """
+    Safely prepare a user value for HTML display.
+
+    Handles:
+    - None
+    - missing values
+    - empty strings
+    - whitespace-only strings
+    - HTML characters
+    """
+
+    value = str(
+        value or ""
+    ).strip()
+
+    if not value:
+        value = fallback
+
+    return html.escape(
+        value
     )
 
 
@@ -91,11 +143,12 @@ def _load_renderer(
     """
     Safely load a module renderer.
 
-    An unavailable or unfinished module will not prevent the
-    rest of the application from starting.
+    An unfinished module will not prevent the application
+    from starting.
     """
 
     try:
+
         module = importlib.import_module(
             module_name
         )
@@ -221,136 +274,33 @@ span {
 
 
 /* ==========================================================
-   LOGIN
-   ========================================================== */
-
-.cs-login-wrapper {
-    width: min(430px, 92vw);
-    margin: 7vh auto 0 auto;
-}
-
-.cs-login-card {
-    background: #0B0F17;
-
-    border: 1px solid #1E293B;
-
-    border-radius: 20px;
-
-    padding: 36px;
-
-    box-shadow:
-        0 20px 70px rgba(0, 0, 0, 0.55),
-        0 0 40px rgba(37, 99, 235, 0.06);
-
-    text-align: center;
-}
-
-.cs-login-logo {
-    display: flex;
-
-    justify-content: center;
-
-    align-items: center;
-
-    margin: 0 auto 18px auto;
-
-    width: 82px;
-
-    height: 82px;
-}
-
-.cs-brand-name {
-    color: #FFFFFF;
-
-    font-size: 27px;
-
-    font-weight: 900;
-
-    text-align: center;
-
-    line-height: 1.15;
-}
-
-.cs-brand-subtitle {
-    color: #64748B;
-
-    font-size: 12px;
-
-    text-align: center;
-
-    margin-top: 5px;
-
-    letter-spacing: 1px;
-
-    text-transform: uppercase;
-}
-
-/* ==========================================================
-   ACTIVE SIDEBAR MODULE
-   ========================================================== */
-
-.cs-active-module {
-    border-left: 3px solid #3B82F6;
-    border-radius: 8px;
-    margin-bottom: 3px;
-    padding-left: 4px;
-    background: rgba(37, 99, 235, 0.10);
-}
-
-/* The Streamlit button immediately following the marker */
-.cs-active-module + div[data-testid="stButton"] > button {
-    background: #172554 !important;
-    color: #FFFFFF !important;
-
-    border-color: #2563EB !important;
-
-    box-shadow:
-        inset 0 0 0 1px rgba(59, 130, 246, 0.20),
-        0 4px 14px rgba(37, 99, 235, 0.08) !important;
-}
-
-/* Active button hover */
-.cs-active-module + div[data-testid="stButton"] > button:hover {
-    background: #1E3A8A !important;
-    color: #FFFFFF !important;
-
-    border-color: #3B82F6 !important;
-}
-
-
-/* ==========================================================
-   SIDEBAR BRANDING
+   SIDEBAR BRAND
    ========================================================== */
 
 .cs-sidebar-brand {
     width: 100%;
-
     padding: 6px 2px 18px 2px;
-
     margin-bottom: 14px;
-
     border-bottom: 1px solid #172033;
+}
+
+.cs-sidebar-brand-text {
+    min-width: 0;
+    overflow: hidden;
 }
 
 .cs-sidebar-name {
     color: #FFFFFF;
-
     font-size: 15px;
-
     font-weight: 850;
-
     line-height: 1.15;
 }
 
 .cs-sidebar-subtitle {
     color: #64748B;
-
     font-size: 9px;
-
     margin-top: 4px;
-
     text-transform: uppercase;
-
     letter-spacing: 0.7px;
 }
 
@@ -361,18 +311,85 @@ span {
 
 .cs-section-label {
     color: #475569;
-
     font-size: 10px;
-
     font-weight: 850;
-
     letter-spacing: 1.3px;
-
     text-transform: uppercase;
-
     margin-top: 17px;
-
     margin-bottom: 7px;
+}
+
+
+/* ==========================================================
+   SIDEBAR BUTTONS
+   ========================================================== */
+
+div[data-testid="stSidebar"]
+div[data-testid="stButton"] > button {
+
+    background: #111827 !important;
+
+    color: #CBD5E1 !important;
+
+    border: 1px solid #1E293B !important;
+
+    border-radius: 9px !important;
+
+    min-height: 40px !important;
+
+    text-align: left !important;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+div[data-testid="stSidebar"]
+div[data-testid="stButton"] > button:hover {
+
+    background: #172554 !important;
+
+    border-color: #2563EB !important;
+
+    color: #FFFFFF !important;
+}
+
+
+/* ==========================================================
+   ACTIVE SIDEBAR BUTTON
+   ========================================================== */
+
+.cs-active-button
+div[data-testid="stButton"] > button {
+
+    background: #172554 !important;
+
+    color: #FFFFFF !important;
+
+    border-color: #2563EB !important;
+
+    box-shadow:
+        inset 3px 0 0 #3B82F6,
+        0 4px 14px rgba(37, 99, 235, 0.10) !important;
+}
+
+
+/* ==========================================================
+   ACTIVE SIDEBAR INDICATOR
+   ========================================================== */
+
+.cs-active-indicator {
+
+    color: #60A5FA;
+
+    font-size: 12px;
+
+    font-weight: 900;
+
+    margin-right: 6px;
+
+    vertical-align: middle;
 }
 
 
@@ -381,6 +398,7 @@ span {
    ========================================================== */
 
 .cs-user-card {
+
     background: #0B0F17;
 
     border: 1px solid #172033;
@@ -393,6 +411,7 @@ span {
 }
 
 .user-label {
+
     color: #60A5FA;
 
     font-size: 9px;
@@ -405,6 +424,7 @@ span {
 }
 
 .user-name {
+
     color: #FFFFFF;
 
     font-size: 14px;
@@ -415,6 +435,7 @@ span {
 }
 
 .user-login {
+
     color: #64748B;
 
     font-size: 10px;
@@ -423,6 +444,7 @@ span {
 }
 
 .user-role {
+
     display: inline-block;
 
     margin-top: 8px;
@@ -442,10 +464,97 @@ span {
 
 
 /* ==========================================================
-   MODULE HEADER
+   LOGIN
    ========================================================== */
 
+.cs-login-wrapper {
+
+    width: min(430px, 92vw);
+
+    margin: 7vh auto 0 auto;
+
+    text-align: center;
+}
+
+.cs-login-card {
+
+    background: #0B0F17;
+
+    border: 1px solid #1E293B;
+
+    border-radius: 20px;
+
+    padding: 36px;
+
+    box-shadow:
+        0 20px 70px rgba(0, 0, 0, 0.55),
+        0 0 40px rgba(37, 99, 235, 0.06);
+}
+
+.cs-login-brand {
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    margin-bottom: 20px;
+}
+
+.cs-brand-name {
+
+    color: #FFFFFF;
+
+    font-size: 27px;
+
+    font-weight: 900;
+
+    line-height: 1.15;
+
+    text-align: center;
+}
+
+.cs-brand-subtitle {
+
+    color: #64748B;
+
+    font-size: 12px;
+
+    text-align: center;
+
+    margin-top: 5px;
+
+    letter-spacing: 1px;
+
+    text-transform: uppercase;
+}
+
+
+/* ==========================================================
+   PAGE HEADER
+   ========================================================== */
+
+.cs-page-header {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    margin-bottom: 25px;
+}
+
+.cs-page-header-text {
+
+    min-width: 0;
+}
+
 .cs-page-title {
+
     color: #FFFFFF;
 
     font-size: 30px;
@@ -458,13 +567,12 @@ span {
 }
 
 .cs-page-subtitle {
+
     color: #64748B;
 
     font-size: 13px;
 
     margin-top: 5px;
-
-    margin-bottom: 25px;
 }
 
 
@@ -473,6 +581,7 @@ span {
    ========================================================== */
 
 .cs-card {
+
     background: #0B0F17;
 
     border: 1px solid #172033;
@@ -483,6 +592,7 @@ span {
 }
 
 .cs-kpi {
+
     background: #0B0F17;
 
     border: 1px solid #172033;
@@ -495,6 +605,7 @@ span {
 }
 
 .cs-kpi-label {
+
     color: #64748B;
 
     font-size: 11px;
@@ -505,6 +616,7 @@ span {
 }
 
 .cs-kpi-value {
+
     color: #FFFFFF;
 
     font-size: 26px;
@@ -520,6 +632,7 @@ span {
    ========================================================== */
 
 div[data-testid="stButton"] > button {
+
     background: #111827 !important;
 
     color: #E2E8F0 !important;
@@ -530,6 +643,7 @@ div[data-testid="stButton"] > button {
 }
 
 div[data-testid="stButton"] > button:hover {
+
     background: #172554 !important;
 
     border-color: #2563EB !important;
@@ -538,6 +652,7 @@ div[data-testid="stButton"] > button:hover {
 }
 
 div[data-testid="stFormSubmitButton"] > button {
+
     background: #2563EB !important;
 
     color: #FFFFFF !important;
@@ -550,6 +665,7 @@ div[data-testid="stFormSubmitButton"] > button {
 }
 
 div[data-testid="stFormSubmitButton"] > button:hover {
+
     background: #1D4ED8 !important;
 }
 
@@ -561,6 +677,7 @@ div[data-testid="stFormSubmitButton"] > button:hover {
 input,
 textarea,
 [data-baseweb="select"] > div {
+
     background: #0B0F17 !important;
 
     color: #FFFFFF !important;
@@ -574,6 +691,7 @@ textarea,
    ========================================================== */
 
 .cs-login-error {
+
     background: rgba(127, 29, 29, 0.20);
 
     border: 1px solid rgba(248, 113, 113, 0.30);
@@ -587,6 +705,28 @@ textarea,
     color: #FCA5A5 !important;
 
     font-size: 12px;
+}
+
+
+/* ==========================================================
+   MISSING LOGO NOTICE
+   ========================================================== */
+
+.cs-logo-warning {
+
+    background: rgba(245, 158, 11, 0.08);
+
+    border: 1px solid rgba(245, 158, 11, 0.20);
+
+    border-radius: 9px;
+
+    padding: 8px 10px;
+
+    color: #FBBF24 !important;
+
+    font-size: 11px;
+
+    margin-bottom: 15px;
 }
 
 </style>
@@ -717,6 +857,11 @@ def render_login_branding() -> None:
         unsafe_allow_html=True,
     )
 
+    st.markdown(
+        '<div class="cs-login-brand">',
+        unsafe_allow_html=True,
+    )
+
     if logo_exists():
 
         st.image(
@@ -742,6 +887,11 @@ def render_login_branding() -> None:
         unsafe_allow_html=True,
     )
 
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
 
 # ============================================================
 # SIDEBAR BRANDING
@@ -755,8 +905,7 @@ def render_sidebar_branding() -> None:
     )
 
     logo_col, text_col = st.sidebar.columns(
-        [0.28, 0.72],
-        vertical_alignment="center",
+        [0.25, 0.75],
     )
 
     with logo_col:
@@ -803,6 +952,18 @@ def render_login(
     )
 
     render_login_branding()
+
+    if not logo_exists():
+
+        st.markdown(
+            """
+            <div class="cs-logo-warning">
+                Creative Studios logo not found.
+                Check assets/Artboard 1.png.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     st.write("")
 
@@ -866,7 +1027,9 @@ def render_login(
             color:#475569;
             font-size:11px;
         ">
-            Creative Studios • AEC Collaboration Platform
+            Creative Studios
+            <span style="color:#334155;">•</span>
+            AEC Collaboration Platform
         </div>
         """,
         unsafe_allow_html=True,
@@ -884,7 +1047,9 @@ def render_login(
 
 def render_sidebar() -> str:
 
-    user = st.session_state.get("user")
+    user = st.session_state.get(
+        "user"
+    )
 
     if not isinstance(
         user,
@@ -927,8 +1092,32 @@ def render_sidebar() -> str:
 
     for module_key, label in modules:
 
+        is_active = (
+            module_key == current
+        )
+
+        if is_active:
+
+            st.sidebar.markdown(
+                """
+                <div class="cs-active-indicator">
+                    Active
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        button_label = label
+
+        if is_active:
+
+            button_label = (
+                "●  "
+                + label
+            )
+
         if st.sidebar.button(
-            label,
+            button_label,
             key=f"nav_{module_key}",
             use_container_width=True,
         ):
@@ -965,34 +1154,8 @@ def render_sidebar() -> str:
         st.rerun()
 
     # --------------------------------------------------------
-    # SAFE USER VALUE
+    # USER INFORMATION
     # --------------------------------------------------------
-
-    def safe_user_value(
-        value,
-        fallback: str,
-    ) -> str:
-        """
-        Safely prepare a user value for HTML display.
-
-        Handles:
-        - Missing values
-        - None
-        - Empty strings
-        - Whitespace-only strings
-        - HTML characters
-        """
-
-        value = str(
-            value or ""
-        ).strip()
-
-        if not value:
-            value = fallback
-
-        return html.escape(
-            value
-        )
 
     full_name = safe_user_value(
         user.get("full_name"),
@@ -1008,10 +1171,6 @@ def render_sidebar() -> str:
         user.get("role"),
         "Admin",
     )
-
-    # --------------------------------------------------------
-    # USER CARD
-    # --------------------------------------------------------
 
     st.sidebar.markdown(
         f"""
@@ -1073,16 +1232,15 @@ def render_module_header(
 ) -> None:
 
     safe_title = html.escape(
-        title
+        str(title)
     )
 
     safe_subtitle = html.escape(
-        subtitle
+        str(subtitle)
     )
 
     logo_col, text_col = st.columns(
         [0.08, 0.92],
-        vertical_alignment="center",
     )
 
     with logo_col:
@@ -1098,12 +1256,16 @@ def render_module_header(
 
         st.markdown(
             f"""
-            <div class="cs-page-title">
-                {safe_title}
-            </div>
+            <div class="cs-page-header-text">
 
-            <div class="cs-page-subtitle">
-                {safe_subtitle}
+                <div class="cs-page-title">
+                    {safe_title}
+                </div>
+
+                <div class="cs-page-subtitle">
+                    {safe_subtitle}
+                </div>
+
             </div>
             """,
             unsafe_allow_html=True,
@@ -1127,56 +1289,65 @@ def render_overview(
         projects,
         list,
     ):
+
         projects = []
 
-    total = len(projects)
+    total = len(
+        projects
+    )
 
     active = sum(
         1
         for project in projects
-        if isinstance(
-            project,
-            dict,
-        )
-        and str(
-            project.get(
-                "status",
-                "",
+        if (
+            isinstance(
+                project,
+                dict,
             )
-        ).lower()
-        == "active"
+            and str(
+                project.get(
+                    "status",
+                    "",
+                )
+            ).lower()
+            == "active"
+        )
     )
 
     planning = sum(
         1
         for project in projects
-        if isinstance(
-            project,
-            dict,
-        )
-        and str(
-            project.get(
-                "status",
-                "",
+        if (
+            isinstance(
+                project,
+                dict,
             )
-        ).lower()
-        == "planning"
+            and str(
+                project.get(
+                    "status",
+                    "",
+                )
+            ).lower()
+            == "planning"
+        )
     )
 
     completed = sum(
         1
         for project in projects
-        if isinstance(
-            project,
-            dict,
-        )
-        and str(
-            project.get(
-                "status",
-                "",
+        if (
+            isinstance(
+                project,
+                dict,
             )
-        ).lower()
-        == "completed"
+            and str(
+                project.get(
+                    "status",
+                    "",
+                )
+            ).lower()
+            == "completed"
+        )
     )
 
     render_module_header(
@@ -1185,7 +1356,9 @@ def render_overview(
         "engineering and construction activities.",
     )
 
-    cols = st.columns(4)
+    cols = st.columns(
+        4
+    )
 
     metrics = [
         ("Projects", total),
@@ -1354,29 +1527,16 @@ def render_settings() -> None:
         "Creative Studios workspace configuration.",
     )
 
-    user = st.session_state.get("user")
+    user = st.session_state.get(
+        "user"
+    )
 
     if not isinstance(
         user,
         dict,
     ):
+
         user = {}
-
-    def safe_user_value(
-        value,
-        fallback: str,
-    ) -> str:
-
-        value = str(
-            value or ""
-        ).strip()
-
-        if not value:
-            value = fallback
-
-        return html.escape(
-            value
-        )
 
     name = safe_user_value(
         user.get("full_name"),
