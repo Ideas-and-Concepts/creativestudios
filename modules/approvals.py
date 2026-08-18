@@ -21,6 +21,8 @@ No authentication, sidebar, branding, or database initialization
 is performed here.
 """
 
+from modules.branding import render_module_header
+
 from __future__ import annotations
 
 from datetime import date, datetime
