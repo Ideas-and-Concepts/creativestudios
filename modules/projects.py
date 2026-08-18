@@ -73,42 +73,17 @@ def render_projects_module(
     # CREATE PROJECT
     # ========================================================
 
-    if st.session_state.get(
-        "show_project_form",
-        False,
-    ):
-
+    if st.session_state.get("show_project_form", False):
         st.markdown("### New Project")
 
-        with st.form(
-            "create_project_form",
-            clear_on_submit=True,
-        ):
-
-            name = st.text_input(
-                "Project Name",
-                key="project_name",
-            )
-
-            client = st.text_input(
-                "Client",
-                key="project_client",
-            )
-
-            location = st.text_input(
-                "Location",
-                key="project_location",
-            )
+        with st.form("create_project_form", clear_on_submit=True):
+            name = st.text_input("Project Name", key="project_name")
+            client = st.text_input("Client", key="project_client")
+            location = st.text_input("Location", key="project_location")
 
             col_a, col_b = st.columns(2)
-
             with col_a:
-                status = st.selectbox(
-                    "Status",
-                    PROJECT_STATUSES,
-                    key="project_status",
-                )
-
+                status = st.selectbox("Status", PROJECT_STATUSES, key="project_status")
             with col_b:
                 budget = st.number_input(
                     "Estimated Budget",
@@ -117,26 +92,14 @@ def render_projects_module(
                     key="project_budget",
                 )
 
-            description = st.text_area(
-                "Description",
-                key="project_description",
-            )
+            description = st.text_area("Description", key="project_description")
 
-            submitted = st.form_submit_button(
-                "Create Project",
-                use_container_width=True,
-            )
+            submitted = st.form_submit_button("Create Project", use_container_width=True)
 
             if submitted:
-
                 if not name.strip():
-
-                    st.error(
-                        "Project name is required."
-                    )
-
+                    st.error("Project name is required.")
                 else:
-
                     project = {
                         "id": next_id("projects", database),
                         "name": name.strip(),
@@ -148,15 +111,8 @@ def render_projects_module(
                     }
 
                     add_record("projects", project, database)
-
-                    st.session_state[
-                        "show_project_form"
-                    ] = False
-
-                    st.success(
-                        "Project created successfully."
-                    )
-
+                    st.session_state["show_project_form"] = False
+                    st.success("Project created successfully.")
                     st.rerun()
 
     # ========================================================
@@ -164,27 +120,19 @@ def render_projects_module(
     # ========================================================
 
     filtered_projects = []
-
     search_value = search.strip().lower()
 
     for project in projects:
-
-        if not isinstance(
-            project,
-            dict,
-        ):
+        if not isinstance(project, dict):
             continue
 
         if search_value:
-
-            searchable = " ".join(
-                [
-                    _text(project.get("name")),
-                    _text(project.get("client")),
-                    _text(project.get("location")),
-                    _text(project.get("status")),
-                ]
-            ).lower()
+            searchable = " ".join([
+                _text(project.get("name")),
+                _text(project.get("client")),
+                _text(project.get("location")),
+                _text(project.get("status")),
+            ]).lower()
 
             if search_value not in searchable:
                 continue
@@ -196,242 +144,84 @@ def render_projects_module(
     # ========================================================
 
     cols = st.columns(4)
-
     metrics = [
-        (
-            "Total",
-            len(projects),
-        ),
-        (
-            "Active",
-            sum(
-                1
-                for p in projects
-                if _text(
-                    p.get("status")
-                ).lower()
-                == "active"
-            ),
-        ),
-        (
-            "Planning",
-            sum(
-                1
-                for p in projects
-                if _text(
-                    p.get("status")
-                ).lower()
-                == "planning"
-            ),
-        ),
-        (
-            "Completed",
-            sum(
-                1
-                for p in projects
-                if _text(
-                    p.get("status")
-                ).lower()
-                == "completed"
-            ),
-        ),
+        ("Total", len(projects)),
+        ("Active", sum(1 for p in projects if _text(p.get("status")).lower() == "active")),
+        ("Planning", sum(1 for p in projects if _text(p.get("status")).lower() == "planning")),
+        ("Completed", sum(1 for p in projects if _text(p.get("status")).lower() == "completed")),
     ]
 
-    for col, (label, value) in zip(
-        cols,
-        metrics,
-    ):
-
+    for col, (label, value) in zip(cols, metrics):
         with col:
-
-            st.metric(
-                label,
-                value,
-            )
+            st.metric(label, value)
 
     st.write("")
 
     # ========================================================
-    # PROJECT TABLE
+    # PROJECT LIST
     # ========================================================
 
     if not filtered_projects:
-
-        st.info(
-            "No projects found."
-        )
-
+        st.info("No projects found.")
         return
 
     for project in filtered_projects:
+        project_id = project.get("id")
+        name = html.escape(_text(project.get("name", "Unnamed Project")))
+        client = html.escape(_text(project.get("client", "Not specified")))
+        location = html.escape(_text(project.get("location", "Not specified")))
+        status = html.escape(_text(project.get("status", "Planning")))
 
-        project_id = project.get(
-            "id"
-        )
+        status_class = "cs-status-active" if status.lower() == "active" else "cs-status-default"
 
-        name = html.escape(
-            _text(
-                project.get(
-                    "name",
-                    "Unnamed Project",
-                )
-            )
-        )
-
-        client = html.escape(
-            _text(
-                project.get(
-                    "client",
-                    "Not specified",
-                )
-            )
-        )
-
-        location = html.escape(
-            _text(
-                project.get(
-                    "location",
-                    "Not specified",
-                )
-            )
-        )
-
-        status = html.escape(
-            _text(
-                project.get(
-                    "status",
-                    "Planning",
-                )
-            )
-        )
-
-        # ====================================================
-        # PROJECT CARD
-        # ====================================================
-
-        status_class = (
-            "cs-status-active"
-            if status.lower() == "active"
-            else "cs-status-default"
-        )
-
+        # ✅ KEY: unsafe_allow_html=True is present
         st.markdown(
             f"""
             <div class="cs-project-card">
-
                 <div class="cs-project-header">
-
                     <div>
-
-                        <div class="cs-project-name">
-                            {name}
-                        </div>
-
+                        <div class="cs-project-name">{name}</div>
                         <div class="cs-project-meta">
                             Client: {client}
                             &nbsp; • &nbsp;
                             Location: {location}
                         </div>
-
                     </div>
-
                     <div>
-                        <span class="cs-status {status_class}">
-                            {status}
-                        </span>
+                        <span class="cs-status {status_class}">{status}</span>
                     </div>
-
                 </div>
-
             </div>
             """,
             unsafe_allow_html=True,
         )
 
         # ====================================================
-        # PROJECT MANAGEMENT
+        # EDIT / DELETE
         # ====================================================
 
-        with st.expander(
-            f"Manage Project #{project_id}"
-        ):
+        with st.expander(f"Manage Project #{project_id}"):
+            with st.form(f"edit_project_{project_id}"):
+                edit_name = st.text_input("Project Name", value=_text(project.get("name")))
+                edit_client = st.text_input("Client", value=_text(project.get("client")))
+                edit_location = st.text_input("Location", value=_text(project.get("location")))
 
-            with st.form(
-                f"edit_project_{project_id}"
-            ):
-
-                edit_name = st.text_input(
-                    "Project Name",
-                    value=_text(
-                        project.get("name")
-                    ),
-                )
-
-                edit_client = st.text_input(
-                    "Client",
-                    value=_text(
-                        project.get("client")
-                    ),
-                )
-
-                edit_location = st.text_input(
-                    "Location",
-                    value=_text(
-                        project.get("location")
-                    ),
-                )
-
-                current_status = _text(
-                    project.get(
-                        "status",
-                        "Planning",
-                    )
-                )
-
-                status_index = (
-                    PROJECT_STATUSES.index(
-                        current_status
-                    )
-                    if current_status
-                    in PROJECT_STATUSES
-                    else 0
-                )
-
-                edit_status = st.selectbox(
-                    "Status",
-                    PROJECT_STATUSES,
-                    index=status_index,
-                )
+                current_status = _text(project.get("status", "Planning"))
+                status_index = PROJECT_STATUSES.index(current_status) if current_status in PROJECT_STATUSES else 0
+                edit_status = st.selectbox("Status", PROJECT_STATUSES, index=status_index)
 
                 edit_budget = st.number_input(
                     "Estimated Budget",
                     min_value=0.0,
-                    value=float(
-                        project.get(
-                            "estimated_budget",
-                            0,
-                        )
-                        or 0
-                    ),
+                    value=float(project.get("estimated_budget", 0) or 0),
                     step=1000.0,
                 )
 
-                edit_description = st.text_area(
-                    "Description",
-                    value=_text(
-                        project.get(
-                            "description"
-                        )
-                    ),
-                )
+                edit_description = st.text_area("Description", value=_text(project.get("description")))
 
-                save = st.form_submit_button(
-                    "Save Changes",
-                    use_container_width=True,
-                )
+                save = st.form_submit_button("Save Changes", use_container_width=True)
 
                 if save:
-
                     update_record(
                         "projects",
                         project_id,
@@ -445,26 +235,10 @@ def render_projects_module(
                         },
                         database,
                     )
-
-                    st.success(
-                        "Project updated."
-                    )
-
+                    st.success("Project updated.")
                     st.rerun()
 
-            if st.button(
-                "Delete Project",
-                key=f"delete_project_{project_id}",
-            ):
-
-                delete_record(
-                    "projects",
-                    project_id,
-                    database,
-                )
-
-                st.success(
-                    "Project deleted."
-                )
-
+            if st.button("Delete Project", key=f"delete_project_{project_id}"):
+                delete_record("projects", project_id, database)
+                st.success("Project deleted.")
                 st.rerun()
