@@ -16,6 +16,7 @@ Public contract:
     next_id(collection, db)
     get_record(collection, record_id, db)
     get_records(collection, db)
+    get_collection(collection, db)   # <-- added
     initialize_database()
 
 Compatibility aliases:
@@ -57,6 +58,13 @@ DEFAULT_DATABASE: dict[str, Any] = {
     "rfis": [],
     "tasks": [],
     "teams": [],
+    "site_logs": [],
+    "site_log_workforce": [],
+    "site_log_equipment": [],
+    "site_log_materials": [],
+    "site_log_activities": [],
+    "site_log_issues": [],
+    "site_log_instructions": [],
     "activity_log": [],
     "settings": {},
 }
@@ -111,6 +119,13 @@ def _normalize_database(
         "rfis",
         "tasks",
         "teams",
+        "site_logs",
+        "site_log_workforce",
+        "site_log_equipment",
+        "site_log_materials",
+        "site_log_activities",
+        "site_log_issues",
+        "site_log_instructions",
         "activity_log",
     ]
 
@@ -314,6 +329,7 @@ def _ensure_collection(
 
     return db[collection]
 
+
 # ============================================================
 # GET COLLECTION (PUBLIC)
 # ============================================================
@@ -326,6 +342,7 @@ def get_collection(
     Return the raw list for a collection, ensuring it exists.
     """
     return _ensure_collection(db, collection)
+
 
 # ============================================================
 # NEXT ID
