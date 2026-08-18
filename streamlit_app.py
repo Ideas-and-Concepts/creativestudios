@@ -3,18 +3,6 @@ Creative Studios
 AEC Collaboration Platform
 
 Main Streamlit application.
-
-The application provides:
-- Authentication
-- Overview dashboard
-- Projects
-- Documents
-- Drawings
-- RFIs
-- Tasks
-- Approvals
-- Settings
-- Shared Creative Studios branding
 """
 
 from __future__ import annotations
@@ -56,7 +44,7 @@ st.set_page_config(
 
 
 # ============================================================
-# SHARED BRANDING
+# BRANDING
 # ============================================================
 
 branding.inject_branding_css()
@@ -80,7 +68,9 @@ def initialize_session_state() -> None:
     }
 
     for key, value in defaults.items():
+
         if key not in st.session_state:
+
             st.session_state[key] = value
 
 
@@ -92,9 +82,16 @@ def get_database() -> dict[str, Any]:
     """Load or initialize the application database."""
 
     if st.session_state.database is None:
-        st.session_state.database = initialize_database()
+
+        st.session_state.database = (
+            initialize_database()
+        )
+
     else:
-        st.session_state.database = load_memory()
+
+        st.session_state.database = (
+            load_memory()
+        )
 
     return st.session_state.database
 
@@ -108,29 +105,51 @@ def authenticate_user(
     password: str,
     database: dict[str, Any],
 ) -> dict[str, Any] | None:
-    """Authenticate a user against the application database."""
+    """Authenticate a user."""
 
-    username = str(username or "").strip()
-    password = str(password or "").strip()
+    username = str(
+        username or ""
+    ).strip()
 
-    users = database.get("users", [])
+    password = str(
+        password or ""
+    ).strip()
 
-    if not isinstance(users, list):
+    users = database.get(
+        "users",
+        [],
+    )
+
+    if not isinstance(
+        users,
+        list,
+    ):
+
         return None
 
     for user in users:
 
-        if not isinstance(user, dict):
+        if not isinstance(
+            user,
+            dict,
+        ):
+
             continue
 
         stored_username = str(
-            user.get("username", "")
+            user.get(
+                "username",
+                "",
+            )
         ).strip()
 
         stored_password = str(
             user.get(
                 "password",
-                user.get("password_hash", ""),
+                user.get(
+                    "password_hash",
+                    "",
+                ),
             )
         )
 
@@ -139,7 +158,11 @@ def authenticate_user(
             and stored_password == password
         ):
 
-            if user.get("active", True) is False:
+            if user.get(
+                "active",
+                True,
+            ) is False:
+
                 return None
 
             return user
@@ -148,13 +171,13 @@ def authenticate_user(
 
 
 # ============================================================
-# LOGIN PAGE
+# LOGIN
 # ============================================================
 
 def render_login(
     database: dict[str, Any],
 ) -> None:
-    """Render the Creative Studios login page."""
+    """Render the logo-only Creative Studios login."""
 
     st.markdown(
         '<div class="cs-login-wrapper">',
@@ -175,7 +198,9 @@ def render_login(
         unsafe_allow_html=True,
     )
 
-    render_logo(width=100)
+    render_logo(
+        width=100,
+    )
 
     st.markdown(
         '</div>',
@@ -183,7 +208,7 @@ def render_login(
     )
 
     # --------------------------------------------------------
-    # LOGIN FORM
+    # FORM
     # --------------------------------------------------------
 
     with st.form(
@@ -218,8 +243,12 @@ def render_login(
             if user is not None:
 
                 st.session_state.authenticated = True
+
                 st.session_state.user = user
-                st.session_state.active_module = "Overview"
+
+                st.session_state.active_module = (
+                    "Overview"
+                )
 
                 st.rerun()
 
@@ -255,10 +284,9 @@ def render_login(
 
 def render_sidebar_branding() -> None:
     """
-    Render sidebar branding.
+    Render the sidebar logo and workspace identity.
 
-    The logo is rendered through the shared native
-    Streamlit branding function.
+    Logo rendering is handled by branding.render_logo().
     """
 
     logo_col, text_col = st.sidebar.columns(
@@ -267,7 +295,10 @@ def render_sidebar_branding() -> None:
     )
 
     with logo_col:
-        render_logo(width=44)
+
+        render_logo(
+            width=44,
+        )
 
     with text_col:
 
@@ -291,14 +322,16 @@ def render_sidebar_branding() -> None:
 
 
 # ============================================================
-# SIDEBAR NAVIGATION
+# SIDEBAR
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render the main application navigation."""
+    """Render the application navigation."""
 
     user = (
-        st.session_state.get("user")
+        st.session_state.get(
+            "user",
+        )
         or {}
     )
 
@@ -331,8 +364,6 @@ def render_sidebar() -> str:
         "Overview",
     )
 
-    selected_module = current_module
-
     for module_key, label in navigation:
 
         if module_key == current_module:
@@ -357,7 +388,10 @@ def render_sidebar() -> str:
                 use_container_width=True,
             ):
 
-                st.session_state.active_module = module_key
+                st.session_state.active_module = (
+                    module_key
+                )
+
                 st.rerun()
 
     # --------------------------------------------------------
@@ -380,6 +414,7 @@ def render_sidebar() -> str:
     ):
 
         st.session_state.active_module = "Settings"
+
         st.rerun()
 
     # --------------------------------------------------------
@@ -389,24 +424,41 @@ def render_sidebar() -> str:
     full_name = str(
         user.get(
             "full_name",
-            user.get("name", ""),
+            user.get(
+                "name",
+                "",
+            ),
         )
         or "System Administrator"
     ).strip()
 
     username = str(
-        user.get("username", "")
+        user.get(
+            "username",
+            "",
+        )
         or "admin"
     ).strip()
 
     role = str(
-        user.get("role", "")
+        user.get(
+            "role",
+            "",
+        )
         or "Admin"
     ).strip()
 
-    safe_full_name = html.escape(full_name)
-    safe_username = html.escape(username)
-    safe_role = html.escape(role)
+    safe_full_name = html.escape(
+        full_name
+    )
+
+    safe_username = html.escape(
+        username
+    )
+
+    safe_role = html.escape(
+        role
+    )
 
     st.sidebar.markdown(
         f"""
@@ -435,10 +487,6 @@ def render_sidebar() -> str:
 
     st.sidebar.write("")
 
-    # --------------------------------------------------------
-    # SIGN OUT
-    # --------------------------------------------------------
-
     if st.sidebar.button(
         "Sign Out",
         key="logout_button",
@@ -446,28 +494,36 @@ def render_sidebar() -> str:
     ):
 
         st.session_state.authenticated = False
+
         st.session_state.user = None
+
         st.session_state.active_module = "Overview"
 
         st.rerun()
 
-    return selected_module
+    return current_module
 
 
 # ============================================================
-# SAFE NUMBER CONVERSION
+# SAFE NUMBER
 # ============================================================
 
-def _safe_float(value: Any) -> float:
+def _safe_float(
+    value: Any,
+) -> float:
     """Safely convert a value to float."""
 
     try:
-        return float(value or 0)
+
+        return float(
+            value or 0
+        )
 
     except (
         TypeError,
         ValueError,
     ):
+
         return 0.0
 
 
@@ -485,66 +541,57 @@ def render_overview(
         [],
     )
 
-    if not isinstance(projects_data, list):
+    if not isinstance(
+        projects_data,
+        list,
+    ):
+
         projects_data = []
 
-    # --------------------------------------------------------
-    # PROJECT COUNTS
-    # --------------------------------------------------------
-
-    total_projects = len(projects_data)
-
-    active_projects = sum(
-        1
-        for project in projects_data
-        if (
-            isinstance(project, dict)
-            and str(
-                project.get("status", "")
-            ).strip().lower()
-            == "active"
-        )
+    total_projects = len(
+        projects_data
     )
 
-    planning_projects = sum(
-        1
-        for project in projects_data
-        if (
-            isinstance(project, dict)
-            and str(
-                project.get("status", "")
-            ).strip().lower()
-            == "planning"
-        )
-    )
+    active_projects = 0
 
-    completed_projects = sum(
-        1
-        for project in projects_data
-        if (
-            isinstance(project, dict)
-            and str(
-                project.get("status", "")
-            ).strip().lower()
-            == "completed"
-        )
-    )
+    planning_projects = 0
 
-    # --------------------------------------------------------
-    # TOTAL BUDGET
-    # --------------------------------------------------------
+    completed_projects = 0
 
     total_budget = 0.0
 
     for project in projects_data:
 
-        if not isinstance(project, dict):
+        if not isinstance(
+            project,
+            dict,
+        ):
+
             continue
+
+        status = str(
+            project.get(
+                "status",
+                "",
+            )
+        ).strip().lower()
+
+        if status == "active":
+            active_projects += 1
+
+        elif status == "planning":
+            planning_projects += 1
+
+        elif status == "completed":
+            completed_projects += 1
 
         total_budget += _safe_float(
             project.get(
                 "estimated_budget",
-                project.get("budget", 0),
+                project.get(
+                    "budget",
+                    0,
+                ),
             )
         )
 
@@ -559,15 +606,30 @@ def render_overview(
     )
 
     # --------------------------------------------------------
-    # FIVE KPI CARDS
+    # KPI CARDS
     # --------------------------------------------------------
 
     metrics = [
-        ("Projects", str(total_projects)),
-        ("Active", str(active_projects)),
-        ("Planning", str(planning_projects)),
-        ("Completed", str(completed_projects)),
-        ("Total Budget", f"${total_budget:,.2f}"),
+        (
+            "Projects",
+            str(total_projects),
+        ),
+        (
+            "Active",
+            str(active_projects),
+        ),
+        (
+            "Planning",
+            str(planning_projects),
+        ),
+        (
+            "Completed",
+            str(completed_projects),
+        ),
+        (
+            "Total Budget",
+            f"${total_budget:,.2f}",
+        ),
     ]
 
     columns = st.columns(
@@ -575,7 +637,10 @@ def render_overview(
         gap="small",
     )
 
-    for column, (label, value) in zip(
+    for column, (
+        label,
+        value,
+    ) in zip(
         columns,
         metrics,
     ):
@@ -626,14 +691,14 @@ def render_overview(
 
 
 # ============================================================
-# PLACEHOLDER MODULES
+# PLACEHOLDER
 # ============================================================
 
 def render_placeholder(
     title: str,
     description: str,
 ) -> None:
-    """Render a placeholder for modules not yet implemented."""
+    """Render a placeholder module."""
 
     render_module_header(
         title,
@@ -667,7 +732,7 @@ def render_placeholder(
 # ============================================================
 
 def render_settings() -> None:
-    """Render application settings."""
+    """Render settings."""
 
     render_module_header(
         "Settings",
@@ -675,25 +740,36 @@ def render_settings() -> None:
     )
 
     user = (
-        st.session_state.get("user")
+        st.session_state.get(
+            "user",
+        )
         or {}
     )
 
     full_name = str(
         user.get(
             "full_name",
-            user.get("name", ""),
+            user.get(
+                "name",
+                "",
+            ),
         )
         or "System Administrator"
     ).strip()
 
     username = str(
-        user.get("username", "")
+        user.get(
+            "username",
+            "",
+        )
         or "admin"
     ).strip()
 
     role = str(
-        user.get("role", "")
+        user.get(
+            "role",
+            "",
+        )
         or "Admin"
     ).strip()
 
@@ -733,7 +809,7 @@ def render_settings() -> None:
 
 
 # ============================================================
-# MODULE ROUTER
+# ROUTER
 # ============================================================
 
 def render_active_module(
@@ -741,15 +817,16 @@ def render_active_module(
     database: dict[str, Any],
 ) -> None:
     """
-    Route the selected navigation item.
+    Route the selected module.
 
-    All six modules are imported directly at application
-    startup.
+    All six modules are imported directly.
     """
 
     if module_name == "Overview":
 
-        render_overview(database)
+        render_overview(
+            database
+        )
 
     elif module_name == "Projects":
 
@@ -814,9 +891,13 @@ def render_active_module(
 
     else:
 
-        st.session_state.active_module = "Overview"
+        st.session_state.active_module = (
+            "Overview"
+        )
 
-        render_overview(database)
+        render_overview(
+            database
+        )
 
 
 # ============================================================
@@ -824,25 +905,19 @@ def render_active_module(
 # ============================================================
 
 def main() -> None:
-    """Application entry point."""
+    """Run Creative Studios."""
 
     initialize_session_state()
 
     database = get_database()
 
-    # --------------------------------------------------------
-    # LOGIN
-    # --------------------------------------------------------
-
     if not st.session_state.authenticated:
 
-        render_login(database)
+        render_login(
+            database
+        )
 
         return
-
-    # --------------------------------------------------------
-    # APPLICATION
-    # --------------------------------------------------------
 
     active_module = render_sidebar()
 
@@ -853,7 +928,7 @@ def main() -> None:
 
 
 # ============================================================
-# RUN
+# APPLICATION ENTRY POINT
 # ============================================================
 
 if __name__ == "__main__":
