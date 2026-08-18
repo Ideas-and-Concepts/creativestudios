@@ -1,35 +1,36 @@
 """
 Creative Studios
 AEC Collaboration Platform
-AEC Workspace
 
 Main Streamlit application.
 
-Features
---------
-- JSON database persistence
+The application provides:
 - Authentication
-- Project Directory
+- Overview dashboard
+- Projects
 - Documents
 - Drawings
 - RFIs
 - Tasks
 - Approvals
 - Settings
-- Native Streamlit branding
-- Shared branding CSS
-- Session-state navigation
+- Shared Creative Studios branding
 """
 
 from __future__ import annotations
 
 import html
-import importlib
 from typing import Any
 
 import streamlit as st
 
+from modules import approvals
 from modules import branding
+from modules import documents
+from modules import drawings
+from modules import projects
+from modules import rfis
+from modules import tasks
 
 from modules.database import (
     initialize_database,
@@ -38,13 +39,11 @@ from modules.database import (
 
 
 # ============================================================
-# PAGE CONFIG
+# PAGE CONFIGURATION
 # ============================================================
 
 BASE_DIR = branding.BASE_DIR
-
 LOGO_PATH = branding.LOGO_PATH
-
 
 st.set_page_config(
     page_title="Creative Studios",
@@ -60,11 +59,6 @@ st.set_page_config(
 
 branding.inject_branding_css()
 
-
-# ============================================================
-# BRANDING HELPERS
-# ============================================================
-
 render_logo = branding.render_logo
 
 render_module_header = (
@@ -73,96 +67,11 @@ render_module_header = (
 
 
 # ============================================================
-# MODULE LOADER
-# ============================================================
-
-def _load_renderer(
-    module_name: str,
-    function_name: str,
-):
-    """
-    Safely load a module renderer.
-
-    Unlike the previous implementation, import errors are
-    displayed so a broken module cannot silently disappear.
-    """
-
-    try:
-
-        module = importlib.import_module(
-            module_name
-        )
-
-    except Exception as exc:
-
-        st.error(
-            f"Failed to import {module_name}"
-        )
-
-        st.exception(
-            exc
-        )
-
-        return None
-
-    renderer = getattr(
-        module,
-        function_name,
-        None,
-    )
-
-    if not callable(renderer):
-
-        st.error(
-            f"{module_name} does not define "
-            f"callable {function_name}()."
-        )
-
-        return None
-
-    return renderer
-
-
-# ============================================================
-# MODULE RENDERERS
-# ============================================================
-
-render_projects_module = _load_renderer(
-    "modules.projects",
-    "render_projects_module",
-)
-
-render_documents_module = _load_renderer(
-    "modules.documents",
-    "render_documents_module",
-)
-
-render_drawings_module = _load_renderer(
-    "modules.drawings",
-    "render_drawings_module",
-)
-
-render_rfis_module = _load_renderer(
-    "modules.rfis",
-    "render_rfis_module",
-)
-
-render_tasks_module = _load_renderer(
-    "modules.tasks",
-    "render_tasks_module",
-)
-
-render_approvals_module = _load_renderer(
-    "modules.approvals",
-    "render_approvals_module",
-)
-
-
-# ============================================================
 # SESSION STATE
 # ============================================================
 
 def initialize_session_state() -> None:
+    """Initialize application session state."""
 
     defaults = {
         "authenticated": False,
@@ -183,6 +92,7 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
+    """Load or initialize the application database."""
 
     if st.session_state.database is None:
 
@@ -208,6 +118,7 @@ def authenticate_user(
     password: str,
     database: dict[str, Any],
 ) -> dict[str, Any] | None:
+    """Authenticate a user against the application database."""
 
     username = str(
         username or ""
@@ -226,7 +137,6 @@ def authenticate_user(
         users,
         list,
     ):
-
         return None
 
     for user in users:
@@ -235,7 +145,6 @@ def authenticate_user(
             user,
             dict,
         ):
-
             continue
 
         stored_username = str(
@@ -273,12 +182,13 @@ def authenticate_user(
 
 
 # ============================================================
-# LOGIN
+# LOGIN PAGE
 # ============================================================
 
 def render_login(
     database: dict[str, Any],
 ) -> None:
+    """Render the Creative Studios login page."""
 
     st.markdown(
         '<div class="cs-login-wrapper">',
@@ -291,7 +201,7 @@ def render_login(
     )
 
     # --------------------------------------------------------
-    # Logo only
+    # LOGO ONLY
     # --------------------------------------------------------
 
     st.markdown(
@@ -309,7 +219,7 @@ def render_login(
     )
 
     # --------------------------------------------------------
-    # Login form
+    # LOGIN FORM
     # --------------------------------------------------------
 
     with st.form(
@@ -374,7 +284,7 @@ def render_login(
     )
 
     st.markdown(
-        '</div></div>',
+        "</div></div>",
         unsafe_allow_html=True,
     )
 
@@ -385,8 +295,10 @@ def render_login(
 
 def render_sidebar_branding() -> None:
     """
-    Render sidebar branding using native Streamlit image
-    rendering rather than HTML image wrappers.
+    Render sidebar branding.
+
+    The logo is rendered using native Streamlit st.image()
+    through modules.branding.render_logo().
     """
 
     logo_col, text_col = st.sidebar.columns(
@@ -422,10 +334,11 @@ def render_sidebar_branding() -> None:
 
 
 # ============================================================
-# SIDEBAR
+# SIDEBAR NAVIGATION
 # ============================================================
 
 def render_sidebar() -> str:
+    """Render the main application navigation."""
 
     user = (
         st.session_state.get(
@@ -445,7 +358,7 @@ def render_sidebar() -> str:
         unsafe_allow_html=True,
     )
 
-    modules = [
+    navigation = [
         ("Overview", "Overview"),
         ("Projects", "Project Directory"),
         ("Documents", "Documents"),
@@ -458,20 +371,16 @@ def render_sidebar() -> str:
         ("Team", "Team"),
     ]
 
-    current = st.session_state.get(
+    current_module = st.session_state.get(
         "active_module",
         "Overview",
     )
 
-    selected = current
+    selected_module = current_module
 
-    for module_key, label in modules:
+    for module_key, label in navigation:
 
-        is_active = (
-            module_key == current
-        )
-
-        if is_active:
+        if module_key == current_module:
 
             st.sidebar.markdown(
                 f"""
@@ -493,8 +402,6 @@ def render_sidebar() -> str:
                 use_container_width=True,
             ):
 
-                selected = module_key
-
                 st.session_state.active_module = (
                     module_key
                 )
@@ -502,7 +409,7 @@ def render_sidebar() -> str:
                 st.rerun()
 
     # --------------------------------------------------------
-    # Administration
+    # ADMINISTRATION
     # --------------------------------------------------------
 
     st.sidebar.markdown(
@@ -527,7 +434,7 @@ def render_sidebar() -> str:
         st.rerun()
 
     # --------------------------------------------------------
-    # User
+    # USER CARD
     # --------------------------------------------------------
 
     full_name = str(
@@ -596,6 +503,10 @@ def render_sidebar() -> str:
 
     st.sidebar.write("")
 
+    # --------------------------------------------------------
+    # SIGN OUT
+    # --------------------------------------------------------
+
     if st.sidebar.button(
         "Sign Out",
         key="logout_button",
@@ -603,25 +514,22 @@ def render_sidebar() -> str:
     ):
 
         st.session_state.authenticated = False
-
         st.session_state.user = None
-
-        st.session_state.active_module = (
-            "Overview"
-        )
+        st.session_state.active_module = "Overview"
 
         st.rerun()
 
-    return selected
+    return selected_module
 
 
 # ============================================================
-# SAFE NUMBER
+# SAFE NUMBER CONVERSION
 # ============================================================
 
 def _safe_float(
     value: Any,
 ) -> float:
+    """Safely convert a value to float."""
 
     try:
 
@@ -644,26 +552,31 @@ def _safe_float(
 def render_overview(
     database: dict[str, Any],
 ) -> None:
+    """Render the AEC Workspace overview."""
 
-    projects = database.get(
+    projects_data = database.get(
         "projects",
         [],
     )
 
     if not isinstance(
-        projects,
+        projects_data,
         list,
     ):
 
-        projects = []
+        projects_data = []
 
-    total = len(
-        projects
+    # --------------------------------------------------------
+    # PROJECT COUNTS
+    # --------------------------------------------------------
+
+    total_projects = len(
+        projects_data
     )
 
-    active = sum(
+    active_projects = sum(
         1
-        for project in projects
+        for project in projects_data
         if isinstance(
             project,
             dict,
@@ -677,9 +590,9 @@ def render_overview(
         == "active"
     )
 
-    planning = sum(
+    planning_projects = sum(
         1
-        for project in projects
+        for project in projects_data
         if isinstance(
             project,
             dict,
@@ -693,9 +606,9 @@ def render_overview(
         == "planning"
     )
 
-    completed = sum(
+    completed_projects = sum(
         1
-        for project in projects
+        for project in projects_data
         if isinstance(
             project,
             dict,
@@ -709,15 +622,18 @@ def render_overview(
         == "completed"
     )
 
+    # --------------------------------------------------------
+    # TOTAL BUDGET
+    # --------------------------------------------------------
+
     total_budget = 0.0
 
-    for project in projects:
+    for project in projects_data:
 
         if not isinstance(
             project,
             dict,
         ):
-
             continue
 
         total_budget += _safe_float(
@@ -731,7 +647,7 @@ def render_overview(
         )
 
     # --------------------------------------------------------
-    # Header
+    # HEADER
     # --------------------------------------------------------
 
     render_module_header(
@@ -741,25 +657,25 @@ def render_overview(
     )
 
     # --------------------------------------------------------
-    # KPI cards
+    # FIVE KPI CARDS
     # --------------------------------------------------------
 
     metrics = [
         (
             "Projects",
-            str(total),
+            str(total_projects),
         ),
         (
             "Active",
-            str(active),
+            str(active_projects),
         ),
         (
             "Planning",
-            str(planning),
+            str(planning_projects),
         ),
         (
             "Completed",
-            str(completed),
+            str(completed_projects),
         ),
         (
             "Total Budget",
@@ -802,7 +718,7 @@ def render_overview(
     st.write("")
 
     # --------------------------------------------------------
-    # Workspace overview
+    # WORKSPACE OVERVIEW
     # --------------------------------------------------------
 
     st.markdown(
@@ -826,48 +742,14 @@ def render_overview(
 
 
 # ============================================================
-# MODULE EXECUTOR
-# ============================================================
-
-def run_module(
-    renderer,
-    database: dict[str, Any],
-    module_name: str,
-) -> None:
-
-    if renderer is None:
-
-        st.error(
-            f"{module_name} could not be loaded."
-        )
-
-        return
-
-    try:
-
-        renderer(
-            database
-        )
-
-    except Exception as exc:
-
-        st.error(
-            f"{module_name} encountered an error."
-        )
-
-        st.exception(
-            exc
-        )
-
-
-# ============================================================
-# PLACEHOLDER
+# PLACEHOLDER MODULES
 # ============================================================
 
 def render_placeholder(
     title: str,
     description: str,
 ) -> None:
+    """Render a placeholder for modules not yet implemented."""
 
     render_module_header(
         title,
@@ -901,6 +783,7 @@ def render_placeholder(
 # ============================================================
 
 def render_settings() -> None:
+    """Render application settings."""
 
     render_module_header(
         "Settings",
@@ -914,7 +797,7 @@ def render_settings() -> None:
         or {}
     )
 
-    name = str(
+    full_name = str(
         user.get(
             "full_name",
             user.get(
@@ -941,18 +824,6 @@ def render_settings() -> None:
         or "Admin"
     ).strip()
 
-    safe_name = html.escape(
-        name
-    )
-
-    safe_username = html.escape(
-        username
-    )
-
-    safe_role = html.escape(
-        role
-    )
-
     st.markdown(
         f"""
         <div class="cs-card">
@@ -964,21 +835,21 @@ def render_settings() -> None:
             <div class="cs-setting-row">
                 Name:
                 <strong>
-                    {safe_name}
+                    {html.escape(full_name)}
                 </strong>
             </div>
 
             <div class="cs-setting-row">
                 Username:
                 <strong>
-                    @{safe_username}
+                    @{html.escape(username)}
                 </strong>
             </div>
 
             <div class="cs-setting-row">
                 Role:
                 <strong>
-                    {safe_role}
+                    {html.escape(role)}
                 </strong>
             </div>
 
@@ -996,6 +867,12 @@ def render_active_module(
     module_name: str,
     database: dict[str, Any],
 ) -> None:
+    """
+    Route the selected navigation item to its module.
+
+    All six application modules are statically imported at
+    the top of this file.
+    """
 
     if module_name == "Overview":
 
@@ -1005,50 +882,38 @@ def render_active_module(
 
     elif module_name == "Projects":
 
-        run_module(
-            render_projects_module,
-            database,
-            "Project Directory",
+        projects.render_projects_module(
+            database
         )
 
     elif module_name == "Documents":
 
-        run_module(
-            render_documents_module,
-            database,
-            "Documents",
+        documents.render_documents_module(
+            database
         )
 
     elif module_name == "Drawings":
 
-        run_module(
-            render_drawings_module,
-            database,
-            "Drawings",
+        drawings.render_drawings_module(
+            database
         )
 
     elif module_name == "RFIs":
 
-        run_module(
-            render_rfis_module,
-            database,
-            "RFIs",
+        rfis.render_rfis_module(
+            database
         )
 
     elif module_name == "Tasks":
 
-        run_module(
-            render_tasks_module,
-            database,
-            "Tasks",
+        tasks.render_tasks_module(
+            database
         )
 
     elif module_name == "Approvals":
 
-        run_module(
-            render_approvals_module,
-            database,
-            "Approvals",
+        approvals.render_approvals_module(
+            database
         )
 
     elif module_name == "Settings":
@@ -1092,10 +957,15 @@ def render_active_module(
 # ============================================================
 
 def main() -> None:
+    """Application entry point."""
 
     initialize_session_state()
 
     database = get_database()
+
+    # --------------------------------------------------------
+    # LOGIN
+    # --------------------------------------------------------
 
     if not st.session_state.authenticated:
 
@@ -1104,6 +974,10 @@ def main() -> None:
         )
 
         return
+
+    # --------------------------------------------------------
+    # APPLICATION
+    # --------------------------------------------------------
 
     active_module = render_sidebar()
 
@@ -1114,7 +988,7 @@ def main() -> None:
 
 
 # ============================================================
-# ENTRY POINT
+# RUN
 # ============================================================
 
 if __name__ == "__main__":
