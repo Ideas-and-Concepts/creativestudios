@@ -24,13 +24,15 @@ from typing import Any
 
 import streamlit as st
 
-from modules import approvals
-from modules import branding
-from modules import documents
-from modules import drawings
-from modules import projects
-from modules import rfis
-from modules import tasks
+from modules import (
+    approvals,
+    branding,
+    documents,
+    drawings,
+    projects,
+    rfis,
+    tasks,
+)
 
 from modules.database import (
     initialize_database,
@@ -60,10 +62,7 @@ st.set_page_config(
 branding.inject_branding_css()
 
 render_logo = branding.render_logo
-
-render_module_header = (
-    branding.render_module_header
-)
+render_module_header = branding.render_module_header
 
 
 # ============================================================
@@ -81,9 +80,7 @@ def initialize_session_state() -> None:
     }
 
     for key, value in defaults.items():
-
         if key not in st.session_state:
-
             st.session_state[key] = value
 
 
@@ -95,16 +92,9 @@ def get_database() -> dict[str, Any]:
     """Load or initialize the application database."""
 
     if st.session_state.database is None:
-
-        st.session_state.database = (
-            initialize_database()
-        )
-
+        st.session_state.database = initialize_database()
     else:
-
-        st.session_state.database = (
-            load_memory()
-        )
+        st.session_state.database = load_memory()
 
     return st.session_state.database
 
@@ -120,47 +110,27 @@ def authenticate_user(
 ) -> dict[str, Any] | None:
     """Authenticate a user against the application database."""
 
-    username = str(
-        username or ""
-    ).strip()
+    username = str(username or "").strip()
+    password = str(password or "").strip()
 
-    password = str(
-        password or ""
-    ).strip()
+    users = database.get("users", [])
 
-    users = database.get(
-        "users",
-        [],
-    )
-
-    if not isinstance(
-        users,
-        list,
-    ):
+    if not isinstance(users, list):
         return None
 
     for user in users:
 
-        if not isinstance(
-            user,
-            dict,
-        ):
+        if not isinstance(user, dict):
             continue
 
         stored_username = str(
-            user.get(
-                "username",
-                "",
-            )
+            user.get("username", "")
         ).strip()
 
         stored_password = str(
             user.get(
                 "password",
-                user.get(
-                    "password_hash",
-                    "",
-                ),
+                user.get("password_hash", ""),
             )
         )
 
@@ -169,11 +139,7 @@ def authenticate_user(
             and stored_password == password
         ):
 
-            if user.get(
-                "active",
-                True,
-            ) is False:
-
+            if user.get("active", True) is False:
                 return None
 
             return user
@@ -209,9 +175,7 @@ def render_login(
         unsafe_allow_html=True,
     )
 
-    render_logo(
-        width=100,
-    )
+    render_logo(width=100)
 
     st.markdown(
         '</div>',
@@ -254,12 +218,8 @@ def render_login(
             if user is not None:
 
                 st.session_state.authenticated = True
-
                 st.session_state.user = user
-
-                st.session_state.active_module = (
-                    "Overview"
-                )
+                st.session_state.active_module = "Overview"
 
                 st.rerun()
 
@@ -297,8 +257,8 @@ def render_sidebar_branding() -> None:
     """
     Render sidebar branding.
 
-    The logo is rendered using native Streamlit st.image()
-    through modules.branding.render_logo().
+    The logo is rendered through the shared native
+    Streamlit branding function.
     """
 
     logo_col, text_col = st.sidebar.columns(
@@ -307,10 +267,7 @@ def render_sidebar_branding() -> None:
     )
 
     with logo_col:
-
-        render_logo(
-            width=44,
-        )
+        render_logo(width=44)
 
     with text_col:
 
@@ -341,9 +298,7 @@ def render_sidebar() -> str:
     """Render the main application navigation."""
 
     user = (
-        st.session_state.get(
-            "user"
-        )
+        st.session_state.get("user")
         or {}
     )
 
@@ -402,10 +357,7 @@ def render_sidebar() -> str:
                 use_container_width=True,
             ):
 
-                st.session_state.active_module = (
-                    module_key
-                )
-
+                st.session_state.active_module = module_key
                 st.rerun()
 
     # --------------------------------------------------------
@@ -427,10 +379,7 @@ def render_sidebar() -> str:
         use_container_width=True,
     ):
 
-        st.session_state.active_module = (
-            "Settings"
-        )
-
+        st.session_state.active_module = "Settings"
         st.rerun()
 
     # --------------------------------------------------------
@@ -440,41 +389,24 @@ def render_sidebar() -> str:
     full_name = str(
         user.get(
             "full_name",
-            user.get(
-                "name",
-                "",
-            ),
+            user.get("name", ""),
         )
         or "System Administrator"
     ).strip()
 
     username = str(
-        user.get(
-            "username",
-            "",
-        )
+        user.get("username", "")
         or "admin"
     ).strip()
 
     role = str(
-        user.get(
-            "role",
-            "",
-        )
+        user.get("role", "")
         or "Admin"
     ).strip()
 
-    safe_full_name = html.escape(
-        full_name
-    )
-
-    safe_username = html.escape(
-        username
-    )
-
-    safe_role = html.escape(
-        role
-    )
+    safe_full_name = html.escape(full_name)
+    safe_username = html.escape(username)
+    safe_role = html.escape(role)
 
     st.sidebar.markdown(
         f"""
@@ -526,22 +458,16 @@ def render_sidebar() -> str:
 # SAFE NUMBER CONVERSION
 # ============================================================
 
-def _safe_float(
-    value: Any,
-) -> float:
+def _safe_float(value: Any) -> float:
     """Safely convert a value to float."""
 
     try:
-
-        return float(
-            value or 0
-        )
+        return float(value or 0)
 
     except (
         TypeError,
         ValueError,
     ):
-
         return 0.0
 
 
@@ -559,67 +485,49 @@ def render_overview(
         [],
     )
 
-    if not isinstance(
-        projects_data,
-        list,
-    ):
-
+    if not isinstance(projects_data, list):
         projects_data = []
 
     # --------------------------------------------------------
     # PROJECT COUNTS
     # --------------------------------------------------------
 
-    total_projects = len(
-        projects_data
-    )
+    total_projects = len(projects_data)
 
     active_projects = sum(
         1
         for project in projects_data
-        if isinstance(
-            project,
-            dict,
+        if (
+            isinstance(project, dict)
+            and str(
+                project.get("status", "")
+            ).strip().lower()
+            == "active"
         )
-        and str(
-            project.get(
-                "status",
-                "",
-            )
-        ).strip().lower()
-        == "active"
     )
 
     planning_projects = sum(
         1
         for project in projects_data
-        if isinstance(
-            project,
-            dict,
+        if (
+            isinstance(project, dict)
+            and str(
+                project.get("status", "")
+            ).strip().lower()
+            == "planning"
         )
-        and str(
-            project.get(
-                "status",
-                "",
-            )
-        ).strip().lower()
-        == "planning"
     )
 
     completed_projects = sum(
         1
         for project in projects_data
-        if isinstance(
-            project,
-            dict,
+        if (
+            isinstance(project, dict)
+            and str(
+                project.get("status", "")
+            ).strip().lower()
+            == "completed"
         )
-        and str(
-            project.get(
-                "status",
-                "",
-            )
-        ).strip().lower()
-        == "completed"
     )
 
     # --------------------------------------------------------
@@ -630,19 +538,13 @@ def render_overview(
 
     for project in projects_data:
 
-        if not isinstance(
-            project,
-            dict,
-        ):
+        if not isinstance(project, dict):
             continue
 
         total_budget += _safe_float(
             project.get(
                 "estimated_budget",
-                project.get(
-                    "budget",
-                    0,
-                ),
+                project.get("budget", 0),
             )
         )
 
@@ -661,26 +563,11 @@ def render_overview(
     # --------------------------------------------------------
 
     metrics = [
-        (
-            "Projects",
-            str(total_projects),
-        ),
-        (
-            "Active",
-            str(active_projects),
-        ),
-        (
-            "Planning",
-            str(planning_projects),
-        ),
-        (
-            "Completed",
-            str(completed_projects),
-        ),
-        (
-            "Total Budget",
-            f"${total_budget:,.2f}",
-        ),
+        ("Projects", str(total_projects)),
+        ("Active", str(active_projects)),
+        ("Planning", str(planning_projects)),
+        ("Completed", str(completed_projects)),
+        ("Total Budget", f"${total_budget:,.2f}"),
     ]
 
     columns = st.columns(
@@ -688,10 +575,7 @@ def render_overview(
         gap="small",
     )
 
-    for column, (
-        label,
-        value,
-    ) in zip(
+    for column, (label, value) in zip(
         columns,
         metrics,
     ):
@@ -791,36 +675,25 @@ def render_settings() -> None:
     )
 
     user = (
-        st.session_state.get(
-            "user"
-        )
+        st.session_state.get("user")
         or {}
     )
 
     full_name = str(
         user.get(
             "full_name",
-            user.get(
-                "name",
-                "",
-            ),
+            user.get("name", ""),
         )
         or "System Administrator"
     ).strip()
 
     username = str(
-        user.get(
-            "username",
-            "",
-        )
+        user.get("username", "")
         or "admin"
     ).strip()
 
     role = str(
-        user.get(
-            "role",
-            "",
-        )
+        user.get("role", "")
         or "Admin"
     ).strip()
 
@@ -868,17 +741,15 @@ def render_active_module(
     database: dict[str, Any],
 ) -> None:
     """
-    Route the selected navigation item to its module.
+    Route the selected navigation item.
 
-    All six application modules are statically imported at
-    the top of this file.
+    All six modules are imported directly at application
+    startup.
     """
 
     if module_name == "Overview":
 
-        render_overview(
-            database
-        )
+        render_overview(database)
 
     elif module_name == "Projects":
 
@@ -943,13 +814,9 @@ def render_active_module(
 
     else:
 
-        st.session_state.active_module = (
-            "Overview"
-        )
+        st.session_state.active_module = "Overview"
 
-        render_overview(
-            database
-        )
+        render_overview(database)
 
 
 # ============================================================
@@ -969,9 +836,7 @@ def main() -> None:
 
     if not st.session_state.authenticated:
 
-        render_login(
-            database
-        )
+        render_login(database)
 
         return
 
@@ -992,5 +857,4 @@ def main() -> None:
 # ============================================================
 
 if __name__ == "__main__":
-
     main()
