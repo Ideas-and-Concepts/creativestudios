@@ -1,11 +1,12 @@
 """
 Creative Studios
-Shared branding and UI helpers.
+Shared Branding Module
 
-Single source of truth for:
+Provides the single source of truth for:
 - Creative Studios logo
 - Branding CSS
 - Module headers
+- Shared visual components
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import streamlit as st
 
 
 # ============================================================
-# PATHS
+# PATH CONFIGURATION
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,56 +36,45 @@ def render_logo(
     width: int = 76,
 ) -> None:
     """
-    Render the Creative Studios logo using native Streamlit
-    image rendering.
+    Render the Creative Studios logo using Streamlit's
+    native image renderer.
 
-    The logo is intentionally not wrapped in an HTML image
-    element.
+    No HTML image wrapper is used.
     """
 
-    if not LOGO_PATH.exists():
-
-        st.warning(
-            f"Creative Studios logo not found: {LOGO_PATH}"
-        )
-
-        return
-
     try:
+        logo_width = int(width)
+    except (TypeError, ValueError):
+        logo_width = 76
 
-        safe_width = int(width)
-
-    except (
-        TypeError,
-        ValueError,
-    ):
-
-        safe_width = 76
-
-    safe_width = max(
+    logo_width = max(
         20,
-        min(
-            safe_width,
-            500,
-        ),
+        min(logo_width, 500),
     )
+
+    if not LOGO_PATH.exists():
+        st.warning(
+            "Creative Studios logo not found: "
+            f"{LOGO_PATH}"
+        )
+        return
 
     st.image(
         str(LOGO_PATH),
-        width=safe_width,
+        width=logo_width,
     )
 
 
 # ============================================================
-# SHARED BRANDING CSS
+# BRANDING CSS
 # ============================================================
 
 def inject_branding_css() -> None:
     """
-    Inject all shared Creative Studios branding styles.
+    Inject the shared Creative Studios branding CSS.
 
-    This is the single CSS source of truth used by
-    streamlit_app.py and the individual modules.
+    This is the single CSS source of truth for the main
+    application and all Creative Studios modules.
     """
 
     st.markdown(
@@ -104,11 +94,6 @@ def inject_branding_css() -> None:
             background: transparent;
         }
 
-        [data-testid="stSidebar"] {
-            background: #080B12;
-            border-right: 1px solid #172033;
-        }
-
         .block-container {
             padding-top: 2rem;
             padding-bottom: 3rem;
@@ -118,6 +103,11 @@ def inject_branding_css() -> None:
         /* ==================================================
            SIDEBAR
            ================================================== */
+
+        [data-testid="stSidebar"] {
+            background: #080B12;
+            border-right: 1px solid #172033;
+        }
 
         .cs-sidebar-name {
             color: #FFFFFF;
@@ -154,7 +144,7 @@ def inject_branding_css() -> None:
 
 
         /* ==================================================
-           ACTIVE NAVIGATION
+           ACTIVE SIDEBAR MODULE
            ================================================== */
 
         .cs-active-module {
@@ -185,16 +175,18 @@ def inject_branding_css() -> None:
 
 
         /* ==================================================
-           PAGE / MODULE HEADER
+           MODULE HEADER
            ================================================== */
 
         .cs-page-title {
             color: #FFFFFF;
 
             font-size: 30px;
+
             font-weight: 900;
 
             letter-spacing: -0.7px;
+
             line-height: 1.15;
         }
 
@@ -204,6 +196,7 @@ def inject_branding_css() -> None:
             font-size: 13px;
 
             margin-top: 5px;
+
             margin-bottom: 25px;
 
             line-height: 1.5;
@@ -211,7 +204,7 @@ def inject_branding_css() -> None:
 
 
         /* ==================================================
-           REUSABLE CARDS
+           GENERIC CARD
            ================================================== */
 
         .cs-card {
@@ -224,12 +217,15 @@ def inject_branding_css() -> None:
             padding: 20px;
 
             box-sizing: border-box;
+
+            width: 100%;
         }
 
         .cs-card-title {
             color: #FFFFFF;
 
             font-size: 18px;
+
             font-weight: 850;
 
             line-height: 1.25;
@@ -249,9 +245,11 @@ def inject_branding_css() -> None:
             color: #64748B;
 
             font-size: 10px;
+
             font-weight: 800;
 
             letter-spacing: 0.8px;
+
             text-transform: uppercase;
 
             margin-bottom: 7px;
@@ -294,13 +292,14 @@ def inject_branding_css() -> None:
             color: #FFFFFF;
 
             font-size: 24px;
+
             font-weight: 900;
 
             margin-top: 7px;
 
-            overflow-wrap: anywhere;
-
             line-height: 1.15;
+
+            overflow-wrap: anywhere;
         }
 
 
@@ -318,12 +317,15 @@ def inject_branding_css() -> None:
             padding: 13px;
 
             margin-top: 15px;
+
+            box-sizing: border-box;
         }
 
         .user-label {
             color: #60A5FA;
 
             font-size: 9px;
+
             font-weight: 850;
 
             letter-spacing: 1px;
@@ -335,6 +337,7 @@ def inject_branding_css() -> None:
             color: #FFFFFF;
 
             font-size: 14px;
+
             font-weight: 800;
 
             margin-top: 5px;
@@ -366,6 +369,7 @@ def inject_branding_css() -> None:
             border-radius: 999px;
 
             font-size: 9px;
+
             font-weight: 850;
         }
 
@@ -388,6 +392,8 @@ def inject_branding_css() -> None:
             border-radius: 20px;
 
             padding: 36px;
+
+            box-sizing: border-box;
 
             box-shadow:
                 0 20px 70px rgba(0, 0, 0, 0.55),
@@ -451,6 +457,15 @@ def inject_branding_css() -> None:
 
 
         /* ==================================================
+           STREAMLIT BUTTONS
+           ================================================== */
+
+        [data-testid="stSidebar"] button {
+            border-radius: 9px;
+        }
+
+
+        /* ==================================================
            RESPONSIVE
            ================================================== */
 
@@ -471,47 +486,6 @@ def inject_branding_css() -> None:
 
         }
 
-
-        /* ==================================================
-           LIGHT MODE SUPPORT
-           ================================================== */
-
-        @media (prefers-color-scheme: light) {
-
-            [data-testid="stAppViewContainer"] {
-                background: #F8FAFC;
-                color: #0F172A;
-            }
-
-            [data-testid="stSidebar"] {
-                background: #FFFFFF;
-                border-right-color: #E2E8F0;
-            }
-
-            .cs-page-title,
-            .cs-card-title,
-            .cs-kpi-value,
-            .user-name {
-                color: #0F172A;
-            }
-
-            .cs-page-subtitle,
-            .cs-card-subtitle,
-            .cs-kpi-label,
-            .user-login {
-                color: #64748B;
-            }
-
-            .cs-card,
-            .cs-kpi,
-            .cs-user-card,
-            .cs-login-card {
-                background: #FFFFFF;
-                border-color: #E2E8F0;
-            }
-
-        }
-
         </style>
         """,
         unsafe_allow_html=True,
@@ -527,9 +501,9 @@ def render_module_header(
     subtitle: str = "",
 ) -> None:
     """
-    Render the shared Creative Studios module header.
+    Render a shared Creative Studios module header.
 
-    All module titles and subtitles are HTML escaped.
+    Both title and subtitle are HTML escaped safely.
     """
 
     safe_title = html.escape(
@@ -552,3 +526,17 @@ def render_module_header(
         """,
         unsafe_allow_html=True,
     )
+
+
+# ============================================================
+# PUBLIC API
+# ============================================================
+
+__all__ = [
+    "BASE_DIR",
+    "ASSETS_DIR",
+    "LOGO_PATH",
+    "inject_branding_css",
+    "render_logo",
+    "render_module_header",
+]
