@@ -138,9 +138,7 @@ def render_projects_module(
                 else:
 
                     project = {
-                        "id": next_id(
-                            projects
-                        ),
+                        "id": next_id("projects", database),
                         "name": name.strip(),
                         "client": client.strip(),
                         "location": location.strip(),
@@ -149,11 +147,7 @@ def render_projects_module(
                         "description": description.strip(),
                     }
 
-                    add_record(
-                        database,
-                        "projects",
-                        project,
-                    )
+                    add_record("projects", project, database)
 
                     st.session_state[
                         "show_project_form"
@@ -439,7 +433,6 @@ def render_projects_module(
                 if save:
 
                     update_record(
-                        database,
                         "projects",
                         project_id,
                         {
@@ -450,6 +443,7 @@ def render_projects_module(
                             "estimated_budget": edit_budget,
                             "description": edit_description.strip(),
                         },
+                        database,
                     )
 
                     st.success(
@@ -464,9 +458,9 @@ def render_projects_module(
             ):
 
                 delete_record(
-                    database,
                     "projects",
                     project_id,
+                    database,
                 )
 
                 st.success(
