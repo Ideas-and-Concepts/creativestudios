@@ -6,22 +6,18 @@ AEC Workspace
 Main Streamlit application.
 """
 
-from __future__ import annotations
-
-import html
-
 import streamlit as st
 
 from modules.database import (
+    load_memory,
+    save_memory,
+    initialize_database,
     add_record,
+    update_record,
     delete_record,
+    next_id,
     get_record,
     get_records,
-    initialize_database,
-    load_memory,
-    next_id,
-    save_memory,
-    update_record,
 )
 
 from modules.projects import (
@@ -36,6 +32,13 @@ from modules.drawings import (
     render_drawings_module,
 )
 
+from modules.rfis import (
+    render_rfis_module,
+)
+
+from modules.tasks import (
+    render_tasks_module,
+)
 
 # ============================================================
 # PAGE CONFIG
