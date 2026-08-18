@@ -111,3 +111,19 @@ creativestudios_db.json
        ├── documents
        ├── drawings
        └── other AEC collections
+
+
+creativestudios/
+│
+├── streamlit_app.py
+├── creativestudios_db.json
+│
+└── modules/
+    ├── __init__.py
+    ├── database.py
+    ├── projects.py
+    ├── documents.py
+    ├── drawings.py
+    ├── rfis.py
+    ├── tasks.py
+    └── approvals.py
