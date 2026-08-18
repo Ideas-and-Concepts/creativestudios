@@ -3,19 +3,30 @@ Creative Studios
 AEC Collaboration Platform
 AEC Workspace
 
-Main Streamlit Application
+Main Streamlit application.
 """
 
 from __future__ import annotations
 
-import html
+import hashlib
+import hmac
+from typing import Any
+
 import streamlit as st
 
 from modules.database import (
+    add_record,
+    delete_record,
+    get_record,
+    get_records,
     initialize_database,
     load_memory,
-    authenticate_user,
+    next_id,
+    save_memory,
+    update_record,
 )
+
+from modules.projects import render_projects_module
 
 
 # ============================================================
@@ -92,9 +103,9 @@ span {
     color: #CBD5E1;
 }
 
-/* ----------------------------------------------------------
+/* ========================================================
    LOGIN
----------------------------------------------------------- */
+   ======================================================== */
 
 .cs-login-wrapper {
     max-width: 430px;
@@ -147,9 +158,9 @@ span {
     text-transform: uppercase;
 }
 
-/* ----------------------------------------------------------
-   SIDEBAR BRAND
----------------------------------------------------------- */
+/* ========================================================
+   SIDEBAR
+   ======================================================== */
 
 .cs-sidebar-brand {
     padding: 8px 4px 20px 4px;
@@ -206,29 +217,6 @@ span {
     margin-bottom: 7px;
 }
 
-/* ----------------------------------------------------------
-   SIDEBAR BUTTONS
----------------------------------------------------------- */
-
-[data-testid="stSidebar"] div[data-testid="stButton"] > button {
-    background: #0B0F17 !important;
-    color: #CBD5E1 !important;
-    border: 1px solid #172033 !important;
-    border-radius: 9px !important;
-    text-align: left !important;
-    font-weight: 700 !important;
-}
-
-[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
-    background: #172554 !important;
-    color: #FFFFFF !important;
-    border-color: #2563EB !important;
-}
-
-/* ----------------------------------------------------------
-   USER CARD
----------------------------------------------------------- */
-
 .cs-user-card {
     background: #0B0F17;
     border: 1px solid #172033;
@@ -269,9 +257,9 @@ span {
     font-weight: 850;
 }
 
-/* ----------------------------------------------------------
-   PAGE
----------------------------------------------------------- */
+/* ========================================================
+   CONTENT
+   ======================================================== */
 
 .cs-page-title {
     color: #FFFFFF;
@@ -293,10 +281,6 @@ span {
     border-radius: 15px;
     padding: 20px;
 }
-
-/* ----------------------------------------------------------
-   KPI
----------------------------------------------------------- */
 
 .cs-kpi {
     background: #0B0F17;
@@ -320,9 +304,13 @@ span {
     margin-top: 7px;
 }
 
-/* ----------------------------------------------------------
+.cs-kpi-blue {
+    color: #60A5FA;
+}
+
+/* ========================================================
    BUTTONS
----------------------------------------------------------- */
+   ======================================================== */
 
 div[data-testid="stButton"] > button {
     background: #111827 !important;
@@ -349,9 +337,9 @@ div[data-testid="stFormSubmitButton"] > button:hover {
     background: #1D4ED8 !important;
 }
 
-/* ----------------------------------------------------------
+/* ========================================================
    INPUTS
----------------------------------------------------------- */
+   ======================================================== */
 
 input,
 textarea,
@@ -368,22 +356,11 @@ textarea,
 
 
 # ============================================================
-# DATABASE INITIALIZATION
+# DATABASE
 # ============================================================
 
 if "database" not in st.session_state:
-
-    st.session_state.database = (
-        initialize_database()
-    )
-
-else:
-
-    # Always use a fresh normalized reference.
-    st.session_state.database = (
-        load_memory()
-    )
-
+    st.session_state.database = initialize_database()
 
 db = st.session_state.database
 
@@ -392,18 +369,152 @@ db = st.session_state.database
 # SESSION STATE
 # ============================================================
 
-SESSION_DEFAULTS = {
-    "authenticated": False,
-    "user": None,
-    "active_module": "Overview",
-}
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+if "active_module" not in st.session_state:
+    st.session_state.active_module = "Overview"
 
 
-for key, default_value in SESSION_DEFAULTS.items():
+# ============================================================
+# AUTHENTICATION
+# ============================================================
 
-    if key not in st.session_state:
+def _hash_password(password: str) -> str:
+    """
+    SHA-256 password hash used by the local JSON authentication
+    layer.
+    """
 
-        st.session_state[key] = default_value
+    return hashlib.sha256(
+        password.encode("utf-8")
+    ).hexdigest()
+
+
+def authenticate_user(
+    username: str,
+    password: str,
+    database: dict[str, Any],
+) -> dict[str, Any] | None:
+    """
+    Authenticate a user against the JSON database.
+
+    Supports:
+
+        password_hash
+
+    and, for development compatibility:
+
+        password
+    """
+
+    username = str(username or "").strip()
+
+    if not username or not password:
+        return None
+
+    users = database.get(
+        "users",
+        [],
+    )
+
+    if not isinstance(users, list):
+        users = []
+
+    password_hash = _hash_password(
+        password
+    )
+
+    for user in users:
+
+        if not isinstance(user, dict):
+            continue
+
+        stored_username = str(
+            user.get(
+                "username",
+                "",
+            )
+        ).strip()
+
+        if stored_username.lower() != username.lower():
+            continue
+
+        if user.get("active", True) is False:
+            return None
+
+        stored_hash = user.get(
+            "password_hash"
+        )
+
+        if stored_hash:
+
+            if hmac.compare_digest(
+                str(stored_hash),
+                password_hash,
+            ):
+                return user
+
+            # Do not continue with plaintext if a hash exists.
+            return None
+
+        stored_password = user.get(
+            "password"
+        )
+
+        if stored_password is not None:
+
+            if hmac.compare_digest(
+                str(stored_password),
+                password,
+            ):
+                return user
+
+            return None
+
+    return None
+
+
+def ensure_admin_user() -> None:
+    """
+    Ensure a development administrator exists.
+
+    This only creates the admin account if the users collection
+    is empty and therefore does not overwrite existing users.
+    """
+
+    users = db.get(
+        "users",
+        [],
+    )
+
+    if not isinstance(users, list):
+        db["users"] = []
+        users = db["users"]
+
+    if users:
+        return
+
+    users.append(
+        {
+            "id": 1,
+            "username": "admin",
+            "password_hash": _hash_password(
+                "admin"
+            ),
+            "full_name": "System Administrator",
+            "role": "Admin",
+            "active": True,
+        }
+    )
+
+    save_memory(db)
+
+
+ensure_admin_user()
 
 
 # ============================================================
@@ -411,7 +522,6 @@ for key, default_value in SESSION_DEFAULTS.items():
 # ============================================================
 
 def render_login() -> None:
-    """Render the Creative Studios login screen."""
 
     st.markdown(
         '<div class="cs-login-wrapper">',
@@ -423,11 +533,9 @@ def render_login() -> None:
         <div class="cs-login-card">
 
             <div class="cs-logo">
-
                 <div class="cs-logo-text">
                     CS
                 </div>
-
             </div>
 
             <div class="cs-brand-name">
@@ -468,8 +576,6 @@ def render_login() -> None:
 
         if submitted:
 
-            username = username.strip()
-
             user = authenticate_user(
                 username,
                 password,
@@ -479,12 +585,8 @@ def render_login() -> None:
             if user is not None:
 
                 st.session_state.authenticated = True
-
                 st.session_state.user = user
-
-                st.session_state.active_module = (
-                    "Overview"
-                )
+                st.session_state.active_module = "Overview"
 
                 st.rerun()
 
@@ -514,7 +616,6 @@ def render_login() -> None:
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render sidebar and return the selected module."""
 
     user = (
         st.session_state.get("user")
@@ -528,11 +629,9 @@ def render_sidebar() -> str:
             <div class="cs-sidebar-brand-row">
 
                 <div class="cs-sidebar-logo">
-
                     <div class="cs-sidebar-logo-text">
                         CS
                     </div>
-
                 </div>
 
                 <div>
@@ -555,17 +654,15 @@ def render_sidebar() -> str:
     )
 
     st.sidebar.markdown(
-        """
-        <div class="cs-section-label">
-            Module Navigation
-        </div>
-        """,
+        '<div class="cs-section-label">'
+        "Module Navigation"
+        "</div>",
         unsafe_allow_html=True,
     )
 
     modules = [
         ("Overview", "Overview"),
-        ("Projects", "Projects"),
+        ("Projects", "Project Directory"),
         ("Documents", "Documents"),
         ("Drawings", "Drawings"),
         ("Approvals", "Approvals"),
@@ -595,14 +692,14 @@ def render_sidebar() -> str:
                 module_key
             )
 
+            selected = module_key
+
             st.rerun()
 
     st.sidebar.markdown(
-        """
-        <div class="cs-section-label">
-            Administration
-        </div>
-        """,
+        '<div class="cs-section-label">'
+        "Administration"
+        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -616,32 +713,28 @@ def render_sidebar() -> str:
             "Settings"
         )
 
+        selected = "Settings"
+
         st.rerun()
 
-    full_name = html.escape(
-        str(
-            user.get(
-                "full_name",
-                "System Administrator",
-            )
+    full_name = str(
+        user.get(
+            "full_name",
+            "System Administrator",
         )
     )
 
-    username = html.escape(
-        str(
-            user.get(
-                "username",
-                "admin",
-            )
+    username = str(
+        user.get(
+            "username",
+            "admin",
         )
     )
 
-    role = html.escape(
-        str(
-            user.get(
-                "role",
-                "Admin",
-            )
+    role = str(
+        user.get(
+            "role",
+            "Admin",
         )
     )
 
@@ -692,7 +785,6 @@ def render_sidebar() -> str:
 # ============================================================
 
 def render_overview() -> None:
-    """Render the main AEC workspace overview."""
 
     projects = db.get(
         "projects",
@@ -731,7 +823,6 @@ def render_overview() -> None:
             completed += 1
 
         try:
-
             budget += float(
                 project.get(
                     "estimated_budget",
@@ -742,7 +833,6 @@ def render_overview() -> None:
                 )
                 or 0
             )
-
         except (
             TypeError,
             ValueError,
@@ -764,7 +854,7 @@ def render_overview() -> None:
         unsafe_allow_html=True,
     )
 
-    columns = st.columns(4)
+    cols = st.columns(4)
 
     metrics = [
         ("Total Projects", total),
@@ -776,12 +866,12 @@ def render_overview() -> None:
         ),
     ]
 
-    for column, (label, value) in zip(
-        columns,
+    for col, (label, value) in zip(
+        cols,
         metrics,
     ):
 
-        with column:
+        with col:
 
             st.markdown(
                 f"""
@@ -831,17 +921,12 @@ def render_overview() -> None:
 
 
 # ============================================================
-# PROJECT DIRECTORY
+# PROJECTS
 # ============================================================
 
 def render_projects() -> None:
-    """Load the Project Directory only when requested."""
 
     try:
-
-        from modules.projects import (
-            render_projects_module,
-        )
 
         render_projects_module(
             db
@@ -850,12 +935,10 @@ def render_projects() -> None:
     except Exception as exc:
 
         st.error(
-            "Project Directory could not be loaded."
+            "Project Directory encountered an error."
         )
 
-        st.code(
-            f"{type(exc).__name__}: {exc}"
-        )
+        st.exception(exc)
 
 
 # ============================================================
@@ -863,7 +946,6 @@ def render_projects() -> None:
 # ============================================================
 
 def render_documents() -> None:
-    """Load Documents module lazily."""
 
     try:
 
@@ -875,15 +957,28 @@ def render_documents() -> None:
             db
         )
 
-    except Exception as exc:
+    except ModuleNotFoundError:
+
+        render_placeholder(
+            "Documents",
+            "Central document management workspace.",
+        )
+
+    except ImportError as exc:
 
         st.error(
             "Documents module could not be loaded."
         )
 
-        st.code(
-            f"{type(exc).__name__}: {exc}"
+        st.exception(exc)
+
+    except Exception as exc:
+
+        st.error(
+            "Documents module encountered an error."
         )
+
+        st.exception(exc)
 
 
 # ============================================================
@@ -891,7 +986,6 @@ def render_documents() -> None:
 # ============================================================
 
 def render_drawings() -> None:
-    """Load Drawings module lazily."""
 
     try:
 
@@ -903,19 +997,32 @@ def render_drawings() -> None:
             db
         )
 
-    except Exception as exc:
+    except ModuleNotFoundError:
+
+        render_placeholder(
+            "Drawings",
+            "Architectural and engineering drawing workspace.",
+        )
+
+    except ImportError as exc:
 
         st.error(
             "Drawings module could not be loaded."
         )
 
-        st.code(
-            f"{type(exc).__name__}: {exc}"
+        st.exception(exc)
+
+    except Exception as exc:
+
+        st.error(
+            "Drawings module encountered an error."
         )
+
+        st.exception(exc)
 
 
 # ============================================================
-# PLACEHOLDER MODULE
+# PLACEHOLDER
 # ============================================================
 
 def render_placeholder(
@@ -923,22 +1030,14 @@ def render_placeholder(
     description: str,
 ) -> None:
 
-    safe_title = html.escape(
-        title
-    )
-
-    safe_description = html.escape(
-        description
-    )
-
     st.markdown(
         f"""
         <div class="cs-page-title">
-            {safe_title}
+            {title}
         </div>
 
         <div class="cs-page-subtitle">
-            {safe_description}
+            {description}
         </div>
 
         <div class="cs-card">
@@ -959,7 +1058,7 @@ def render_placeholder(
                 font-weight:850;
                 margin-top:8px;
             ">
-                {safe_title}
+                {title}
             </div>
 
             <div style="
@@ -983,6 +1082,11 @@ def render_placeholder(
 
 def render_settings() -> None:
 
+    user = (
+        st.session_state.get("user")
+        or {}
+    )
+
     st.markdown(
         '<div class="cs-page-title">'
         "Settings"
@@ -995,38 +1099,6 @@ def render_settings() -> None:
         "Creative Studios workspace configuration."
         "</div>",
         unsafe_allow_html=True,
-    )
-
-    user = (
-        st.session_state.get("user")
-        or {}
-    )
-
-    name = html.escape(
-        str(
-            user.get(
-                "full_name",
-                "System Administrator",
-            )
-        )
-    )
-
-    username = html.escape(
-        str(
-            user.get(
-                "username",
-                "admin",
-            )
-        )
-    )
-
-    role = html.escape(
-        str(
-            user.get(
-                "role",
-                "Admin",
-            )
-        )
     )
 
     st.markdown(
@@ -1047,7 +1119,12 @@ def render_settings() -> None:
                 font-size:13px;
             ">
                 Name:
-                <strong>{name}</strong>
+                <strong>
+                    {user.get(
+                        "full_name",
+                        "System Administrator",
+                    )}
+                </strong>
             </div>
 
             <div style="
@@ -1056,7 +1133,12 @@ def render_settings() -> None:
                 font-size:13px;
             ">
                 Username:
-                <strong>@{username}</strong>
+                <strong>
+                    @{user.get(
+                        "username",
+                        "admin",
+                    )}
+                </strong>
             </div>
 
             <div style="
@@ -1065,7 +1147,12 @@ def render_settings() -> None:
                 font-size:13px;
             ">
                 Role:
-                <strong>{role}</strong>
+                <strong>
+                    {user.get(
+                        "role",
+                        "Admin",
+                    )}
+                </strong>
             </div>
 
         </div>
@@ -1146,9 +1233,7 @@ def render_active_module(
 
     else:
 
-        st.session_state.active_module = (
-            "Overview"
-        )
+        st.session_state.active_module = "Overview"
 
         render_overview()
 
