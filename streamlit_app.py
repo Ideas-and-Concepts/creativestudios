@@ -24,7 +24,6 @@ from modules import (
     tasks,
 )
 
-from modules.branding import inject_branding_css
 from modules.database import load_memory
 
 
@@ -42,8 +41,31 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Inject CSS as early as possible
-inject_branding_css()
+# ------------------------------------------------------------
+# CSS INJECTION (fallback-safe)
+# ------------------------------------------------------------
+def _inject_fallback_css() -> None:
+    """Minimal CSS fallback if branding.inject_branding_css is unavailable."""
+    st.markdown(
+        """
+        <style>
+        [data-testid="stAppViewContainer"] {
+            background: #05070B;
+            color: #F8FAFC;
+        }
+        [data-testid="stSidebar"] {
+            background: #080B12;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+if hasattr(branding, "inject_branding_css"):
+    branding.inject_branding_css()
+else:
+    _inject_fallback_css()
 
 
 # ============================================================
