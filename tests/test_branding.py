@@ -76,3 +76,38 @@ def test_render_cs_logo_emits_base64_svg_and_requested_size(monkeypatch):
         )
         is True
     )
+
+
+def test_render_cs_logo_default_size_is_76(monkeypatch):
+    captured = {}
+
+    def fake_markdown(body, **kwargs):
+        captured["body"] = body
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(
+        streamlit_app.st,
+        "markdown",
+        fake_markdown,
+    )
+
+    # No size argument: verify the helper's default.
+    streamlit_app.render_cs_logo()
+
+    html = captured["body"]
+
+    # <img> attributes
+    assert 'width="76"' in html
+    assert 'height="76"' in html
+
+    # Wrapper inline styles
+    assert "width:76px" in html
+    assert "height:76px" in html
+
+    # HTML rendering must be enabled.
+    assert (
+        captured["kwargs"].get(
+            "unsafe_allow_html"
+        )
+        is True
+    )
