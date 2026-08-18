@@ -24,10 +24,8 @@ from modules import (
     tasks,
 )
 
-from modules.database import (
-    initialize_database,
-    load_memory,
-)
+from modules.branding import inject_branding_css
+from modules.database import load_memory
 
 
 # ============================================================
@@ -43,6 +41,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Inject CSS as early as possible
+inject_branding_css()
 
 
 # ============================================================
@@ -83,16 +84,8 @@ def get_database() -> dict[str, Any]:
     The database is loaded only once per session.
     On subsequent reruns, the existing session state is preserved.
     """
-
     if st.session_state.database is None:
-        # Try loading existing persistent memory first
-        memory = load_memory()
-
-        if isinstance(memory, dict) and memory:
-            st.session_state.database = memory
-        else:
-            st.session_state.database = initialize_database()
-
+        st.session_state.database = load_memory()
     return st.session_state.database
 
 
@@ -113,7 +106,6 @@ def _password_matches(stored: str, provided: str) -> bool:
     - Plaintext passwords (legacy users)
     - SHA-256 hashes
     """
-
     if not stored:
         return False
 
@@ -439,7 +431,6 @@ def render_sidebar() -> str:
 
 def _safe_float(value: Any) -> float:
     """Safely convert a value to float."""
-
     try:
         return float(value or 0)
     except (TypeError, ValueError):
