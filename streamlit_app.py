@@ -34,50 +34,6 @@ import streamlit as st
 
 
 # ============================================================
-# BRAND ASSET
-# ============================================================
-
-BASE_DIR = Path(__file__).resolve().parent
-
-LOGO_PATH = (
-    BASE_DIR
-    / "assets"
-    / "Artboard 1.png"
-)
-
-
-def logo_exists() -> bool:
-    """
-    Check whether the Creative Studios logo exists.
-    """
-
-    return (
-        LOGO_PATH.exists()
-        and LOGO_PATH.is_file()
-    )
-
-
-def render_logo(
-    width: int,
-) -> None:
-    """
-    Render the Creative Studios logo using Streamlit's
-    native image renderer.
-
-    The image is loaded directly from:
-        assets/Artboard 1.png
-    """
-
-    if not logo_exists():
-        return
-
-    st.image(
-        str(LOGO_PATH),
-        width=width,
-    )
-
-
-# ============================================================
 # PAGE CONFIG
 # ============================================================
 
@@ -87,6 +43,24 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+
+# ============================================================
+# PATHS / BRAND ASSETS
+# ============================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+
+LOGO_PATH = BASE_DIR / "assets" / "Artboard 1.png"
+
+
+def logo_exists() -> bool:
+    """Return True when the Creative Studios logo exists."""
+
+    return (
+        LOGO_PATH.exists()
+        and LOGO_PATH.is_file()
+    )
 
 
 # ============================================================
@@ -117,12 +91,11 @@ def _load_renderer(
     """
     Safely load a module renderer.
 
-    This prevents one unfinished module from crashing the
-    entire application during startup.
+    An unavailable or unfinished module will not prevent the
+    rest of the application from starting.
     """
 
     try:
-
         module = importlib.import_module(
             module_name
         )
@@ -139,7 +112,6 @@ def _load_renderer(
         return None
 
     except Exception:
-
         return None
 
 
@@ -273,11 +245,6 @@ span {
     text-align: center;
 }
 
-
-/* ==========================================================
-   LOGIN LOGO
-   ========================================================== */
-
 .cs-login-logo {
     display: flex;
 
@@ -291,19 +258,6 @@ span {
 
     height: 82px;
 }
-
-.cs-login-logo img {
-    width: 82px !important;
-
-    height: 82px !important;
-
-    object-fit: contain;
-}
-
-
-/* ==========================================================
-   LOGIN BRAND
-   ========================================================== */
 
 .cs-brand-name {
     color: #FFFFFF;
@@ -333,7 +287,7 @@ span {
 
 
 /* ==========================================================
-   SIDEBAR BRAND
+   SIDEBAR BRANDING
    ========================================================== */
 
 .cs-sidebar-brand {
@@ -344,62 +298,6 @@ span {
     margin-bottom: 14px;
 
     border-bottom: 1px solid #172033;
-
-    overflow: visible;
-}
-
-.cs-sidebar-brand-row {
-    width: 100%;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 11px;
-
-    min-height: 48px;
-
-    overflow: visible;
-}
-
-.cs-sidebar-logo {
-    width: 46px;
-
-    height: 46px;
-
-    min-width: 46px;
-
-    max-width: 46px;
-
-    min-height: 46px;
-
-    max-height: 46px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    overflow: hidden;
-
-    border-radius: 11px;
-
-    flex-shrink: 0;
-}
-
-.cs-sidebar-logo img {
-    width: 46px !important;
-
-    height: 46px !important;
-
-    object-fit: contain;
-}
-
-.cs-sidebar-brand-text {
-    min-width: 0;
-
-    overflow: hidden;
 }
 
 .cs-sidebar-name {
@@ -410,12 +308,6 @@ span {
     font-weight: 850;
 
     line-height: 1.15;
-
-    white-space: nowrap;
-
-    overflow: hidden;
-
-    text-overflow: ellipsis;
 }
 
 .cs-sidebar-subtitle {
@@ -428,8 +320,6 @@ span {
     text-transform: uppercase;
 
     letter-spacing: 0.7px;
-
-    white-space: nowrap;
 }
 
 
@@ -523,68 +413,6 @@ span {
    MODULE HEADER
    ========================================================== */
 
-.cs-module-header {
-    display: flex;
-
-    align-items: center;
-
-    gap: 14px;
-
-    width: 100%;
-
-    margin-bottom: 25px;
-}
-
-.cs-module-logo {
-    width: 52px;
-
-    height: 52px;
-
-    min-width: 52px;
-
-    max-width: 52px;
-
-    min-height: 52px;
-
-    max-height: 52px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    overflow: hidden;
-
-    flex-shrink: 0;
-
-    border-radius: 13px;
-
-    background: #0B0F17;
-
-    border: 1px solid #172033;
-
-    box-shadow:
-        0 8px 25px rgba(0, 0, 0, 0.30);
-}
-
-.cs-module-logo img {
-    width: 52px !important;
-
-    height: 52px !important;
-
-    object-fit: contain;
-}
-
-.cs-module-header-text {
-    min-width: 0;
-}
-
-
-/* ==========================================================
-   PAGE
-   ========================================================== */
-
 .cs-page-title {
     color: #FFFFFF;
 
@@ -604,7 +432,7 @@ span {
 
     margin-top: 5px;
 
-    margin-bottom: 0;
+    margin-bottom: 25px;
 }
 
 
@@ -729,124 +557,8 @@ textarea,
     font-size: 12px;
 }
 
-
-/* ==========================================================
-   MOBILE
-   ========================================================== */
-
-@media (max-width: 640px) {
-
-    .cs-module-header {
-        gap: 10px;
-    }
-
-    .cs-page-title {
-        font-size: 24px;
-    }
-
-    .cs-page-subtitle {
-        font-size: 12px;
-    }
-
-}
-
 </style>
 """,
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# LOGIN BRANDING
-# ============================================================
-
-def render_login_branding() -> None:
-
-    st.markdown(
-        '<div class="cs-login-card">',
-        unsafe_allow_html=True,
-    )
-
-    if logo_exists():
-
-        st.markdown(
-            '<div class="cs-login-logo">',
-            unsafe_allow_html=True,
-        )
-
-        st.image(
-            str(LOGO_PATH),
-            width=82,
-        )
-
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
-    st.markdown(
-        """
-        <div class="cs-brand-name">
-            Creative Studios
-        </div>
-
-        <div class="cs-brand-subtitle">
-            AEC Workspace
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# SIDEBAR BRANDING
-# ============================================================
-
-def render_sidebar_branding() -> None:
-
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-brand">',
-        unsafe_allow_html=True,
-    )
-
-    sidebar_logo_col, sidebar_text_col = (
-        st.sidebar.columns(
-            [0.28, 0.72],
-            vertical_alignment="center",
-        )
-    )
-
-    with sidebar_logo_col:
-
-        if logo_exists():
-
-            st.image(
-                str(LOGO_PATH),
-                width=46,
-            )
-
-    with sidebar_text_col:
-
-        st.markdown(
-            """
-            <div class="cs-sidebar-name">
-                Creative Studios
-            </div>
-
-            <div class="cs-sidebar-subtitle">
-                AEC Workspace
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.sidebar.markdown(
-        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -963,6 +675,89 @@ def initialize_session_state() -> None:
 
 
 # ============================================================
+# LOGIN BRANDING
+# ============================================================
+
+def render_login_branding() -> None:
+
+    st.markdown(
+        '<div class="cs-login-card">',
+        unsafe_allow_html=True,
+    )
+
+    if logo_exists():
+
+        st.image(
+            str(LOGO_PATH),
+            width=82,
+        )
+
+    st.markdown(
+        """
+        <div class="cs-brand-name">
+            Creative Studios
+        </div>
+
+        <div class="cs-brand-subtitle">
+            AEC Workspace
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# SIDEBAR BRANDING
+# ============================================================
+
+def render_sidebar_branding() -> None:
+
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-brand">',
+        unsafe_allow_html=True,
+    )
+
+    logo_col, text_col = st.sidebar.columns(
+        [0.28, 0.72],
+        vertical_alignment="center",
+    )
+
+    with logo_col:
+
+        if logo_exists():
+
+            st.image(
+                str(LOGO_PATH),
+                width=46,
+            )
+
+    with text_col:
+
+        st.markdown(
+            """
+            <div class="cs-sidebar-name">
+                Creative Studios
+            </div>
+
+            <div class="cs-sidebar-subtitle">
+                AEC Workspace
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.sidebar.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
 # LOGIN
 # ============================================================
 
@@ -1057,12 +852,19 @@ def render_login(
 
 def render_sidebar() -> str:
 
-    user = (
-        st.session_state.get("user")
-        or {}
-    )
+    user = st.session_state.get("user")
+
+    if not isinstance(
+        user,
+        dict,
+    ):
+        user = {}
 
     render_sidebar_branding()
+
+    # --------------------------------------------------------
+    # MODULE NAVIGATION
+    # --------------------------------------------------------
 
     st.sidebar.markdown(
         '<div class="cs-section-label">'
@@ -1107,6 +909,10 @@ def render_sidebar() -> str:
 
             st.rerun()
 
+    # --------------------------------------------------------
+    # ADMINISTRATION
+    # --------------------------------------------------------
+
     st.sidebar.markdown(
         '<div class="cs-section-label">'
         "Administration"
@@ -1126,32 +932,54 @@ def render_sidebar() -> str:
 
         st.rerun()
 
-    full_name = html.escape(
-        str(
-            user.get(
-                "full_name",
-                "System Administrator",
-            )
+    # --------------------------------------------------------
+    # SAFE USER VALUE
+    # --------------------------------------------------------
+
+    def safe_user_value(
+        value,
+        fallback: str,
+    ) -> str:
+        """
+        Safely prepare a user value for HTML display.
+
+        Handles:
+        - Missing values
+        - None
+        - Empty strings
+        - Whitespace-only strings
+        - HTML characters
+        """
+
+        value = str(
+            value or ""
+        ).strip()
+
+        if not value:
+            value = fallback
+
+        return html.escape(
+            value
         )
+
+    full_name = safe_user_value(
+        user.get("full_name"),
+        "System Administrator",
     )
 
-    username = html.escape(
-        str(
-            user.get(
-                "username",
-                "admin",
-            )
-        )
+    username = safe_user_value(
+        user.get("username"),
+        "admin",
     )
 
-    role = html.escape(
-        str(
-            user.get(
-                "role",
-                "Admin",
-            )
-        )
+    role = safe_user_value(
+        user.get("role"),
+        "Admin",
     )
+
+    # --------------------------------------------------------
+    # USER CARD
+    # --------------------------------------------------------
 
     st.sidebar.markdown(
         f"""
@@ -1178,6 +1006,10 @@ def render_sidebar() -> str:
         unsafe_allow_html=True,
     )
 
+    # --------------------------------------------------------
+    # SIGN OUT
+    # --------------------------------------------------------
+
     st.sidebar.write("")
 
     if st.sidebar.button(
@@ -1190,7 +1022,9 @@ def render_sidebar() -> str:
 
         st.session_state.user = None
 
-        st.session_state.active_module = "Overview"
+        st.session_state.active_module = (
+            "Overview"
+        )
 
         st.rerun()
 
@@ -1312,36 +1146,6 @@ def render_overview(
         ).lower()
         == "completed"
     )
-
-    budget = 0.0
-
-    for project in projects:
-
-        if not isinstance(
-            project,
-            dict,
-        ):
-            continue
-
-        try:
-
-            budget += float(
-                project.get(
-                    "estimated_budget",
-                    project.get(
-                        "budget",
-                        0,
-                    ),
-                )
-                or 0
-            )
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
-            pass
 
     render_module_header(
         "AEC Workspace",
@@ -1518,36 +1322,43 @@ def render_settings() -> None:
         "Creative Studios workspace configuration.",
     )
 
-    user = (
-        st.session_state.get("user")
-        or {}
+    user = st.session_state.get("user")
+
+    if not isinstance(
+        user,
+        dict,
+    ):
+        user = {}
+
+    def safe_user_value(
+        value,
+        fallback: str,
+    ) -> str:
+
+        value = str(
+            value or ""
+        ).strip()
+
+        if not value:
+            value = fallback
+
+        return html.escape(
+            value
+        )
+
+    name = safe_user_value(
+        user.get("full_name"),
+        "System Administrator",
     )
 
-    name = html.escape(
-        str(
-            user.get(
-                "full_name",
-                "System Administrator",
-            )
-        )
+    username = safe_user_value(
+        user.get("username"),
+        "admin",
     )
 
-    username = html.escape(
-        str(
-            user.get(
-                "username",
-                "admin",
-            )
-        )
-    )
-
-    role = html.escape(
-        str(
-            user.get(
-                "role",
-                "Admin",
-            )
-        )
+    role = safe_user_value(
+        user.get("role"),
+        "Admin",
     )
 
     st.markdown(
