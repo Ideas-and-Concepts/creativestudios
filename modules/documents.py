@@ -54,7 +54,10 @@ def render_documents_module(
 
     search = st.text_input(
         "Search documents",
-        placeholder="Search title, project, discipline or document number...",
+        placeholder=(
+            "Search title, project, discipline "
+            "or document number..."
+        ),
         key="documents_search",
     )
 
@@ -67,6 +70,10 @@ def render_documents_module(
         st.session_state[
             "show_document_form"
         ] = True
+
+    # ========================================================
+    # CREATE DOCUMENT
+    # ========================================================
 
     if st.session_state.get(
         "show_document_form",
@@ -123,11 +130,15 @@ def render_documents_module(
                             documents
                         ),
                         "title": title.strip(),
-                        "document_number": document_number.strip(),
+                        "document_number": (
+                            document_number.strip()
+                        ),
                         "project": project.strip(),
                         "discipline": discipline.strip(),
                         "status": status,
-                        "description": description.strip(),
+                        "description": (
+                            description.strip()
+                        ),
                     }
 
                     add_record(
@@ -146,6 +157,10 @@ def render_documents_module(
 
                     st.rerun()
 
+    # ========================================================
+    # FILTER
+    # ========================================================
+
     search_value = search.lower().strip()
 
     filtered = []
@@ -160,11 +175,23 @@ def render_documents_module(
 
         searchable = " ".join(
             [
-                _text(document.get("title")),
-                _text(document.get("document_number")),
-                _text(document.get("project")),
-                _text(document.get("discipline")),
-                _text(document.get("status")),
+                _text(
+                    document.get("title")
+                ),
+                _text(
+                    document.get(
+                        "document_number"
+                    )
+                ),
+                _text(
+                    document.get("project")
+                ),
+                _text(
+                    document.get("discipline")
+                ),
+                _text(
+                    document.get("status")
+                ),
             ]
         ).lower()
 
@@ -175,12 +202,20 @@ def render_documents_module(
 
             filtered.append(document)
 
+    # ========================================================
+    # SUMMARY
+    # ========================================================
+
     st.metric(
         "Documents",
         len(documents),
     )
 
     st.write("")
+
+    # ========================================================
+    # DOCUMENT LIST
+    # ========================================================
 
     if not filtered:
 
@@ -232,23 +267,19 @@ def render_documents_module(
             )
         )
 
+        # ====================================================
+        # DOCUMENT CARD
+        # ====================================================
+
         st.markdown(
             f"""
             <div class="cs-card">
 
-                <div style="
-                    color:#FFFFFF;
-                    font-size:16px;
-                    font-weight:850;
-                ">
+                <div class="cs-card-title">
                     {title}
                 </div>
 
-                <div style="
-                    color:#64748B;
-                    font-size:12px;
-                    margin-top:6px;
-                ">
+                <div class="cs-card-subtitle">
                     {number}
                     &nbsp; • &nbsp;
                     {project}
@@ -260,6 +291,10 @@ def render_documents_module(
             """,
             unsafe_allow_html=True,
         )
+
+        # ====================================================
+        # EDIT / DELETE
+        # ====================================================
 
         with st.expander(
             f"Edit Document #{document_id}"
@@ -341,11 +376,19 @@ def render_documents_module(
                         document_id,
                         {
                             "title": edit_title.strip(),
-                            "document_number": edit_number.strip(),
-                            "project": edit_project.strip(),
-                            "discipline": edit_discipline.strip(),
+                            "document_number": (
+                                edit_number.strip()
+                            ),
+                            "project": (
+                                edit_project.strip()
+                            ),
+                            "discipline": (
+                                edit_discipline.strip()
+                            ),
                             "status": edit_status,
-                            "description": edit_description.strip(),
+                            "description": (
+                                edit_description.strip()
+                            ),
                         },
                     )
 
