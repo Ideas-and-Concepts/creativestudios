@@ -36,6 +36,26 @@ import streamlit as st
 
 
 # ============================================================
+# BRAND ASSET
+# ============================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+
+LOGO_PATH = (
+    BASE_DIR
+    / "assets"
+    / "creative_studios_logo.png"
+)
+
+
+def logo_exists() -> bool:
+    return (
+        LOGO_PATH.exists()
+        and LOGO_PATH.is_file()
+    )
+
+
+# ============================================================
 # PAGE CONFIG
 # ============================================================
 
