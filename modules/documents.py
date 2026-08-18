@@ -3,15 +3,35 @@ Creative Studios
 AEC Collaboration Platform
 
 Documents Module
-JSON-backed CRUD implementation.
+----------------
+Document Directory and document metadata management.
 
-This module does not modify authentication,
-login, sidebar, or navigation behavior.
+Features:
+    - Document directory
+    - Search
+    - Project filtering
+    - Document type filtering
+    - Status filtering
+    - Create document
+    - Edit document
+    - Delete document
+    - Project linking
+    - Validation
+    - Error handling
+
+Database contract:
+    add_record()
+    get_records()
+    get_record()
+    update_record()
+    delete_record()
+    next_id()
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
+from html import escape
 from typing import Any
 
 import streamlit as st
@@ -19,23 +39,26 @@ import streamlit as st
 from modules.database import (
     add_record,
     delete_record,
-    load_memory,
-    next_id,
-    save_memory,
+    get_record,
+    get_records,
     update_record,
 )
 
 
+# ============================================================
+# CONSTANTS
+# ============================================================
+
 DOCUMENT_COLLECTION = "documents"
+PROJECT_COLLECTION = "projects"
 
 DOCUMENT_TYPES = [
     "Contract",
-    "Drawing",
     "Specification",
+    "Drawing",
     "Report",
-    "Proposal",
-    "BOQ",
-    "Invoice",
+    "Correspondence",
+    "Permit",
     "Certificate",
     "Meeting Minutes",
     "Other",
@@ -43,9 +66,9 @@ DOCUMENT_TYPES = [
 
 DOCUMENT_STATUSES = [
     "Draft",
+    "Active",
     "Under Review",
     "Approved",
-    "Issued",
     "Archived",
 ]
 
@@ -54,114 +77,124 @@ DOCUMENT_STATUSES = [
 # CSS
 # ============================================================
 
-def _inject_css() -> None:
+def _render_css() -> None:
+    """Render module-specific styling."""
+
     st.markdown(
         """
-<style>
+        <style>
 
-.cs-doc-header {
-    margin-bottom: 24px;
-}
+        .documents-header {
+            margin-bottom: 22px;
+        }
 
-.cs-doc-title {
-    color: #F8FAFC;
-    font-size: 30px;
-    font-weight: 900;
-    letter-spacing: -0.7px;
-}
+        .documents-title {
+            color: #FFFFFF;
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: -0.7px;
+        }
 
-.cs-doc-subtitle {
-    color: #64748B;
-    font-size: 13px;
-    margin-top: 5px;
-}
+        .documents-subtitle {
+            color: #64748B;
+            font-size: 13px;
+            margin-top: 5px;
+        }
 
-.cs-doc-card {
-    background: #0B0F17;
-    border: 1px solid #172033;
-    border-radius: 15px;
-    padding: 19px;
-    margin-top: 14px;
-}
+        .document-card {
+            background: #0B0F17;
+            border: 1px solid #172033;
+            border-radius: 15px;
+            padding: 18px;
+            margin-bottom: 10px;
+        }
 
-.cs-doc-card:hover {
-    border-color: #2563EB;
-}
+        .document-number {
+            color: #60A5FA;
+            font-size: 11px;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
 
-.cs-doc-name {
-    color: #FFFFFF;
-    font-size: 17px;
-    font-weight: 850;
-}
+        .document-title {
+            color: #FFFFFF;
+            font-size: 17px;
+            font-weight: 850;
+            margin-top: 5px;
+        }
 
-.cs-doc-meta {
-    color: #64748B;
-    font-size: 11px;
-    margin-top: 5px;
-}
+        .document-meta {
+            color: #64748B;
+            font-size: 11px;
+            margin-top: 7px;
+        }
 
-.cs-doc-info {
-    color: #CBD5E1;
-    font-size: 12px;
-    margin-top: 5px;
-}
+        .status-badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 850;
+            margin-top: 9px;
+            border: 1px solid #1E293B;
+            background: #111827;
+            color: #CBD5E1;
+        }
 
-.cs-doc-status {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 10px;
-    font-weight: 850;
-}
+        .status-draft {
+            color: #CBD5E1;
+        }
 
-.cs-doc-draft {
-    color: #CBD5E1;
-    background: rgba(71,85,105,0.18);
-    border: 1px solid #334155;
-}
+        .status-active {
+            color: #60A5FA;
+        }
 
-.cs-doc-review {
-    color: #93C5FD;
-    background: rgba(30,64,175,0.15);
-    border: 1px solid rgba(30,64,175,0.35);
-}
+        .status-review {
+            color: #FBBF24;
+        }
 
-.cs-doc-approved {
-    color: #BFDBFE;
-    background: rgba(37,99,235,0.15);
-    border: 1px solid rgba(37,99,235,0.35);
-}
+        .status-approved {
+            color: #4ADE80;
+        }
 
-.cs-doc-issued {
-    color: #60A5FA;
-    background: rgba(37,99,235,0.20);
-    border: 1px solid rgba(37,99,235,0.45);
-}
+        .status-archived {
+            color: #94A3B8;
+        }
 
-.cs-doc-archived {
-    color: #94A3B8;
-    background: rgba(15,23,42,0.5);
-    border: 1px solid #334155;
-}
+        .documents-empty {
+            background: #0B0F17;
+            border: 1px dashed #1E293B;
+            border-radius: 15px;
+            padding: 35px;
+            text-align: center;
+            color: #64748B;
+        }
 
-.cs-doc-empty {
-    background: #0B0F17;
-    border: 1px dashed #1E293B;
-    border-radius: 15px;
-    padding: 40px;
-    text-align: center;
-    color: #64748B;
-}
+        .document-stat {
+            background: #0B0F17;
+            border: 1px solid #172033;
+            border-radius: 14px;
+            padding: 15px;
+            min-height: 90px;
+        }
 
-.cs-doc-section {
-    color: #FFFFFF;
-    font-size: 17px;
-    font-weight: 850;
-    margin-bottom: 12px;
-}
+        .document-stat-label {
+            color: #64748B;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
 
-</style>
-""",
+        .document-stat-value {
+            color: #FFFFFF;
+            font-size: 24px;
+            font-weight: 900;
+            margin-top: 6px;
+        }
+
+        </style>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -170,10 +203,11 @@ def _inject_css() -> None:
 # HELPERS
 # ============================================================
 
-def _text(
+def _safe_string(
     value: Any,
     default: str = "",
 ) -> str:
+    """Return a safe string."""
 
     if value is None:
         return default
@@ -181,182 +215,124 @@ def _text(
     return str(value).strip()
 
 
-def _date(
-    value: Any,
-) -> date | None:
-
-    if value is None:
-        return None
-
-    if isinstance(value, datetime):
-        return value.date()
-
-    if isinstance(value, date):
-        return value
-
-    value = _text(value)
-
-    if not value:
-        return None
-
-    try:
-        return datetime.strptime(
-            value,
-            "%Y-%m-%d",
-        ).date()
-
-    except ValueError:
-        return None
-
-
-def _date_string(
-    value: Any,
+def _project_name(
+    project_id: Any,
+    projects: list[dict[str, Any]],
 ) -> str:
+    """Resolve project ID to project name."""
 
-    parsed = _date(value)
+    if project_id in (
+        None,
+        "",
+    ):
+        return "Unassigned"
 
-    if parsed is None:
-        return ""
+    for project in projects:
 
-    return parsed.isoformat()
+        if not isinstance(project, dict):
+            continue
 
+        if str(project.get("id")) == str(project_id):
 
-def _documents(
-    db: dict[str, Any],
-) -> list[dict[str, Any]]:
+            return _safe_string(
+                project.get(
+                    "name",
+                    project.get(
+                        "project_name",
+                        f"Project {project_id}",
+                    ),
+                ),
+                f"Project {project_id}",
+            )
 
-    records = db.get(
-        DOCUMENT_COLLECTION,
-        [],
-    )
-
-    if not isinstance(records, list):
-
-        records = []
-
-        db[
-            DOCUMENT_COLLECTION
-        ] = records
-
-        save_memory(db)
-
-    return [
-        record
-        for record in records
-        if isinstance(record, dict)
-    ]
+    return f"Project {project_id}"
 
 
-def _status_class(
-    status: str,
+def _status_class(status: str) -> str:
+    """Return CSS class for document status."""
+
+    normalized = status.lower()
+
+    if normalized == "active":
+        return "status-active"
+
+    if normalized == "approved":
+        return "status-approved"
+
+    if normalized == "under review":
+        return "status-review"
+
+    if normalized == "archived":
+        return "status-archived"
+
+    return "status-draft"
+
+
+def _document_number(
+    document: dict[str, Any],
 ) -> str:
+    """Return a readable document number."""
 
-    return {
-        "Draft": "cs-doc-draft",
-        "Under Review": "cs-doc-review",
-        "Approved": "cs-doc-approved",
-        "Issued": "cs-doc-issued",
-        "Archived": "cs-doc-archived",
-    }.get(
-        status,
-        "cs-doc-draft",
+    return _safe_string(
+        document.get(
+            "document_number",
+            document.get(
+                "number",
+                f"DOC-{document.get('id', ''):03}",
+            ),
+        ),
+        "DOC",
     )
 
 
-# ============================================================
-# VALIDATION
-# ============================================================
-
-def _validate(
-    db: dict[str, Any],
-    document_id: str,
+def _validate_document(
+    document_number: str,
     title: str,
-    project_id: str,
     document_type: str,
     status: str,
     revision: str,
-    document_date: date | None,
-    exclude_id: Any = None,
+    project_id: Any,
 ) -> list[str]:
+    """Validate document input."""
 
     errors: list[str] = []
 
-    document_id = document_id.strip()
-
-    if not document_id:
+    if not document_number:
         errors.append(
-            "Document ID is required."
+            "Document number is required."
         )
 
-    elif len(document_id) > 60:
-        errors.append(
-            "Document ID cannot exceed 60 characters."
-        )
-
-    else:
-
-        for record in _documents(db):
-
-            existing = _text(
-                record.get(
-                    "document_id"
-                )
-            )
-
-            if (
-                existing.lower()
-                == document_id.lower()
-            ):
-
-                if (
-                    exclude_id is None
-                    or str(
-                        record.get("id")
-                    )
-                    != str(exclude_id)
-                ):
-
-                    errors.append(
-                        "A document with this ID already exists."
-                    )
-
-                    break
-
-    if not title.strip():
-
+    if not title:
         errors.append(
             "Document title is required."
         )
 
-    if not project_id.strip():
-
+    if not document_type:
         errors.append(
-            "Project ID is required."
+            "Document type is required."
         )
 
     if document_type not in DOCUMENT_TYPES:
-
         errors.append(
             "Invalid document type."
         )
 
     if status not in DOCUMENT_STATUSES:
-
         errors.append(
             "Invalid document status."
         )
 
-    if not revision.strip():
-
+    if not revision:
         errors.append(
             "Revision is required."
         )
 
-    if document_date is None:
-
-        errors.append(
-            "Document date is required."
-        )
+    if project_id in (
+        None,
+        "",
+        "Unassigned",
+    ):
+        pass
 
     return errors
 
@@ -367,130 +343,132 @@ def _validate(
 
 def _create_document(
     db: dict[str, Any],
-    document_id: str,
-    title: str,
-    project_id: str,
-    document_type: str,
-    status: str,
-    revision: str,
-    document_date: date,
-    author: str,
-    description: str,
+    projects: list[dict[str, Any]],
 ) -> None:
+    """Create a new document."""
 
-    now = datetime.now().isoformat()
-
-    record = {
-        "id": next_id(
-            DOCUMENT_COLLECTION,
-            db,
-        ),
-        "document_id": document_id.strip(),
-        "title": title.strip(),
-        "project_id": project_id.strip(),
-        "document_type": document_type,
-        "status": status,
-        "revision": revision.strip(),
-        "document_date": document_date.isoformat(),
-        "author": author.strip(),
-        "description": description.strip(),
-        "created_at": now,
-        "updated_at": now,
-    }
-
-    add_record(
-        DOCUMENT_COLLECTION,
-        record,
-        db,
+    st.markdown(
+        "### New Document"
     )
 
+    project_options = [
+        "Unassigned"
+    ]
 
-# ============================================================
-# CREATE FORM
-# ============================================================
+    project_lookup: dict[str, Any] = {}
 
-def _render_create_form(
-    db: dict[str, Any],
-) -> None:
+    for project in projects:
 
-    with st.expander(
-        "Create New Document",
-        expanded=False,
+        if not isinstance(project, dict):
+            continue
+
+        project_id = project.get("id")
+
+        project_name = _safe_string(
+            project.get(
+                "name",
+                project.get(
+                    "project_name",
+                    f"Project {project_id}",
+                ),
+            ),
+            f"Project {project_id}",
+        )
+
+        display = (
+            f"{project_name} "
+            f"(#{project_id})"
+        )
+
+        project_options.append(
+            display
+        )
+
+        project_lookup[display] = project_id
+
+    with st.form(
+        "create_document_form",
+        clear_on_submit=True,
     ):
 
-        with st.form(
-            "create_document_form",
-            clear_on_submit=True,
-        ):
+        col1, col2 = st.columns(2)
 
-            left, right = st.columns(2)
+        with col1:
 
-            with left:
-
-                document_id = st.text_input(
-                    "Document ID *",
-                    placeholder="DOC-001",
-                )
-
-                title = st.text_input(
-                    "Document Title *",
-                    placeholder="Architectural General Arrangement",
-                )
-
-                project_id = st.text_input(
-                    "Project ID *",
-                    placeholder="PRJ-001",
-                )
-
-                document_type = st.selectbox(
-                    "Document Type *",
-                    DOCUMENT_TYPES,
-                )
-
-            with right:
-
-                status = st.selectbox(
-                    "Status *",
-                    DOCUMENT_STATUSES,
-                )
-
-                revision = st.text_input(
-                    "Revision *",
-                    value="A",
-                )
-
-                document_date = st.date_input(
-                    "Document Date *",
-                    value=date.today(),
-                )
-
-                author = st.text_input(
-                    "Author / Originator",
-                    placeholder="Architect / Engineer / Consultant",
-                )
-
-            description = st.text_area(
-                "Description",
-                height=100,
+            document_number = st.text_input(
+                "Document Number *",
+                placeholder="DOC-001",
             )
 
-            submitted = st.form_submit_button(
-                "Create Document",
-                use_container_width=True,
+            title = st.text_input(
+                "Title *",
+                placeholder="Project Contract",
             )
+
+            document_type = st.selectbox(
+                "Document Type *",
+                DOCUMENT_TYPES,
+            )
+
+            status = st.selectbox(
+                "Status *",
+                DOCUMENT_STATUSES,
+            )
+
+        with col2:
+
+            revision = st.text_input(
+                "Revision *",
+                value="Rev 0",
+            )
+
+            project_selection = st.selectbox(
+                "Project",
+                project_options,
+            )
+
+            document_date = st.date_input(
+                "Document Date",
+                value=date.today(),
+            )
+
+            author = st.text_input(
+                "Author",
+                placeholder="Creative Studios",
+            )
+
+        description = st.text_area(
+            "Description",
+            placeholder=(
+                "Brief description of the document."
+            ),
+        )
+
+        submitted = st.form_submit_button(
+            "Create Document",
+            use_container_width=True,
+        )
 
         if not submitted:
             return
 
-        errors = _validate(
-            db,
-            document_id,
+        document_number = document_number.strip()
+        title = title.strip()
+        revision = revision.strip()
+        author = author.strip()
+        description = description.strip()
+
+        project_id = project_lookup.get(
+            project_selection
+        )
+
+        errors = _validate_document(
+            document_number,
             title,
-            project_id,
             document_type,
             status,
             revision,
-            document_date,
+            project_id,
         )
 
         if errors:
@@ -500,19 +478,47 @@ def _render_create_form(
 
             return
 
+        existing = get_records(
+            DOCUMENT_COLLECTION,
+            db,
+        )
+
+        duplicate = any(
+            _safe_string(
+                item.get(
+                    "document_number"
+                )
+            ).lower()
+            == document_number.lower()
+            for item in existing
+        )
+
+        if duplicate:
+
+            st.error(
+                "A document with this document number already exists."
+            )
+
+            return
+
+        record = {
+            "document_number": document_number,
+            "title": title,
+            "project_id": project_id,
+            "document_type": document_type,
+            "status": status,
+            "revision": revision,
+            "document_date": document_date.isoformat(),
+            "author": author,
+            "description": description,
+        }
+
         try:
 
-            _create_document(
+            add_record(
+                DOCUMENT_COLLECTION,
+                record,
                 db,
-                document_id,
-                title,
-                project_id,
-                document_type,
-                status,
-                revision,
-                document_date,
-                author,
-                description,
             )
 
             st.success(
@@ -524,134 +530,225 @@ def _render_create_form(
         except Exception as exc:
 
             st.error(
-                "Unable to create the document."
+                "Unable to create document."
             )
 
-            st.code(
-                f"{type(exc).__name__}: {exc}"
-            )
+            st.exception(exc)
 
 
 # ============================================================
 # EDIT
 # ============================================================
 
-def _render_edit_form(
+def _edit_document(
     db: dict[str, Any],
-    document: dict[str, Any],
+    projects: list[dict[str, Any]],
 ) -> None:
+    """Edit an existing document."""
 
-    record_id = document.get("id")
+    documents = get_records(
+        DOCUMENT_COLLECTION,
+        db,
+    )
+
+    if not documents:
+
+        st.info(
+            "There are no documents to edit."
+        )
+
+        return
+
+    options: dict[str, Any] = {}
+
+    for document in documents:
+
+        document_id = document.get("id")
+
+        label = (
+            f"{_document_number(document)}"
+            f" • "
+            f"{_safe_string(document.get('title'), 'Untitled')}"
+        )
+
+        options[label] = document_id
+
+    selected_label = st.selectbox(
+        "Select Document",
+        list(options.keys()),
+        key="document_edit_selector",
+    )
+
+    selected_id = options[selected_label]
+
+    document = get_record(
+        DOCUMENT_COLLECTION,
+        selected_id,
+        db,
+    )
+
+    if document is None:
+
+        st.error(
+            "Selected document could not be found."
+        )
+
+        return
+
+    project_options = [
+        "Unassigned"
+    ]
+
+    project_lookup: dict[str, Any] = {}
+
+    selected_project_label = "Unassigned"
+
+    for project in projects:
+
+        if not isinstance(project, dict):
+            continue
+
+        project_id = project.get("id")
+
+        project_name = _safe_string(
+            project.get(
+                "name",
+                project.get(
+                    "project_name",
+                    f"Project {project_id}",
+                ),
+            ),
+            f"Project {project_id}",
+        )
+
+        label = (
+            f"{project_name} "
+            f"(#{project_id})"
+        )
+
+        project_options.append(label)
+        project_lookup[label] = project_id
+
+        if str(project_id) == str(
+            document.get("project_id")
+        ):
+            selected_project_label = label
+
+    existing_date = document.get(
+        "document_date"
+    )
+
+    try:
+
+        parsed_date = (
+            date.fromisoformat(
+                str(existing_date)
+            )
+            if existing_date
+            else date.today()
+        )
+
+    except ValueError:
+
+        parsed_date = date.today()
 
     with st.form(
-        f"edit_document_{record_id}",
+        f"edit_document_{selected_id}",
     ):
 
-        left, right = st.columns(2)
+        col1, col2 = st.columns(2)
 
-        with left:
+        with col1:
 
-            document_id = st.text_input(
-                "Document ID *",
-                value=_text(
-                    document.get(
-                        "document_id"
-                    )
+            document_number = st.text_input(
+                "Document Number *",
+                value=_document_number(
+                    document
                 ),
             )
 
             title = st.text_input(
-                "Document Title *",
-                value=_text(
-                    document.get(
-                        "title"
-                    )
+                "Title *",
+                value=_safe_string(
+                    document.get("title")
                 ),
             )
 
-            project_id = st.text_input(
-                "Project ID *",
-                value=_text(
-                    document.get(
-                        "project_id"
-                    )
-                ),
-            )
-
-            current_type = _text(
+            current_type = _safe_string(
                 document.get(
                     "document_type"
-                ),
-                "Other",
+                )
             )
-
-            if current_type not in DOCUMENT_TYPES:
-                current_type = "Other"
 
             document_type = st.selectbox(
                 "Document Type *",
                 DOCUMENT_TYPES,
-                index=DOCUMENT_TYPES.index(
-                    current_type
+                index=(
+                    DOCUMENT_TYPES.index(
+                        current_type
+                    )
+                    if current_type in DOCUMENT_TYPES
+                    else 0
                 ),
             )
 
-        with right:
-
-            current_status = _text(
-                document.get(
-                    "status"
-                ),
-                "Draft",
+            current_status = _safe_string(
+                document.get("status")
             )
-
-            if current_status not in DOCUMENT_STATUSES:
-                current_status = "Draft"
 
             status = st.selectbox(
                 "Status *",
                 DOCUMENT_STATUSES,
-                index=DOCUMENT_STATUSES.index(
-                    current_status
+                index=(
+                    DOCUMENT_STATUSES.index(
+                        current_status
+                    )
+                    if current_status in DOCUMENT_STATUSES
+                    else 0
                 ),
             )
 
+        with col2:
+
             revision = st.text_input(
                 "Revision *",
-                value=_text(
+                value=_safe_string(
                     document.get(
-                        "revision"
-                    ),
-                    "A",
+                        "revision",
+                        "Rev 0",
+                    )
+                ),
+            )
+
+            project_selection = st.selectbox(
+                "Project",
+                project_options,
+                index=(
+                    project_options.index(
+                        selected_project_label
+                    )
+                    if selected_project_label in project_options
+                    else 0
                 ),
             )
 
             document_date = st.date_input(
-                "Document Date *",
-                value=_date(
-                    document.get(
-                        "document_date"
-                    )
-                ) or date.today(),
+                "Document Date",
+                value=parsed_date,
             )
 
             author = st.text_input(
-                "Author / Originator",
-                value=_text(
-                    document.get(
-                        "author"
-                    )
+                "Author",
+                value=_safe_string(
+                    document.get("author")
                 ),
             )
 
         description = st.text_area(
             "Description",
-            value=_text(
-                document.get(
-                    "description"
-                )
+            value=_safe_string(
+                document.get("description")
             ),
-            height=100,
         )
 
         submitted = st.form_submit_button(
@@ -659,605 +756,363 @@ def _render_edit_form(
             use_container_width=True,
         )
 
-    if not submitted:
-        return
+        if not submitted:
+            return
 
-    errors = _validate(
-        db,
-        document_id,
-        title,
-        project_id,
-        document_type,
-        status,
-        revision,
-        document_date,
-        exclude_id=record_id,
-    )
+        document_number = document_number.strip()
+        title = title.strip()
+        revision = revision.strip()
+        author = author.strip()
+        description = description.strip()
 
-    if errors:
-
-        for error in errors:
-            st.error(error)
-
-        return
-
-    updates = {
-        "document_id": document_id.strip(),
-        "title": title.strip(),
-        "project_id": project_id.strip(),
-        "document_type": document_type,
-        "status": status,
-        "revision": revision.strip(),
-        "document_date": document_date.isoformat(),
-        "author": author.strip(),
-        "description": description.strip(),
-        "updated_at": datetime.now().isoformat(),
-    }
-
-    try:
-
-        result = update_record(
-            DOCUMENT_COLLECTION,
-            record_id,
-            updates,
-            db,
+        project_id = project_lookup.get(
+            project_selection
         )
 
-        if result is None:
+        errors = _validate_document(
+            document_number,
+            title,
+            document_type,
+            status,
+            revision,
+            project_id,
+        )
+
+        if errors:
+
+            for error in errors:
+                st.error(error)
+
+            return
+
+        duplicate = False
+
+        for other in get_records(
+            DOCUMENT_COLLECTION,
+            db,
+        ):
+
+            if str(
+                other.get("id")
+            ) == str(selected_id):
+                continue
+
+            if (
+                _safe_string(
+                    other.get(
+                        "document_number"
+                    )
+                ).lower()
+                == document_number.lower()
+            ):
+
+                duplicate = True
+                break
+
+        if duplicate:
 
             st.error(
-                "Document could not be found."
+                "Another document already uses this document number."
             )
 
             return
 
-        st.success(
-            "Document updated successfully."
-        )
+        updates = {
+            "document_number": document_number,
+            "title": title,
+            "project_id": project_id,
+            "document_type": document_type,
+            "status": status,
+            "revision": revision,
+            "document_date": document_date.isoformat(),
+            "author": author,
+            "description": description,
+        }
 
-        st.rerun()
+        try:
 
-    except Exception as exc:
+            updated = update_record(
+                DOCUMENT_COLLECTION,
+                selected_id,
+                updates,
+                db,
+            )
 
-        st.error(
-            "Unable to update the document."
-        )
+            if updated is None:
 
-        st.code(
-            f"{type(exc).__name__}: {exc}"
-        )
+                st.error(
+                    "Document could not be found."
+                )
+
+                return
+
+            st.success(
+                "Document updated successfully."
+            )
+
+            st.rerun()
+
+        except Exception as exc:
+
+            st.error(
+                "Unable to update document."
+            )
+
+            st.exception(exc)
 
 
 # ============================================================
 # DELETE
 # ============================================================
 
-def _render_delete(
+def _delete_document(
     db: dict[str, Any],
-    document: dict[str, Any],
 ) -> None:
+    """Delete a document."""
 
-    record_id = document.get("id")
-
-    title = _text(
-        document.get(
-            "title"
-        ),
-        "this document",
-    )
-
-    st.warning(
-        f'Delete "{title}"? '
-        "This action cannot be undone."
-    )
-
-    left, right = st.columns(2)
-
-    with left:
-
-        if st.button(
-            "Delete Document",
-            key=f"confirm_delete_document_{record_id}",
-            use_container_width=True,
-        ):
-
-            try:
-
-                result = delete_record(
-                    DOCUMENT_COLLECTION,
-                    record_id,
-                    db,
-                )
-
-                if result:
-
-                    st.success(
-                        "Document deleted successfully."
-                    )
-
-                    st.rerun()
-
-                else:
-
-                    st.error(
-                        "Document could not be found."
-                    )
-
-            except Exception as exc:
-
-                st.error(
-                    "Unable to delete the document."
-                )
-
-                st.code(
-                    f"{type(exc).__name__}: {exc}"
-                )
-
-    with right:
-
-        if st.button(
-            "Cancel",
-            key=f"cancel_delete_document_{record_id}",
-            use_container_width=True,
-        ):
-
-            st.session_state.pop(
-                f"delete_document_{record_id}",
-                None,
-            )
-
-            st.rerun()
-
-
-# ============================================================
-# DOCUMENT CARD
-# ============================================================
-
-def _render_document_card(
-    db: dict[str, Any],
-    document: dict[str, Any],
-) -> None:
-
-    record_id = document.get(
-        "id"
-    )
-
-    document_id = _text(
-        document.get(
-            "document_id"
-        ),
-        "N/A",
-    )
-
-    title = _text(
-        document.get(
-            "title"
-        ),
-        "Untitled Document",
-    )
-
-    project_id = _text(
-        document.get(
-            "project_id"
-        ),
-        "N/A",
-    )
-
-    document_type = _text(
-        document.get(
-            "document_type"
-        ),
-        "Other",
-    )
-
-    status = _text(
-        document.get(
-            "status"
-        ),
-        "Draft",
-    )
-
-    revision = _text(
-        document.get(
-            "revision"
-        ),
-        "A",
-    )
-
-    author = _text(
-        document.get(
-            "author"
-        ),
-        "Not specified",
-    )
-
-    document_date = _date_string(
-        document.get(
-            "document_date"
-        )
-    )
-
-    css_class = _status_class(
-        status
-    )
-
-    st.markdown(
-        f"""
-<div class="cs-doc-card">
-
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        gap:15px;
-        align-items:flex-start;
-    ">
-
-        <div>
-
-            <div class="cs-doc-name">
-                {title}
-            </div>
-
-            <div class="cs-doc-meta">
-                {document_id}
-                &nbsp; • &nbsp;
-                {document_type}
-                &nbsp; • &nbsp;
-                Revision {revision}
-            </div>
-
-        </div>
-
-        <div>
-            <span class="cs-doc-status {css_class}">
-                {status}
-            </span>
-        </div>
-
-    </div>
-
-    <div style="
-        height:1px;
-        background:#172033;
-        margin:15px 0;
-    "></div>
-
-    <div style="
-        display:grid;
-        grid-template-columns:
-            repeat(3, minmax(0, 1fr));
-        gap:15px;
-    ">
-
-        <div>
-            <div class="cs-doc-meta">
-                PROJECT
-            </div>
-
-            <div class="cs-doc-info">
-                {project_id}
-            </div>
-        </div>
-
-        <div>
-            <div class="cs-doc-meta">
-                AUTHOR
-            </div>
-
-            <div class="cs-doc-info">
-                {author}
-            </div>
-        </div>
-
-        <div>
-            <div class="cs-doc-meta">
-                DOCUMENT DATE
-            </div>
-
-            <div class="cs-doc-info">
-                {document_date or "Not specified"}
-            </div>
-        </div>
-
-    </div>
-
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    left, middle, right = st.columns(
-        [1, 1, 4]
-    )
-
-    with left:
-
-        if st.button(
-            "Edit",
-            key=f"edit_document_{record_id}",
-            use_container_width=True,
-        ):
-
-            st.session_state[
-                f"editing_document_{record_id}"
-            ] = True
-
-            st.session_state.pop(
-                f"delete_document_{record_id}",
-                None,
-            )
-
-            st.rerun()
-
-    with middle:
-
-        if st.button(
-            "Delete",
-            key=f"delete_document_{record_id}",
-            use_container_width=True,
-        ):
-
-            st.session_state[
-                f"delete_document_{record_id}"
-            ] = True
-
-            st.session_state.pop(
-                f"editing_document_{record_id}",
-                None,
-            )
-
-            st.rerun()
-
-    if st.session_state.get(
-        f"editing_document_{record_id}",
-        False,
-    ):
-
-        _render_edit_form(
-            db,
-            document,
-        )
-
-    if st.session_state.get(
-        f"delete_document_{record_id}",
-        False,
-    ):
-
-        _render_delete(
-            db,
-            document,
-        )
-
-
-# ============================================================
-# MAIN MODULE
-# ============================================================
-
-def render_documents_module(
-    db: dict[str, Any] | None = None,
-) -> None:
-
-    _inject_css()
-
-    if not isinstance(
+    documents = get_records(
+        DOCUMENT_COLLECTION,
         db,
-        dict,
-    ):
-
-        db = load_memory()
-
-    if DOCUMENT_COLLECTION not in db:
-
-        db[
-            DOCUMENT_COLLECTION
-        ] = []
-
-        save_memory(db)
-
-    documents = _documents(
-        db
     )
 
-    # --------------------------------------------------------
-    # Header
-    # --------------------------------------------------------
+    if not documents:
 
-    st.markdown(
-        """
-<div class="cs-doc-header">
-
-    <div class="cs-doc-title">
-        Document Register
-    </div>
-
-    <div class="cs-doc-subtitle">
-        Central document workspace for project
-        information, technical records and controlled
-        project documentation.
-    </div>
-
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    # --------------------------------------------------------
-    # KPI
-    # --------------------------------------------------------
-
-    total = len(documents)
-
-    drafts = sum(
-        1
-        for document in documents
-        if document.get("status")
-        == "Draft"
-    )
-
-    review = sum(
-        1
-        for document in documents
-        if document.get("status")
-        == "Under Review"
-    )
-
-    approved = sum(
-        1
-        for document in documents
-        if document.get("status")
-        == "Approved"
-    )
-
-    issued = sum(
-        1
-        for document in documents
-        if document.get("status")
-        == "Issued"
-    )
-
-    cols = st.columns(5)
-
-    metrics = [
-        ("Total Documents", total),
-        ("Draft", drafts),
-        ("Under Review", review),
-        ("Approved", approved),
-        ("Issued", issued),
-    ]
-
-    for column, (
-        label,
-        value,
-    ) in zip(
-        cols,
-        metrics,
-    ):
-
-        with column:
-
-            st.metric(
-                label,
-                value,
-            )
-
-    st.write("")
-
-    # --------------------------------------------------------
-    # Create
-    # --------------------------------------------------------
-
-    _render_create_form(
-        db
-    )
-
-    # --------------------------------------------------------
-    # Search / filters
-    # --------------------------------------------------------
-
-    st.markdown(
-        '<div class="cs-doc-section">'
-        "Document Register"
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-    search = st.text_input(
-        "Search Documents",
-        placeholder=(
-            "Search by document ID, title, "
-            "project, type, author or revision..."
-        ),
-        key="document_search",
-    )
-
-    left, right = st.columns(2)
-
-    with left:
-
-        status_filter = st.selectbox(
-            "Status",
-            ["All"] + DOCUMENT_STATUSES,
-            key="document_status_filter",
+        st.info(
+            "There are no documents to delete."
         )
 
-    with right:
+        return
 
-        type_filter = st.selectbox(
-            "Document Type",
-            ["All"] + DOCUMENT_TYPES,
-            key="document_type_filter",
-        )
-
-    search_text = search.strip().lower()
-
-    filtered = []
+    options: dict[str, Any] = {}
 
     for document in documents:
 
-        status = _text(
-            document.get(
-                "status"
-            ),
-            "Draft",
+        label = (
+            f"{_document_number(document)}"
+            f" • "
+            f"{_safe_string(document.get('title'), 'Untitled')}"
         )
 
-        document_type = _text(
-            document.get(
-                "document_type"
-            ),
-            "Other",
+        options[label] = document.get("id")
+
+    selected_label = st.selectbox(
+        "Select Document",
+        list(options.keys()),
+        key="document_delete_selector",
+    )
+
+    selected_id = options[
+        selected_label
+    ]
+
+    confirm = st.checkbox(
+        "I understand that this document will be permanently deleted.",
+        key="confirm_document_delete",
+    )
+
+    if st.button(
+        "Delete Document",
+        type="primary",
+        use_container_width=True,
+        disabled=not confirm,
+    ):
+
+        try:
+
+            deleted = delete_record(
+                DOCUMENT_COLLECTION,
+                selected_id,
+                db,
+            )
+
+            if deleted:
+
+                st.success(
+                    "Document deleted successfully."
+                )
+
+                st.rerun()
+
+            else:
+
+                st.error(
+                    "Document could not be found."
+                )
+
+        except Exception as exc:
+
+            st.error(
+                "Unable to delete document."
+            )
+
+            st.exception(exc)
+
+
+# ============================================================
+# DIRECTORY
+# ============================================================
+
+def _render_directory(
+    db: dict[str, Any],
+    projects: list[dict[str, Any]],
+) -> None:
+    """Render searchable document directory."""
+
+    documents = get_records(
+        DOCUMENT_COLLECTION,
+        db,
+    )
+
+    if not documents:
+
+        st.markdown(
+            """
+            <div class="documents-empty">
+                <div style="
+                    color:#FFFFFF;
+                    font-size:17px;
+                    font-weight:800;
+                    margin-bottom:6px;
+                ">
+                    No Documents Yet
+                </div>
+
+                Create your first document using
+                <strong>New Document</strong>.
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        if (
-            status_filter != "All"
-            and status != status_filter
-        ):
+        return
+
+    project_names = [
+        "All Projects"
+    ]
+
+    for project in projects:
+
+        if not isinstance(project, dict):
             continue
 
-        if (
-            type_filter != "All"
-            and document_type != type_filter
-        ):
+        project_name = _safe_string(
+            project.get(
+                "name",
+                project.get(
+                    "project_name",
+                    f"Project {project.get('id')}",
+                ),
+            )
+        )
+
+        if project_name:
+            project_names.append(
+                project_name
+            )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        search = st.text_input(
+            "Search",
+            placeholder=(
+                "Search number, title, author..."
+            ),
+            key="documents_search",
+        ).strip().lower()
+
+    with col2:
+
+        project_filter = st.selectbox(
+            "Project",
+            project_names,
+            key="documents_project_filter",
+        )
+
+    with col3:
+
+        status_filter = st.selectbox(
+            "Status",
+            ["All Statuses"] + DOCUMENT_STATUSES,
+            key="documents_status_filter",
+        )
+
+    type_filter = st.selectbox(
+        "Document Type",
+        ["All Types"] + DOCUMENT_TYPES,
+        key="documents_type_filter",
+    )
+
+    filtered: list[dict[str, Any]] = []
+
+    for document in documents:
+
+        if not isinstance(document, dict):
             continue
 
         searchable = " ".join(
             [
-                _text(
+                _safe_string(
                     document.get(
-                        "document_id"
+                        "document_number"
                     )
                 ),
-                _text(
+                _safe_string(
                     document.get(
                         "title"
                     )
                 ),
-                _text(
-                    document.get(
-                        "project_id"
-                    )
-                ),
-                _text(
-                    document.get(
-                        "document_type"
-                    )
-                ),
-                _text(
+                _safe_string(
                     document.get(
                         "author"
                     )
                 ),
-                _text(
+                _safe_string(
                     document.get(
-                        "revision"
+                        "description"
                     )
                 ),
             ]
         ).lower()
 
+        if search and search not in searchable:
+            continue
+
+        project_name = _project_name(
+            document.get(
+                "project_id"
+            ),
+            projects,
+        )
+
         if (
-            search_text
-            and search_text not in searchable
+            project_filter != "All Projects"
+            and project_name != project_filter
+        ):
+            continue
+
+        status = _safe_string(
+            document.get(
+                "status"
+            )
+        )
+
+        if (
+            status_filter != "All Statuses"
+            and status != status_filter
+        ):
+            continue
+
+        document_type = _safe_string(
+            document.get(
+                "document_type"
+            )
+        )
+
+        if (
+            type_filter != "All Types"
+            and document_type != type_filter
         ):
             continue
 
@@ -1266,48 +1121,304 @@ def render_documents_module(
         )
 
     st.caption(
-        f"Showing {len(filtered)} "
-        f"of {len(documents)} documents"
+        f"{len(filtered)} document(s)"
     )
-
-    # --------------------------------------------------------
-    # Empty state
-    # --------------------------------------------------------
 
     if not filtered:
 
         st.markdown(
             """
-<div class="cs-doc-empty">
-
-    <div style="
-        color:#FFFFFF;
-        font-size:17px;
-        font-weight:800;
-        margin-bottom:7px;
-    ">
-        No documents found
-    </div>
-
-    <div>
-        Create a document or adjust your search
-        and filters.
-    </div>
-
-</div>
-""",
+            <div class="documents-empty">
+                No documents match the current filters.
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
         return
 
-    # --------------------------------------------------------
-    # Cards
-    # --------------------------------------------------------
+    filtered.sort(
+        key=lambda item: (
+            _safe_string(
+                item.get(
+                    "document_number"
+                )
+            ).lower()
+        )
+    )
 
     for document in filtered:
 
-        _render_document_card(
+        number = escape(
+            _document_number(
+                document
+            )
+        )
+
+        title = escape(
+            _safe_string(
+                document.get(
+                    "title",
+                    "Untitled Document",
+                )
+            )
+        )
+
+        status = _safe_string(
+            document.get(
+                "status",
+                "Draft",
+            )
+        )
+
+        revision = escape(
+            _safe_string(
+                document.get(
+                    "revision",
+                    "Rev 0",
+                )
+            )
+        )
+
+        document_type = escape(
+            _safe_string(
+                document.get(
+                    "document_type",
+                    "Other",
+                )
+            )
+        )
+
+        project = escape(
+            _project_name(
+                document.get(
+                    "project_id"
+                ),
+                projects,
+            )
+        )
+
+        author = escape(
+            _safe_string(
+                document.get(
+                    "author"
+                ),
+                "Not specified",
+            )
+        )
+
+        date_value = escape(
+            _safe_string(
+                document.get(
+                    "document_date"
+                ),
+                "Not specified",
+            )
+        )
+
+        status_class = _status_class(
+            status
+        )
+
+        st.markdown(
+            f"""
+            <div class="document-card">
+
+                <div class="document-number">
+                    {number}
+                </div>
+
+                <div class="document-title">
+                    {title}
+                </div>
+
+                <div class="document-meta">
+                    Project: {project}
+                    &nbsp; • &nbsp;
+                    Type: {document_type}
+                    &nbsp; • &nbsp;
+                    {revision}
+                </div>
+
+                <div class="document-meta">
+                    Author: {author}
+                    &nbsp; • &nbsp;
+                    Date: {date_value}
+                </div>
+
+                <span class="
+                    status-badge
+                    {status_class}
+                ">
+                    {escape(status)}
+                </span>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+# ============================================================
+# MAIN MODULE
+# ============================================================
+
+def render_documents_module(
+    db: dict[str, Any],
+) -> None:
+    """
+    Main Documents module entry point.
+
+    This function is intentionally compatible with:
+
+        render_documents_module(db)
+    """
+
+    if not isinstance(db, dict):
+
+        st.error(
+            "Documents module received an invalid database."
+        )
+
+        return
+
+    _render_css()
+
+    projects = get_records(
+        PROJECT_COLLECTION,
+        db,
+    )
+
+    documents = get_records(
+        DOCUMENT_COLLECTION,
+        db,
+    )
+
+    st.markdown(
+        """
+        <div class="documents-header">
+
+            <div class="documents-title">
+                Documents
+            </div>
+
+            <div class="documents-subtitle">
+                Central document register for Creative Studios
+                AEC projects.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ========================================================
+    # STATISTICS
+    # ========================================================
+
+    total = len(documents)
+
+    active = sum(
+        1
+        for document in documents
+        if _safe_string(
+            document.get("status")
+        ).lower()
+        == "active"
+    )
+
+    review = sum(
+        1
+        for document in documents
+        if _safe_string(
+            document.get("status")
+        ).lower()
+        == "under review"
+    )
+
+    approved = sum(
+        1
+        for document in documents
+        if _safe_string(
+            document.get("status")
+        ).lower()
+        == "approved"
+    )
+
+    stat_cols = st.columns(4)
+
+    statistics = [
+        ("Total Documents", total),
+        ("Active", active),
+        ("Under Review", review),
+        ("Approved", approved),
+    ]
+
+    for col, (
+        label,
+        value,
+    ) in zip(
+        stat_cols,
+        statistics,
+    ):
+
+        with col:
+
+            st.markdown(
+                f"""
+                <div class="document-stat">
+
+                    <div class="document-stat-label">
+                        {label}
+                    </div>
+
+                    <div class="document-stat-value">
+                        {value}
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.write("")
+
+    # ========================================================
+    # ACTION TABS
+    # ========================================================
+
+    tabs = st.tabs(
+        [
+            "Document Directory",
+            "New Document",
+            "Edit Document",
+            "Delete Document",
+        ]
+    )
+
+    with tabs[0]:
+
+        _render_directory(
             db,
-            document,
+            projects,
+        )
+
+    with tabs[1]:
+
+        _create_document(
+            db,
+            projects,
+        )
+
+    with tabs[2]:
+
+        _edit_document(
+            db,
+            projects,
+        )
+
+    with tabs[3]:
+
+        _delete_document(
+            db
         )
