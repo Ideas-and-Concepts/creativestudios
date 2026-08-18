@@ -457,6 +457,85 @@ def inject_branding_css() -> None:
 
 
         /* ==================================================
+           PROJECT CARD (specific to projects module)
+           ================================================== */
+
+        .cs-project-card {
+            background: #0B0F17;
+
+            border: 1px solid #172033;
+
+            border-radius: 15px;
+
+            padding: 18px;
+
+            margin-bottom: 15px;
+
+            box-sizing: border-box;
+        }
+
+        .cs-project-header {
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: flex-start;
+
+            gap: 10px;
+        }
+
+        .cs-project-name {
+            color: #FFFFFF;
+
+            font-size: 17px;
+
+            font-weight: 850;
+
+            line-height: 1.3;
+        }
+
+        .cs-project-meta {
+            color: #64748B;
+
+            font-size: 12px;
+
+            margin-top: 6px;
+
+            line-height: 1.5;
+        }
+
+        .cs-status {
+            display: inline-block;
+
+            padding: 5px 12px;
+
+            border-radius: 999px;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            white-space: nowrap;
+        }
+
+        .cs-status-active {
+            background: rgba(34, 197, 94, 0.15);
+
+            color: #4ADE80;
+
+            border: 1px solid rgba(34, 197, 94, 0.35);
+        }
+
+        .cs-status-default {
+            background: rgba(100, 116, 139, 0.15);
+
+            color: #94A3B8;
+
+            border: 1px solid rgba(100, 116, 139, 0.35);
+        }
+
+
+        /* ==================================================
            STREAMLIT BUTTONS
            ================================================== */
 
