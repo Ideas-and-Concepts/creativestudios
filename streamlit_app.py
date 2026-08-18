@@ -6,7 +6,28 @@ AEC Workspace
 Main Streamlit application.
 """
 
+import streamlit as st
+
+from modules.database import (
+    load_memory,
+    save_memory,
+    initialize_database,
+)
+
+from modules.projects import (
+    render_projects_module,
+)
+
+from modules.documents import (
+    render_documents_module,
+)
+
+from modules.drawings import (
+    render_drawings_module,
+)
+
 from __future__ import annotations
+
 from modules.database import (
     load_memory,
     save_memory,
