@@ -314,6 +314,18 @@ def _ensure_collection(
 
     return db[collection]
 
+# ============================================================
+# GET COLLECTION (PUBLIC)
+# ============================================================
+
+def get_collection(
+    collection: str,
+    db: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Return the raw list for a collection, ensuring it exists.
+    """
+    return _ensure_collection(db, collection)
 
 # ============================================================
 # NEXT ID
