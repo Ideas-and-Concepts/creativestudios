@@ -258,25 +258,256 @@ label {
 }
 
 
+# ============================================================
+# LOGIN
+# ============================================================
+
+def render_login() -> None:
+
+    st.markdown(
+        """
+        <div class="cs-login-wrapper">
+
+            <div class="cs-login-card">
+
+                <!-- CREATIVE STUDIOS LOGO -->
+
+                <div class="cs-logo">
+                    <div class="cs-logo-text">
+                        CS
+                    </div>
+                </div>
+
+                <!-- BRAND -->
+
+                <div class="cs-brand-name">
+                    Creative Studios
+                </div>
+
+                <div class="cs-brand-subtitle">
+                    AEC Workspace
+                </div>
+
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.write("")
+
+    # ========================================================
+    # LOGIN FORM
+    # ========================================================
+
+    with st.form(
+        "creative_studios_login",
+        clear_on_submit=False,
+    ):
+
+        username = st.text_input(
+            "Username",
+            placeholder="Enter username",
+        )
+
+        password = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Enter password",
+        )
+
+        submitted = st.form_submit_button(
+            "Login",
+            use_container_width=True,
+        )
+
+        if submitted:
+
+            username = (
+                username or ""
+            ).strip()
+
+            password = (
+                password or ""
+            ).strip()
+
+            user = authenticate_user(
+                username,
+                password,
+                db,
+            )
+
+            if user is not None:
+
+                st.session_state.authenticated = True
+
+                st.session_state.user = user
+
+                st.session_state.active_module = (
+                    "Overview"
+                )
+
+                st.rerun()
+
+            else:
+
+                st.error(
+                    "Invalid username or password."
+                )
+
+    st.markdown(
+        """
+        <div style="
+            text-align:center;
+            margin-top:18px;
+            color:#475569;
+            font-size:11px;
+        ">
+            Creative Studios • AEC Collaboration Platform
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# ============================================================
+# CREATIVE STUDIOS BRAND / LOGO CSS
+# ============================================================
+
+st.markdown(
+    """
+<style>
+
 /* ==========================================================
-   LOGIN
+   LOGIN LOGO
    ========================================================== */
 
-.cs-login-wrapper {
-    width: 100%;
-    max-width: 440px;
-    margin: 7vh auto 0 auto;
-}
+.cs-logo {
+    width: 82px;
+    height: 82px;
+    min-width: 82px;
+    min-height: 82px;
 
-.cs-login-card {
-    background: rgba(11,15,23,0.96);
-    border: 1px solid #1E293B;
+    margin: 0 auto 18px auto;
+
     border-radius: 22px;
-    padding: 34px 34px 30px 34px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #2563EB 0%,
+            #1D4ED8 55%,
+            #172554 100%
+        );
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    position: relative;
 
     box-shadow:
-        0 25px 80px rgba(0,0,0,0.55),
-        0 0 50px rgba(37,99,235,0.06);
+        0 14px 35px rgba(37, 99, 235, 0.35),
+        inset 0 1px 0 rgba(255,255,255,0.18);
+
+    overflow: hidden;
+}
+
+/* Small architectural accent */
+.cs-logo::before {
+    content: "";
+
+    position: absolute;
+
+    width: 42px;
+    height: 42px;
+
+    border: 2px solid rgba(255,255,255,0.22);
+
+    transform: rotate(45deg);
+
+    border-radius: 7px;
+}
+
+/* Logo letters */
+.cs-logo-text {
+    position: relative;
+    z-index: 2;
+
+    color: #FFFFFF !important;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 27px;
+    line-height: 1;
+
+    font-weight: 900;
+
+    letter-spacing: -1.5px;
+
+    text-align: center;
+
+    display: block !important;
+
+    visibility: visible !important;
+
+    opacity: 1 !important;
+}
+
+
+/* ==========================================================
+   LOGIN BRANDING
+   ========================================================== */
+
+.cs-brand-name {
+    color: #FFFFFF !important;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 28px;
+
+    line-height: 1.15;
+
+    font-weight: 900;
+
+    text-align: center;
+
+    letter-spacing: -0.8px;
+
+    display: block !important;
+
+    visibility: visible !important;
+}
+
+.cs-brand-subtitle {
+    color: #64748B !important;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 11px;
+
+    line-height: 1.4;
+
+    text-align: center;
+
+    margin-top: 6px;
+
+    letter-spacing: 1.6px;
+
+    text-transform: uppercase;
+
+    display: block !important;
+
+    visibility: visible !important;
 }
 
 
@@ -285,83 +516,166 @@ label {
    ========================================================== */
 
 .cs-sidebar-brand {
-    padding: 8px 4px 20px 4px;
+    width: 100%;
+
+    padding:
+        8px
+        4px
+        18px
+        4px;
+
     margin-bottom: 14px;
-    border-bottom: 1px solid #172033;
+
+    border-bottom:
+        1px solid #172033;
 }
 
 .cs-sidebar-brand-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    width: 100%;
+
+    display: flex !important;
+
+    align-items: center !important;
+
+    gap: 11px;
+
+    visibility: visible !important;
 }
 
-.cs-sidebar-logo {
-    width: 46px;
-    height: 46px;
-    min-width: 46px;
-    min-height: 46px;
 
-    border-radius: 13px;
+/* Sidebar logo */
+
+.cs-sidebar-logo {
+    width: 48px;
+    height: 48px;
+
+    min-width: 48px;
+    min-height: 48px;
+
+    border-radius: 14px;
 
     background:
         linear-gradient(
             145deg,
-            #3B82F6,
-            #2563EB,
-            #1D4ED8
+            #2563EB 0%,
+            #1D4ED8 55%,
+            #172554 100%
         );
 
-    border: 1px solid rgba(255,255,255,0.12);
-
     display: flex !important;
+
     align-items: center !important;
     justify-content: center !important;
+
+    position: relative;
+
+    overflow: hidden;
 
     box-shadow:
         0 8px 25px rgba(37,99,235,0.30);
 }
 
-.cs-sidebar-logo-text {
-    color: #FFFFFF !important;
-    font-size: 17px !important;
-    font-weight: 900 !important;
-    line-height: 1 !important;
-    letter-spacing: -0.5px !important;
+.cs-sidebar-logo::before {
+    content: "";
+
+    position: absolute;
+
+    width: 25px;
+    height: 25px;
+
+    border:
+        2px solid
+        rgba(255,255,255,0.22);
+
+    transform: rotate(45deg);
+
+    border-radius: 5px;
 }
+
+.cs-sidebar-logo-text {
+    position: relative;
+
+    z-index: 2;
+
+    color: #FFFFFF !important;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 17px;
+
+    line-height: 1;
+
+    font-weight: 900;
+
+    letter-spacing: -1px;
+
+    display: block !important;
+
+    visibility: visible !important;
+
+    opacity: 1 !important;
+}
+
+
+/* Sidebar name */
 
 .cs-sidebar-name {
     color: #FFFFFF !important;
-    font-size: 16px !important;
-    font-weight: 850 !important;
-    line-height: 1.2 !important;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    font-size: 16px;
+
+    line-height: 1.2;
+
+    font-weight: 850;
+
+    display: block !important;
 }
 
 .cs-sidebar-subtitle {
     color: #64748B !important;
-    font-size: 9px !important;
-    margin-top: 4px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.9px !important;
+
+    font-size: 9px;
+
+    line-height: 1.3;
+
+    margin-top: 4px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 1px;
+
+    display: block !important;
 }
 
 
 /* ==========================================================
-   SIDEBAR SECTION LABEL
+   PREVENT STREAMLIT FROM HIDING BRAND ELEMENTS
    ========================================================== */
 
-.cs-section-label {
-    color: #475569 !important;
-    font-size: 10px !important;
-    font-weight: 850 !important;
-    letter-spacing: 1.3px !important;
-    text-transform: uppercase !important;
-    margin-top: 17px !important;
-    margin-bottom: 7px !important;
+[data-testid="stSidebar"] .cs-sidebar-brand,
+[data-testid="stSidebar"] .cs-sidebar-brand-row,
+[data-testid="stSidebar"] .cs-sidebar-logo,
+[data-testid="stSidebar"] .cs-sidebar-logo-text,
+[data-testid="stSidebar"] .cs-sidebar-name,
+[data-testid="stSidebar"] .cs-sidebar-subtitle {
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
+</style>
+""",
+    unsafe_allow_html=True,
+)
 
-/* ==========================================================
+ ==========================================================
    USER CARD
    ========================================================== */
 
