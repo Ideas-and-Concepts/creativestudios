@@ -5,55 +5,31 @@ AEC Workspace
 
 Main Streamlit application.
 
-Responsibilities
-----------------
-- Application startup
-- Database initialization
-- Authentication
-- Session state
-- Sidebar navigation
-- Module routing
-- Overview dashboard
-- Settings
-- Placeholder modules
-
-Branding
+Features
 --------
-All branding CSS, logo rendering, and module-header styling
-are provided centrally by modules.branding.
-
-The application intentionally contains no duplicate branding
-CSS so that modules.branding remains the single source of truth.
+- JSON database persistence
+- Authentication
+- Project Directory
+- Documents
+- Drawings
+- RFIs
+- Tasks
+- Approvals
+- Settings
+- Native PNG branding
+- Sidebar branding
+- Login branding
+- Session-state navigation
+- Shared module headers
 """
 
 from __future__ import annotations
 
 import html
 import importlib
-import math
-from pathlib import Path
 from typing import Any
 
 import streamlit as st
-
-from modules.branding import (
-    inject_branding_css,
-    render_logo,
-    render_module_header,
-)
-
-
-# ============================================================
-# PATHS
-# ============================================================
-
-BASE_DIR = Path(__file__).resolve().parent
-
-ASSETS_DIR = BASE_DIR / "assets"
-
-CREATIVE_STUDIOS_LOGO = (
-    ASSETS_DIR / "creative_studios.png"
-)
 
 
 # ============================================================
@@ -62,14 +38,23 @@ CREATIVE_STUDIOS_LOGO = (
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon=(
-        str(CREATIVE_STUDIOS_LOGO)
-        if CREATIVE_STUDIOS_LOGO.exists()
-        else None
-    ),
+    page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+
+# ============================================================
+# BRANDING
+# ============================================================
+
+try:
+    from modules import branding
+except Exception as exc:
+    branding = None
+    _branding_import_error = exc
+else:
+    _branding_import_error = None
 
 
 # ============================================================
@@ -77,8 +62,15 @@ st.set_page_config(
 # ============================================================
 
 from modules.database import (
-    initialize_database,
     load_memory,
+    save_memory,
+    initialize_database,
+    add_record,
+    update_record,
+    delete_record,
+    next_id,
+    get_record,
+    get_records,
 )
 
 
@@ -93,12 +85,11 @@ def _load_renderer(
     """
     Safely load a module renderer.
 
-    A missing or unfinished module must not prevent
-    the rest of Creative Studios from starting.
+    An unfinished optional module must not prevent the
+    application from starting.
     """
 
     try:
-
         module = importlib.import_module(
             module_name
         )
@@ -135,8 +126,16 @@ render_drawings_module = _load_renderer(
 
 render_rfis_module = _load_renderer(
     "modules.rfis",
-    "render_rfis_module",
+    "render_rfIs_module",
 )
+
+# Correct RFIs renderer lookup.
+if render_rfis_module is None:
+    render_rfis_module = _load_renderer(
+        "modules.rfis",
+        "render_rfis_module",
+    )
+
 
 render_tasks_module = _load_renderer(
     "modules.tasks",
@@ -150,18 +149,310 @@ render_approvals_module = _load_renderer(
 
 
 # ============================================================
-# BRANDING
+# BRANDING HELPERS
 # ============================================================
 
-def initialize_branding() -> None:
+def _apply_branding_css() -> None:
     """
-    Inject all Creative Studios branding.
+    Use the shared branding module when available.
 
-    Branding CSS is intentionally maintained only in
-    modules.branding.
+    The fallback keeps the application bootable if an older
+    branding.py is temporarily present.
     """
 
-    inject_branding_css()
+    if branding is not None:
+
+        css_renderer = getattr(
+            branding,
+            "inject_branding_css",
+            None,
+        )
+
+        if callable(css_renderer):
+
+            css_renderer()
+
+            return
+
+    st.markdown(
+        """
+        <style>
+
+        html,
+        body,
+        [data-testid="stAppViewContainer"] {
+            background: #05070B !important;
+            color: #F8FAFC !important;
+        }
+
+        [data-testid="stSidebar"] {
+            background: #080B12 !important;
+            border-right: 1px solid #172033 !important;
+        }
+
+        .block-container {
+            padding-top: 2rem !important;
+            padding-bottom: 3rem !important;
+        }
+
+        .cs-page-title {
+            color: #FFFFFF;
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: -0.7px;
+            line-height: 1.15;
+        }
+
+        .cs-page-subtitle {
+            color: #64748B;
+            font-size: 13px;
+            margin-top: 5px;
+            margin-bottom: 25px;
+        }
+
+        .cs-card {
+            background: #0B0F17;
+            border: 1px solid #172033;
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .cs-card-title {
+            color: #FFFFFF;
+            font-size: 18px;
+            font-weight: 850;
+        }
+
+        .cs-card-subtitle {
+            color: #64748B;
+            font-size: 12px;
+            margin-top: 7px;
+        }
+
+        .cs-kpi {
+            background: #0B0F17;
+            border: 1px solid #172033;
+            border-radius: 15px;
+            padding: 18px;
+            min-height: 110px;
+        }
+
+        .cs-kpi-label {
+            color: #64748B;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .cs-kpi-value {
+            color: #FFFFFF;
+            font-size: 22px;
+            font-weight: 900;
+            margin-top: 7px;
+            overflow-wrap: anywhere;
+        }
+
+        .cs-sidebar-name {
+            color: #FFFFFF;
+            font-size: 15px;
+            font-weight: 850;
+            line-height: 1.15;
+        }
+
+        .cs-sidebar-subtitle {
+            color: #64748B;
+            font-size: 9px;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+        }
+
+        .user-label {
+            color: #60A5FA;
+            font-size: 9px;
+            font-weight: 850;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .user-name {
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 800;
+            margin-top: 5px;
+        }
+
+        .user-login {
+            color: #64748B;
+            font-size: 10px;
+            margin-top: 3px;
+        }
+
+        .user-role {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 9px;
+            background: #2563EB;
+            color: #FFFFFF !important;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 850;
+        }
+
+        .cs-login-wrapper {
+            width: min(430px, 92vw);
+            margin: 7vh auto 0 auto;
+        }
+
+        .cs-login-card {
+            background: #0B0F17;
+            border: 1px solid #1E293B;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow:
+                0 20px 70px rgba(0,0,0,0.55),
+                0 0 40px rgba(37,99,235,0.06);
+        }
+
+        .cs-login-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+
+        .cs-login-error {
+            background: rgba(127,29,29,0.20);
+            border: 1px solid rgba(248,113,113,0.30);
+            border-radius: 9px;
+            padding: 9px 12px;
+            margin-top: 10px;
+            color: #FCA5A5 !important;
+            font-size: 12px;
+        }
+
+        div[data-testid="stButton"] > button {
+            background: #111827 !important;
+            color: #E2E8F0 !important;
+            border: 1px solid #1E293B !important;
+            border-radius: 9px !important;
+        }
+
+        div[data-testid="stButton"] > button:hover {
+            background: #172554 !important;
+            border-color: #2563EB !important;
+            color: #FFFFFF !important;
+        }
+
+        div[data-testid="stFormSubmitButton"] > button {
+            background: #2563EB !important;
+            color: #FFFFFF !important;
+            border: 0 !important;
+            border-radius: 10px !important;
+            font-weight: 800 !important;
+        }
+
+        input,
+        textarea,
+        [data-baseweb="select"] > div {
+            background: #0B0F17 !important;
+            color: #FFFFFF !important;
+            border-color: #1E293B !important;
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_logo(
+    width: int = 80,
+) -> None:
+    """
+    Render the shared Creative Studios logo.
+
+    Prefer the implementation in modules.branding.
+    """
+
+    if branding is not None:
+
+        renderer = getattr(
+            branding,
+            "render_logo",
+            None,
+        )
+
+        if callable(renderer):
+
+            renderer(
+                width=width
+            )
+
+            return
+
+    # Fallback native Streamlit image.
+    from pathlib import Path
+
+    logo_path = (
+        Path(__file__).resolve().parent
+        / "assets"
+        / "creative_studios.png"
+    )
+
+    if logo_path.exists():
+
+        st.image(
+            str(logo_path),
+            width=width,
+        )
+
+
+def render_module_header(
+    title: str,
+    subtitle: str,
+) -> None:
+    """
+    Render the shared module header.
+    """
+
+    if branding is not None:
+
+        renderer = getattr(
+            branding,
+            "render_module_header",
+            None,
+        )
+
+        if callable(renderer):
+
+            renderer(
+                title,
+                subtitle,
+            )
+
+            return
+
+    safe_title = html.escape(
+        str(title or "")
+    )
+
+    safe_subtitle = html.escape(
+        str(subtitle or "")
+    )
+
+    st.markdown(
+        f"""
+        <div class="cs-page-title">
+            {safe_title}
+        </div>
+
+        <div class="cs-page-subtitle">
+            {safe_subtitle}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
@@ -169,9 +460,6 @@ def initialize_branding() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """
-    Load or initialize the application database.
-    """
 
     if "database" not in st.session_state:
 
@@ -197,9 +485,6 @@ def authenticate_user(
     password: str,
     database: dict[str, Any],
 ) -> dict[str, Any] | None:
-    """
-    Authenticate a user against the JSON database.
-    """
 
     username = (
         username or ""
@@ -267,9 +552,6 @@ def authenticate_user(
 # ============================================================
 
 def initialize_session_state() -> None:
-    """
-    Initialize required Streamlit session-state values.
-    """
 
     defaults = {
         "authenticated": False,
@@ -289,42 +571,24 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def render_login_branding() -> None:
-    """
-    Render logo-only login branding.
-
-    The visual styling is owned by modules.branding.
-    """
 
     st.markdown(
-        '<div class="cs-login-card">',
+        """
+        <div class="cs-login-card">
+            <div class="cs-login-logo">
+        """,
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        '<div class="cs-login-logo">',
-        unsafe_allow_html=True,
-    )
-
-    if CREATIVE_STUDIOS_LOGO.exists():
-
-        st.image(
-            str(CREATIVE_STUDIOS_LOGO),
-            width=110,
-        )
-
-    else:
-
-        render_logo(
-            width=110,
-        )
-
-    st.markdown(
-        "</div>",
-        unsafe_allow_html=True,
+    render_logo(
+        width=110,
     )
 
     st.markdown(
-        "</div>",
+        """
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -378,9 +642,7 @@ def render_login(
             if user is not None:
 
                 st.session_state.authenticated = True
-
                 st.session_state.user = user
-
                 st.session_state.active_module = (
                     "Overview"
                 )
@@ -400,7 +662,12 @@ def render_login(
 
     st.markdown(
         """
-        <div class="cs-login-footer">
+        <div style="
+            text-align:center;
+            margin-top:18px;
+            color:#475569;
+            font-size:11px;
+        ">
             Creative Studios • AEC Collaboration Platform
         </div>
         """,
@@ -419,48 +686,25 @@ def render_login(
 
 def render_sidebar_branding() -> None:
     """
-    Render Creative Studios sidebar branding.
-
-    CSS remains centralized in modules.branding.
+    Render sidebar branding using Streamlit's native image
+    renderer and separate text content.
     """
 
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-brand">',
-        unsafe_allow_html=True,
+    logo_col, text_col = st.sidebar.columns(
+        [1, 3],
+        vertical_alignment="center",
     )
 
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-brand-row">',
-        unsafe_allow_html=True,
-    )
-
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-logo-wrap">',
-        unsafe_allow_html=True,
-    )
-
-    if CREATIVE_STUDIOS_LOGO.exists():
-
-        st.sidebar.image(
-            str(CREATIVE_STUDIOS_LOGO),
-            width=46,
-        )
-
-    else:
+    with logo_col:
 
         render_logo(
             width=46,
         )
 
-    st.sidebar.markdown(
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    with text_col:
 
-    st.sidebar.markdown(
-        """
-        <div class="cs-sidebar-brand-text">
-
+        st.markdown(
+            """
             <div class="cs-sidebar-name">
                 Creative Studios
             </div>
@@ -468,21 +712,11 @@ def render_sidebar_branding() -> None:
             <div class="cs-sidebar-subtitle">
                 AEC Workspace
             </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.sidebar.markdown(
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-    st.sidebar.markdown(
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    st.sidebar.write("")
 
 
 # ============================================================
@@ -490,11 +724,6 @@ def render_sidebar_branding() -> None:
 # ============================================================
 
 def render_sidebar() -> str:
-    """
-    Render module navigation.
-
-    Existing session-state navigation behavior is preserved.
-    """
 
     user = (
         st.session_state.get("user")
@@ -511,46 +740,16 @@ def render_sidebar() -> str:
     )
 
     modules = [
-        (
-            "Overview",
-            "Overview",
-        ),
-        (
-            "Projects",
-            "Project Directory",
-        ),
-        (
-            "Documents",
-            "Documents",
-        ),
-        (
-            "Drawings",
-            "Drawings",
-        ),
-        (
-            "RFIs",
-            "RFIs",
-        ),
-        (
-            "Tasks",
-            "Tasks",
-        ),
-        (
-            "Approvals",
-            "Approvals",
-        ),
-        (
-            "BOQ",
-            "Bill of Quantities",
-        ),
-        (
-            "Site Logs",
-            "Site Logs",
-        ),
-        (
-            "Team",
-            "Team",
-        ),
+        ("Overview", "Overview"),
+        ("Projects", "Project Directory"),
+        ("Documents", "Documents"),
+        ("Drawings", "Drawings"),
+        ("RFIs", "RFIs"),
+        ("Tasks", "Tasks"),
+        ("Approvals", "Approvals"),
+        ("BOQ", "Bill of Quantities"),
+        ("Site Logs", "Site Logs"),
+        ("Team", "Team"),
     ]
 
     current = st.session_state.get(
@@ -562,18 +761,8 @@ def render_sidebar() -> str:
 
     for module_key, label in modules:
 
-        is_active = (
-            module_key == current
-        )
-
-        button_label = (
-            f"●  {label}"
-            if is_active
-            else f"   {label}"
-        )
-
         if st.sidebar.button(
-            button_label,
+            label,
             key=f"nav_{module_key}",
             use_container_width=True,
         ):
@@ -594,7 +783,7 @@ def render_sidebar() -> str:
     )
 
     if st.sidebar.button(
-        "   Settings",
+        "Settings",
         key="nav_settings",
         use_container_width=True,
     ):
@@ -605,49 +794,35 @@ def render_sidebar() -> str:
 
         st.rerun()
 
-    # --------------------------------------------------------
-    # SAFE USER VALUES
-    # --------------------------------------------------------
-
-    full_name = str(
-        user.get(
-            "full_name",
-            "",
-        )
-        or "System Administrator"
-    ).strip()
-
-    username = str(
-        user.get(
-            "username",
-            "",
-        )
-        or "admin"
-    ).strip()
-
-    role = str(
-        user.get(
-            "role",
-            "",
-        )
-        or "Admin"
-    ).strip()
-
-    safe_full_name = html.escape(
-        full_name
+    full_name = html.escape(
+        str(
+            user.get(
+                "full_name",
+                "",
+            )
+            or "System Administrator"
+        ).strip()
     )
 
-    safe_username = html.escape(
-        username
+    username = html.escape(
+        str(
+            user.get(
+                "username",
+                "",
+            )
+            or "admin"
+        ).strip()
     )
 
-    safe_role = html.escape(
-        role
+    role = html.escape(
+        str(
+            user.get(
+                "role",
+                "",
+            )
+            or "Admin"
+        ).strip()
     )
-
-    # --------------------------------------------------------
-    # USER CARD
-    # --------------------------------------------------------
 
     st.sidebar.markdown(
         f"""
@@ -658,15 +833,15 @@ def render_sidebar() -> str:
             </div>
 
             <div class="user-name">
-                {safe_full_name}
+                {full_name}
             </div>
 
             <div class="user-login">
-                @{safe_username}
+                @{username}
             </div>
 
             <div class="user-role">
-                {safe_role}
+                {role}
             </div>
 
         </div>
@@ -683,9 +858,7 @@ def render_sidebar() -> str:
     ):
 
         st.session_state.authenticated = False
-
         st.session_state.user = None
-
         st.session_state.active_module = (
             "Overview"
         )
@@ -696,45 +869,34 @@ def render_sidebar() -> str:
 
 
 # ============================================================
-# SAFE BUDGET FORMATTER
+# OVERVIEW
 # ============================================================
 
-def format_budget(
-    value: Any,
-) -> str:
-    """
-    Safely format a budget value as Uganda Shillings.
-
-    Invalid values, None, NaN and infinity are treated
-    as zero rather than crashing the dashboard.
-    """
+def _safe_float(value: Any) -> float:
 
     try:
-
-        numeric_value = float(
+        return float(
             value or 0
         )
-
-        if not math.isfinite(
-            numeric_value
-        ):
-            numeric_value = 0.0
 
     except (
         TypeError,
         ValueError,
     ):
 
-        numeric_value = 0.0
+        return 0.0
+
+
+def _format_currency(
+    value: float,
+) -> str:
+
+    value = _safe_float(value)
 
     return (
-        f"UGX {numeric_value:,.2f}"
+        f"${value:,.2f}"
     )
 
-
-# ============================================================
-# OVERVIEW
-# ============================================================
 
 def render_overview(
     database: dict[str, Any],
@@ -750,10 +912,6 @@ def render_overview(
         list,
     ):
         projects = []
-
-    # --------------------------------------------------------
-    # PROJECT COUNTS
-    # --------------------------------------------------------
 
     total = len(projects)
 
@@ -805,11 +963,7 @@ def render_overview(
         == "completed"
     )
 
-    # --------------------------------------------------------
-    # TOTAL PROJECT BUDGET
-    # --------------------------------------------------------
-
-    total_budget = 0.0
+    budget = 0.0
 
     for project in projects:
 
@@ -819,41 +973,15 @@ def render_overview(
         ):
             continue
 
-        raw_budget = project.get(
-            "estimated_budget",
+        budget += _safe_float(
             project.get(
-                "budget",
-                0,
-            ),
-        )
-
-        try:
-
-            budget_value = float(
-                raw_budget or 0
+                "estimated_budget",
+                project.get(
+                    "budget",
+                    0,
+                ),
             )
-
-            if not math.isfinite(
-                budget_value
-            ):
-                budget_value = 0.0
-
-            total_budget += budget_value
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
-            continue
-
-    formatted_budget = format_budget(
-        total_budget
-    )
-
-    # --------------------------------------------------------
-    # SHARED MODULE HEADER
-    # --------------------------------------------------------
+        )
 
     render_module_header(
         "AEC Workspace",
@@ -861,58 +989,40 @@ def render_overview(
         "engineering and construction activities.",
     )
 
-    # --------------------------------------------------------
-    # KPI CARDS
-    # --------------------------------------------------------
-
     metrics = [
-        (
-            "Projects",
-            str(total),
-        ),
-        (
-            "Active",
-            str(active),
-        ),
-        (
-            "Planning",
-            str(planning),
-        ),
-        (
-            "Completed",
-            str(completed),
-        ),
-        (
-            "Total Budget",
-            formatted_budget,
-        ),
+        ("Projects", total),
+        ("Active", active),
+        ("Planning", planning),
+        ("Completed", completed),
+        ("Total Budget", _format_currency(budget)),
     ]
 
-    columns = st.columns(
-        len(metrics),
+    # Five-column responsive KPI layout.
+    cols = st.columns(
+        5,
         gap="small",
     )
 
-    for column, (
+    for col, (
         label,
         value,
     ) in zip(
-        columns,
+        cols,
         metrics,
     ):
 
-        with column:
+        with col:
 
             st.markdown(
                 f"""
                 <div class="cs-kpi">
 
                     <div class="cs-kpi-label">
-                        {html.escape(label)}
+                        {html.escape(str(label))}
                     </div>
 
                     <div class="cs-kpi-value">
-                        {html.escape(value)}
+                        {html.escape(str(value))}
                     </div>
 
                 </div>
@@ -921,10 +1031,6 @@ def render_overview(
             )
 
     st.write("")
-
-    # --------------------------------------------------------
-    # WORKSPACE OVERVIEW
-    # --------------------------------------------------------
 
     st.markdown(
         """
@@ -988,21 +1094,13 @@ def run_module(
 
 
 # ============================================================
-# PLACEHOLDER MODULE
+# PLACEHOLDER
 # ============================================================
 
 def render_placeholder(
     title: str,
     description: str,
 ) -> None:
-
-    safe_title = html.escape(
-        title
-    )
-
-    safe_description = html.escape(
-        description
-    )
 
     render_module_header(
         title,
@@ -1013,12 +1111,31 @@ def render_placeholder(
         f"""
         <div class="cs-card">
 
-            <div class="cs-card-title">
-                {safe_title}
+            <div style="
+                color:#60A5FA;
+                font-size:12px;
+                font-weight:800;
+                text-transform:uppercase;
+                letter-spacing:1px;
+            ">
+                Module
             </div>
 
-            <div class="cs-card-subtitle">
-                {safe_description}
+            <div style="
+                color:#FFFFFF;
+                font-size:20px;
+                font-weight:850;
+                margin-top:8px;
+            ">
+                {html.escape(title)}
+            </div>
+
+            <div style="
+                color:#64748B;
+                font-size:12px;
+                margin-top:8px;
+            ">
+                {html.escape(description)}
             </div>
 
         </div>
@@ -1043,40 +1160,34 @@ def render_settings() -> None:
         or {}
     )
 
-    name = str(
-        user.get(
-            "full_name",
-            "",
-        )
-        or "System Administrator"
-    ).strip()
-
-    username = str(
-        user.get(
-            "username",
-            "",
-        )
-        or "admin"
-    ).strip()
-
-    role = str(
-        user.get(
-            "role",
-            "",
-        )
-        or "Admin"
-    ).strip()
-
-    safe_name = html.escape(
-        name
+    name = html.escape(
+        str(
+            user.get(
+                "full_name",
+                "",
+            )
+            or "System Administrator"
+        ).strip()
     )
 
-    safe_username = html.escape(
-        username
+    username = html.escape(
+        str(
+            user.get(
+                "username",
+                "",
+            )
+            or "admin"
+        ).strip()
     )
 
-    safe_role = html.escape(
-        role
+    role = html.escape(
+        str(
+            user.get(
+                "role",
+                "",
+            )
+            or "Admin"
+        ).strip()
     )
 
     st.markdown(
@@ -1087,23 +1198,31 @@ def render_settings() -> None:
                 Current User
             </div>
 
-            <div class="cs-card-subtitle">
+            <div style="
+                color:#94A3B8;
+                margin-top:12px;
+                font-size:13px;
+            ">
+                Name:
+                <strong>{name}</strong>
+            </div>
 
-                <div style="margin-top:12px;">
-                    Name:
-                    <strong>{safe_name}</strong>
-                </div>
+            <div style="
+                color:#94A3B8;
+                margin-top:7px;
+                font-size:13px;
+            ">
+                Username:
+                <strong>@{username}</strong>
+            </div>
 
-                <div style="margin-top:7px;">
-                    Username:
-                    <strong>@{safe_username}</strong>
-                </div>
-
-                <div style="margin-top:7px;">
-                    Role:
-                    <strong>{safe_role}</strong>
-                </div>
-
+            <div style="
+                color:#94A3B8;
+                margin-top:7px;
+                font-size:13px;
+            ">
+                Role:
+                <strong>{role}</strong>
             </div>
 
         </div>
@@ -1219,21 +1338,9 @@ def main() -> None:
 
     initialize_session_state()
 
-    # --------------------------------------------------------
-    # SINGLE BRANDING SOURCE
-    # --------------------------------------------------------
-
-    initialize_branding()
-
-    # --------------------------------------------------------
-    # DATABASE
-    # --------------------------------------------------------
+    _apply_branding_css()
 
     database = get_database()
-
-    # --------------------------------------------------------
-    # AUTHENTICATION
-    # --------------------------------------------------------
 
     if not st.session_state.authenticated:
 
@@ -1243,15 +1350,7 @@ def main() -> None:
 
         return
 
-    # --------------------------------------------------------
-    # SIDEBAR
-    # --------------------------------------------------------
-
     active_module = render_sidebar()
-
-    # --------------------------------------------------------
-    # MODULE ROUTER
-    # --------------------------------------------------------
 
     render_active_module(
         active_module,
@@ -1264,5 +1363,4 @@ def main() -> None:
 # ============================================================
 
 if __name__ == "__main__":
-
     main()
