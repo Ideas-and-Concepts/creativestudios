@@ -1,996 +1,554 @@
 """
 Creative Studios
-AEC Collaboration Platform
+Shared branding and UI helpers.
 
-Main Streamlit application.
-
-The application provides:
-- Authentication
-- Overview dashboard
-- Projects
-- Documents
-- Drawings
-- RFIs
-- Tasks
-- Approvals
-- Settings
-- Shared Creative Studios branding
+Single source of truth for:
+- Creative Studios logo
+- Branding CSS
+- Module headers
 """
 
 from __future__ import annotations
 
 import html
-from typing import Any
+from pathlib import Path
 
 import streamlit as st
 
-from modules import approvals
-from modules import branding
-from modules import documents
-from modules import drawings
-from modules import projects
-from modules import rfis
-from modules import tasks
 
-from modules.database import (
-    initialize_database,
-    load_memory,
-)
+# ============================================================
+# PATHS
+# ============================================================
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+ASSETS_DIR = BASE_DIR / "assets"
+
+LOGO_PATH = ASSETS_DIR / "creative_studios.png"
 
 
 # ============================================================
-# PAGE CONFIGURATION
+# LOGO
 # ============================================================
 
-BASE_DIR = branding.BASE_DIR
-LOGO_PATH = branding.LOGO_PATH
-
-st.set_page_config(
-    page_title="Creative Studios",
-    page_icon=str(LOGO_PATH),
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-
-# ============================================================
-# SHARED BRANDING
-# ============================================================
-
-branding.inject_branding_css()
-
-render_logo = branding.render_logo
-
-render_module_header = (
-    branding.render_module_header
-)
-
-
-# ============================================================
-# SESSION STATE
-# ============================================================
-
-def initialize_session_state() -> None:
-    """Initialize application session state."""
-
-    defaults = {
-        "authenticated": False,
-        "user": None,
-        "active_module": "Overview",
-        "database": None,
-    }
-
-    for key, value in defaults.items():
-
-        if key not in st.session_state:
-
-            st.session_state[key] = value
-
-
-# ============================================================
-# DATABASE
-# ============================================================
-
-def get_database() -> dict[str, Any]:
-    """Load or initialize the application database."""
-
-    if st.session_state.database is None:
-
-        st.session_state.database = (
-            initialize_database()
-        )
-
-    else:
-
-        st.session_state.database = (
-            load_memory()
-        )
-
-    return st.session_state.database
-
-
-# ============================================================
-# AUTHENTICATION
-# ============================================================
-
-def authenticate_user(
-    username: str,
-    password: str,
-    database: dict[str, Any],
-) -> dict[str, Any] | None:
-    """Authenticate a user against the application database."""
-
-    username = str(
-        username or ""
-    ).strip()
-
-    password = str(
-        password or ""
-    ).strip()
-
-    users = database.get(
-        "users",
-        [],
-    )
-
-    if not isinstance(
-        users,
-        list,
-    ):
-        return None
-
-    for user in users:
-
-        if not isinstance(
-            user,
-            dict,
-        ):
-            continue
-
-        stored_username = str(
-            user.get(
-                "username",
-                "",
-            )
-        ).strip()
-
-        stored_password = str(
-            user.get(
-                "password",
-                user.get(
-                    "password_hash",
-                    "",
-                ),
-            )
-        )
-
-        if (
-            stored_username == username
-            and stored_password == password
-        ):
-
-            if user.get(
-                "active",
-                True,
-            ) is False:
-
-                return None
-
-            return user
-
-    return None
-
-
-# ============================================================
-# LOGIN PAGE
-# ============================================================
-
-def render_login(
-    database: dict[str, Any],
+def render_logo(
+    width: int = 76,
 ) -> None:
-    """Render the Creative Studios login page."""
-
-    st.markdown(
-        '<div class="cs-login-wrapper">',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        '<div class="cs-login-card">',
-        unsafe_allow_html=True,
-    )
-
-    # --------------------------------------------------------
-    # LOGO ONLY
-    # --------------------------------------------------------
-
-    st.markdown(
-        '<div class="cs-login-logo">',
-        unsafe_allow_html=True,
-    )
-
-    render_logo(
-        width=100,
-    )
-
-    st.markdown(
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-    # --------------------------------------------------------
-    # LOGIN FORM
-    # --------------------------------------------------------
-
-    with st.form(
-        "creative_studios_login",
-        clear_on_submit=False,
-    ):
-
-        username = st.text_input(
-            "Username",
-            placeholder="Enter username",
-        )
-
-        password = st.text_input(
-            "Password",
-            type="password",
-            placeholder="Enter password",
-        )
-
-        submitted = st.form_submit_button(
-            "Login",
-            use_container_width=True,
-        )
-
-        if submitted:
-
-            user = authenticate_user(
-                username,
-                password,
-                database,
-            )
-
-            if user is not None:
-
-                st.session_state.authenticated = True
-
-                st.session_state.user = user
-
-                st.session_state.active_module = (
-                    "Overview"
-                )
-
-                st.rerun()
-
-            else:
-
-                st.markdown(
-                    """
-                    <div class="cs-login-error">
-                        Invalid username or password.
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-    st.markdown(
-        """
-        <div class="cs-login-footer">
-            Creative Studios • AEC Collaboration Platform
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        "</div></div>",
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# SIDEBAR BRANDING
-# ============================================================
-
-def render_sidebar_branding() -> None:
     """
-    Render sidebar branding.
+    Render the Creative Studios logo using native Streamlit
+    image rendering.
 
-    The logo is rendered using native Streamlit st.image()
-    through modules.branding.render_logo().
+    The logo is intentionally not wrapped in an HTML image
+    element.
     """
 
-    logo_col, text_col = st.sidebar.columns(
-        [1, 3],
-        vertical_alignment="center",
-    )
+    if not LOGO_PATH.exists():
 
-    with logo_col:
-
-        render_logo(
-            width=44,
+        st.warning(
+            f"Creative Studios logo not found: {LOGO_PATH}"
         )
 
-    with text_col:
-
-        st.markdown(
-            """
-            <div class="cs-sidebar-name">
-                Creative Studios
-            </div>
-
-            <div class="cs-sidebar-subtitle">
-                AEC Workspace
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-divider"></div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# SIDEBAR NAVIGATION
-# ============================================================
-
-def render_sidebar() -> str:
-    """Render the main application navigation."""
-
-    user = (
-        st.session_state.get(
-            "user"
-        )
-        or {}
-    )
-
-    render_sidebar_branding()
-
-    st.sidebar.markdown(
-        """
-        <div class="cs-section-label">
-            Module Navigation
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    navigation = [
-        ("Overview", "Overview"),
-        ("Projects", "Project Directory"),
-        ("Documents", "Documents"),
-        ("Drawings", "Drawings"),
-        ("RFIs", "RFIs"),
-        ("Tasks", "Tasks"),
-        ("Approvals", "Approvals"),
-        ("BOQ", "Bill of Quantities"),
-        ("Site Logs", "Site Logs"),
-        ("Team", "Team"),
-    ]
-
-    current_module = st.session_state.get(
-        "active_module",
-        "Overview",
-    )
-
-    selected_module = current_module
-
-    for module_key, label in navigation:
-
-        if module_key == current_module:
-
-            st.sidebar.markdown(
-                f"""
-                <div class="cs-active-module">
-                    <span class="cs-active-indicator">
-                        ●
-                    </span>
-                    {html.escape(label)}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        else:
-
-            if st.sidebar.button(
-                label,
-                key=f"nav_{module_key}",
-                use_container_width=True,
-            ):
-
-                st.session_state.active_module = (
-                    module_key
-                )
-
-                st.rerun()
-
-    # --------------------------------------------------------
-    # ADMINISTRATION
-    # --------------------------------------------------------
-
-    st.sidebar.markdown(
-        """
-        <div class="cs-section-label">
-            Administration
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if st.sidebar.button(
-        "Settings",
-        key="nav_settings",
-        use_container_width=True,
-    ):
-
-        st.session_state.active_module = (
-            "Settings"
-        )
-
-        st.rerun()
-
-    # --------------------------------------------------------
-    # USER CARD
-    # --------------------------------------------------------
-
-    full_name = str(
-        user.get(
-            "full_name",
-            user.get(
-                "name",
-                "",
-            ),
-        )
-        or "System Administrator"
-    ).strip()
-
-    username = str(
-        user.get(
-            "username",
-            "",
-        )
-        or "admin"
-    ).strip()
-
-    role = str(
-        user.get(
-            "role",
-            "",
-        )
-        or "Admin"
-    ).strip()
-
-    safe_full_name = html.escape(
-        full_name
-    )
-
-    safe_username = html.escape(
-        username
-    )
-
-    safe_role = html.escape(
-        role
-    )
-
-    st.sidebar.markdown(
-        f"""
-        <div class="cs-user-card">
-
-            <div class="user-label">
-                Signed In
-            </div>
-
-            <div class="user-name">
-                {safe_full_name}
-            </div>
-
-            <div class="user-login">
-                @{safe_username}
-            </div>
-
-            <div class="user-role">
-                {safe_role}
-            </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.sidebar.write("")
-
-    # --------------------------------------------------------
-    # SIGN OUT
-    # --------------------------------------------------------
-
-    if st.sidebar.button(
-        "Sign Out",
-        key="logout_button",
-        use_container_width=True,
-    ):
-
-        st.session_state.authenticated = False
-        st.session_state.user = None
-        st.session_state.active_module = "Overview"
-
-        st.rerun()
-
-    return selected_module
-
-
-# ============================================================
-# SAFE NUMBER CONVERSION
-# ============================================================
-
-def _safe_float(
-    value: Any,
-) -> float:
-    """Safely convert a value to float."""
+        return
 
     try:
 
-        return float(
-            value or 0
-        )
+        safe_width = int(width)
 
     except (
         TypeError,
         ValueError,
     ):
 
-        return 0.0
+        safe_width = 76
+
+    safe_width = max(
+        20,
+        min(
+            safe_width,
+            500,
+        ),
+    )
+
+    st.image(
+        str(LOGO_PATH),
+        width=safe_width,
+    )
 
 
 # ============================================================
-# OVERVIEW
+# SHARED BRANDING CSS
 # ============================================================
 
-def render_overview(
-    database: dict[str, Any],
-) -> None:
-    """Render the AEC Workspace overview."""
+def inject_branding_css() -> None:
+    """
+    Inject all shared Creative Studios branding styles.
 
-    projects_data = database.get(
-        "projects",
-        [],
-    )
-
-    if not isinstance(
-        projects_data,
-        list,
-    ):
-
-        projects_data = []
-
-    # --------------------------------------------------------
-    # PROJECT COUNTS
-    # --------------------------------------------------------
-
-    total_projects = len(
-        projects_data
-    )
-
-    active_projects = sum(
-        1
-        for project in projects_data
-        if isinstance(
-            project,
-            dict,
-        )
-        and str(
-            project.get(
-                "status",
-                "",
-            )
-        ).strip().lower()
-        == "active"
-    )
-
-    planning_projects = sum(
-        1
-        for project in projects_data
-        if isinstance(
-            project,
-            dict,
-        )
-        and str(
-            project.get(
-                "status",
-                "",
-            )
-        ).strip().lower()
-        == "planning"
-    )
-
-    completed_projects = sum(
-        1
-        for project in projects_data
-        if isinstance(
-            project,
-            dict,
-        )
-        and str(
-            project.get(
-                "status",
-                "",
-            )
-        ).strip().lower()
-        == "completed"
-    )
-
-    # --------------------------------------------------------
-    # TOTAL BUDGET
-    # --------------------------------------------------------
-
-    total_budget = 0.0
-
-    for project in projects_data:
-
-        if not isinstance(
-            project,
-            dict,
-        ):
-            continue
-
-        total_budget += _safe_float(
-            project.get(
-                "estimated_budget",
-                project.get(
-                    "budget",
-                    0,
-                ),
-            )
-        )
-
-    # --------------------------------------------------------
-    # HEADER
-    # --------------------------------------------------------
-
-    render_module_header(
-        "AEC Workspace",
-        "Central workspace for architectural, "
-        "engineering and construction activities.",
-    )
-
-    # --------------------------------------------------------
-    # FIVE KPI CARDS
-    # --------------------------------------------------------
-
-    metrics = [
-        (
-            "Projects",
-            str(total_projects),
-        ),
-        (
-            "Active",
-            str(active_projects),
-        ),
-        (
-            "Planning",
-            str(planning_projects),
-        ),
-        (
-            "Completed",
-            str(completed_projects),
-        ),
-        (
-            "Total Budget",
-            f"${total_budget:,.2f}",
-        ),
-    ]
-
-    columns = st.columns(
-        5,
-        gap="small",
-    )
-
-    for column, (
-        label,
-        value,
-    ) in zip(
-        columns,
-        metrics,
-    ):
-
-        with column:
-
-            st.markdown(
-                f"""
-                <div class="cs-kpi">
-
-                    <div class="cs-kpi-label">
-                        {html.escape(label)}
-                    </div>
-
-                    <div class="cs-kpi-value">
-                        {html.escape(value)}
-                    </div>
-
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-    st.write("")
-
-    # --------------------------------------------------------
-    # WORKSPACE OVERVIEW
-    # --------------------------------------------------------
+    This is the single CSS source of truth used by
+    streamlit_app.py and the individual modules.
+    """
 
     st.markdown(
         """
-        <div class="cs-card">
+        <style>
 
-            <div class="cs-card-title">
-                Workspace Overview
-            </div>
+        /* ==================================================
+           GLOBAL APPLICATION
+           ================================================== */
 
-            <div class="cs-card-subtitle">
-                Use the navigation panel to manage
-                projects, documents, drawings, RFIs,
-                tasks and approvals.
-            </div>
+        [data-testid="stAppViewContainer"] {
+            background: #05070B;
+            color: #F8FAFC;
+        }
 
-        </div>
+        [data-testid="stHeader"] {
+            background: transparent;
+        }
+
+        [data-testid="stSidebar"] {
+            background: #080B12;
+            border-right: 1px solid #172033;
+        }
+
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 3rem;
+        }
+
+
+        /* ==================================================
+           SIDEBAR
+           ================================================== */
+
+        .cs-sidebar-name {
+            color: #FFFFFF;
+            font-size: 15px;
+            font-weight: 850;
+            line-height: 1.15;
+        }
+
+        .cs-sidebar-subtitle {
+            color: #64748B;
+            font-size: 9px;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+        }
+
+        .cs-sidebar-divider {
+            width: 100%;
+            height: 1px;
+            background: #172033;
+            margin-top: 14px;
+            margin-bottom: 14px;
+        }
+
+        .cs-section-label {
+            color: #64748B;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+
+
+        /* ==================================================
+           ACTIVE NAVIGATION
+           ================================================== */
+
+        .cs-active-module {
+            width: 100%;
+            box-sizing: border-box;
+
+            background: #172554;
+
+            border: 1px solid #2563EB;
+
+            border-radius: 9px;
+
+            color: #FFFFFF;
+
+            padding: 0.45rem 0.75rem;
+
+            font-size: 14px;
+            font-weight: 700;
+
+            margin-bottom: 0.25rem;
+        }
+
+        .cs-active-indicator {
+            color: #60A5FA;
+            margin-right: 7px;
+            font-size: 10px;
+        }
+
+
+        /* ==================================================
+           PAGE / MODULE HEADER
+           ================================================== */
+
+        .cs-page-title {
+            color: #FFFFFF;
+
+            font-size: 30px;
+            font-weight: 900;
+
+            letter-spacing: -0.7px;
+            line-height: 1.15;
+        }
+
+        .cs-page-subtitle {
+            color: #64748B;
+
+            font-size: 13px;
+
+            margin-top: 5px;
+            margin-bottom: 25px;
+
+            line-height: 1.5;
+        }
+
+
+        /* ==================================================
+           REUSABLE CARDS
+           ================================================== */
+
+        .cs-card {
+            background: #0B0F17;
+
+            border: 1px solid #172033;
+
+            border-radius: 15px;
+
+            padding: 20px;
+
+            box-sizing: border-box;
+        }
+
+        .cs-card-title {
+            color: #FFFFFF;
+
+            font-size: 18px;
+            font-weight: 850;
+
+            line-height: 1.25;
+        }
+
+        .cs-card-subtitle {
+            color: #64748B;
+
+            font-size: 12px;
+
+            margin-top: 7px;
+
+            line-height: 1.5;
+        }
+
+        .cs-card-label {
+            color: #64748B;
+
+            font-size: 10px;
+            font-weight: 800;
+
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+
+            margin-bottom: 7px;
+        }
+
+
+        /* ==================================================
+           KPI CARDS
+           ================================================== */
+
+        .cs-kpi {
+            background: #0B0F17;
+
+            border: 1px solid #172033;
+
+            border-radius: 15px;
+
+            padding: 18px;
+
+            min-height: 110px;
+
+            box-sizing: border-box;
+
+            width: 100%;
+        }
+
+        .cs-kpi-label {
+            color: #64748B;
+
+            font-size: 11px;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.8px;
+
+            line-height: 1.25;
+        }
+
+        .cs-kpi-value {
+            color: #FFFFFF;
+
+            font-size: 24px;
+            font-weight: 900;
+
+            margin-top: 7px;
+
+            overflow-wrap: anywhere;
+
+            line-height: 1.15;
+        }
+
+
+        /* ==================================================
+           USER CARD
+           ================================================== */
+
+        .cs-user-card {
+            background: #0B0F17;
+
+            border: 1px solid #172033;
+
+            border-radius: 13px;
+
+            padding: 13px;
+
+            margin-top: 15px;
+        }
+
+        .user-label {
+            color: #60A5FA;
+
+            font-size: 9px;
+            font-weight: 850;
+
+            letter-spacing: 1px;
+
+            text-transform: uppercase;
+        }
+
+        .user-name {
+            color: #FFFFFF;
+
+            font-size: 14px;
+            font-weight: 800;
+
+            margin-top: 5px;
+
+            overflow-wrap: anywhere;
+        }
+
+        .user-login {
+            color: #64748B;
+
+            font-size: 10px;
+
+            margin-top: 3px;
+
+            overflow-wrap: anywhere;
+        }
+
+        .user-role {
+            display: inline-block;
+
+            margin-top: 8px;
+
+            padding: 4px 9px;
+
+            background: #2563EB;
+
+            color: #FFFFFF;
+
+            border-radius: 999px;
+
+            font-size: 9px;
+            font-weight: 850;
+        }
+
+
+        /* ==================================================
+           LOGIN
+           ================================================== */
+
+        .cs-login-wrapper {
+            width: min(430px, 92vw);
+
+            margin: 7vh auto 0 auto;
+        }
+
+        .cs-login-card {
+            background: #0B0F17;
+
+            border: 1px solid #1E293B;
+
+            border-radius: 20px;
+
+            padding: 36px;
+
+            box-shadow:
+                0 20px 70px rgba(0, 0, 0, 0.55),
+                0 0 40px rgba(37, 99, 235, 0.06);
+        }
+
+        .cs-login-logo {
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            margin-bottom: 24px;
+        }
+
+        .cs-login-footer {
+            text-align: center;
+
+            margin-top: 18px;
+
+            color: #475569;
+
+            font-size: 11px;
+        }
+
+        .cs-login-error {
+            background: rgba(127, 29, 29, 0.20);
+
+            border: 1px solid rgba(248, 113, 113, 0.30);
+
+            border-radius: 9px;
+
+            padding: 9px 12px;
+
+            margin-top: 10px;
+
+            color: #FCA5A5;
+
+            font-size: 12px;
+        }
+
+
+        /* ==================================================
+           SETTINGS
+           ================================================== */
+
+        .cs-setting-row {
+            color: #94A3B8;
+
+            font-size: 13px;
+
+            margin-top: 12px;
+        }
+
+        .cs-setting-row strong {
+            color: #FFFFFF;
+
+            margin-left: 5px;
+        }
+
+
+        /* ==================================================
+           RESPONSIVE
+           ================================================== */
+
+        @media (max-width: 900px) {
+
+            .cs-page-title {
+                font-size: 26px;
+            }
+
+            .cs-kpi {
+                min-height: 95px;
+                padding: 14px;
+            }
+
+            .cs-kpi-value {
+                font-size: 20px;
+            }
+
+        }
+
+
+        /* ==================================================
+           LIGHT MODE SUPPORT
+           ================================================== */
+
+        @media (prefers-color-scheme: light) {
+
+            [data-testid="stAppViewContainer"] {
+                background: #F8FAFC;
+                color: #0F172A;
+            }
+
+            [data-testid="stSidebar"] {
+                background: #FFFFFF;
+                border-right-color: #E2E8F0;
+            }
+
+            .cs-page-title,
+            .cs-card-title,
+            .cs-kpi-value,
+            .user-name {
+                color: #0F172A;
+            }
+
+            .cs-page-subtitle,
+            .cs-card-subtitle,
+            .cs-kpi-label,
+            .user-login {
+                color: #64748B;
+            }
+
+            .cs-card,
+            .cs-kpi,
+            .cs-user-card,
+            .cs-login-card {
+                background: #FFFFFF;
+                border-color: #E2E8F0;
+            }
+
+        }
+
+        </style>
         """,
         unsafe_allow_html=True,
     )
 
 
 # ============================================================
-# PLACEHOLDER MODULES
+# MODULE HEADER
 # ============================================================
 
-def render_placeholder(
+def render_module_header(
     title: str,
-    description: str,
+    subtitle: str = "",
 ) -> None:
-    """Render a placeholder for modules not yet implemented."""
+    """
+    Render the shared Creative Studios module header.
 
-    render_module_header(
-        title,
-        description,
+    All module titles and subtitles are HTML escaped.
+    """
+
+    safe_title = html.escape(
+        str(title or "")
+    )
+
+    safe_subtitle = html.escape(
+        str(subtitle or "")
     )
 
     st.markdown(
         f"""
-        <div class="cs-card">
+        <div class="cs-page-title">
+            {safe_title}
+        </div>
 
-            <div class="cs-card-label">
-                Module
-            </div>
-
-            <div class="cs-card-title">
-                {html.escape(title)}
-            </div>
-
-            <div class="cs-card-subtitle">
-                {html.escape(description)}
-            </div>
-
+        <div class="cs-page-subtitle">
+            {safe_subtitle}
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-
-# ============================================================
-# SETTINGS
-# ============================================================
-
-def render_settings() -> None:
-    """Render application settings."""
-
-    render_module_header(
-        "Settings",
-        "Creative Studios workspace configuration.",
-    )
-
-    user = (
-        st.session_state.get(
-            "user"
-        )
-        or {}
-    )
-
-    full_name = str(
-        user.get(
-            "full_name",
-            user.get(
-                "name",
-                "",
-            ),
-        )
-        or "System Administrator"
-    ).strip()
-
-    username = str(
-        user.get(
-            "username",
-            "",
-        )
-        or "admin"
-    ).strip()
-
-    role = str(
-        user.get(
-            "role",
-            "",
-        )
-        or "Admin"
-    ).strip()
-
-    st.markdown(
-        f"""
-        <div class="cs-card">
-
-            <div class="cs-card-title">
-                Current User
-            </div>
-
-            <div class="cs-setting-row">
-                Name:
-                <strong>
-                    {html.escape(full_name)}
-                </strong>
-            </div>
-
-            <div class="cs-setting-row">
-                Username:
-                <strong>
-                    @{html.escape(username)}
-                </strong>
-            </div>
-
-            <div class="cs-setting-row">
-                Role:
-                <strong>
-                    {html.escape(role)}
-                </strong>
-            </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# MODULE ROUTER
-# ============================================================
-
-def render_active_module(
-    module_name: str,
-    database: dict[str, Any],
-) -> None:
-    """
-    Route the selected navigation item to its module.
-
-    All six application modules are statically imported at
-    the top of this file.
-    """
-
-    if module_name == "Overview":
-
-        render_overview(
-            database
-        )
-
-    elif module_name == "Projects":
-
-        projects.render_projects_module(
-            database
-        )
-
-    elif module_name == "Documents":
-
-        documents.render_documents_module(
-            database
-        )
-
-    elif module_name == "Drawings":
-
-        drawings.render_drawings_module(
-            database
-        )
-
-    elif module_name == "RFIs":
-
-        rfis.render_rfis_module(
-            database
-        )
-
-    elif module_name == "Tasks":
-
-        tasks.render_tasks_module(
-            database
-        )
-
-    elif module_name == "Approvals":
-
-        approvals.render_approvals_module(
-            database
-        )
-
-    elif module_name == "Settings":
-
-        render_settings()
-
-    elif module_name == "BOQ":
-
-        render_placeholder(
-            "Bill of Quantities",
-            "Manage quantities, costs and project estimates.",
-        )
-
-    elif module_name == "Site Logs":
-
-        render_placeholder(
-            "Site Logs",
-            "Record daily construction site activity.",
-        )
-
-    elif module_name == "Team":
-
-        render_placeholder(
-            "Team",
-            "Manage project team members and responsibilities.",
-        )
-
-    else:
-
-        st.session_state.active_module = (
-            "Overview"
-        )
-
-        render_overview(
-            database
-        )
-
-
-# ============================================================
-# MAIN
-# ============================================================
-
-def main() -> None:
-    """Application entry point."""
-
-    initialize_session_state()
-
-    database = get_database()
-
-    # --------------------------------------------------------
-    # LOGIN
-    # --------------------------------------------------------
-
-    if not st.session_state.authenticated:
-
-        render_login(
-            database
-        )
-
-        return
-
-    # --------------------------------------------------------
-    # APPLICATION
-    # --------------------------------------------------------
-
-    active_module = render_sidebar()
-
-    render_active_module(
-        active_module,
-        database,
-    )
-
-
-# ============================================================
-# RUN
-# ============================================================
-
-if __name__ == "__main__":
-
-    main()
