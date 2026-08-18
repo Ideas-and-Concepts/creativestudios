@@ -25,9 +25,6 @@ from modules.documents import (
 from modules.drawings import (
     render_drawings_module,
 )
-
-from __future__ import annotations
-
 from modules.database import (
     load_memory,
     save_memory,
