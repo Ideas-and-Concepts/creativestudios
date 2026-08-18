@@ -17,10 +17,10 @@ Features
 - Approvals
 - Settings
 - Native PNG branding
-- Sidebar branding
-- Logo-only login branding
 - Shared module branding
-- Active sidebar module indicator
+- Sidebar branding
+- Login branding
+- Active sidebar navigation
 - Session-state navigation
 """
 
@@ -35,21 +35,20 @@ import streamlit as st
 
 from modules.branding import (
     LOGO_PATH,
-    logo_exists,
+    inject_branding_css,
     render_logo,
     render_module_header,
 )
 
 
 # ============================================================
-# APPLICATION PATHS
+# PATHS
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
 ASSETS_DIR = BASE_DIR / "assets"
 
-# Single canonical Creative Studios logo.
 CREATIVE_STUDIOS_LOGO = (
     ASSETS_DIR / "creative_studios.png"
 )
@@ -61,7 +60,9 @@ CREATIVE_STUDIOS_LOGO = (
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon=str(CREATIVE_STUDIOS_LOGO),
+    page_icon=str(CREATIVE_STUDIOS_LOGO)
+    if CREATIVE_STUDIOS_LOGO.exists()
+    else None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -95,8 +96,8 @@ def _load_renderer(
     """
     Safely load a module renderer.
 
-    An unavailable or unfinished module will not
-    prevent the application from starting.
+    One unfinished or unavailable module should not
+    prevent the entire application from starting.
     """
 
     try:
@@ -112,13 +113,11 @@ def _load_renderer(
         )
 
         if callable(renderer):
-
             return renderer
 
         return None
 
     except Exception:
-
         return None
 
 
@@ -158,9 +157,6 @@ render_approvals_module = _load_renderer(
 # ============================================================
 
 def inject_global_css() -> None:
-    """
-    Inject the global Creative Studios application theme.
-    """
 
     st.markdown(
         """
@@ -181,7 +177,7 @@ body,
     background:
         radial-gradient(
             circle at top right,
-            rgba(37, 99, 235, 0.10),
+            rgba(37,99,235,0.10),
             transparent 35%
         ),
         #05070B !important;
@@ -231,36 +227,50 @@ span {
 
 
 /* ==========================================================
-   SIDEBAR BRANDING
+   SIDEBAR BRAND
    ========================================================== */
 
 .cs-sidebar-brand {
     width: 100%;
-
     padding: 6px 2px 18px 2px;
     margin-bottom: 14px;
-
     border-bottom: 1px solid #172033;
-
     overflow: visible;
 }
 
 .cs-sidebar-brand-row {
     width: 100%;
-
     display: flex;
     align-items: center;
-
     gap: 11px;
-
     min-height: 48px;
-
     overflow: visible;
 }
 
-.cs-sidebar-logo {
+.cs-sidebar-logo-wrap {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    max-width: 46px;
+    min-height: 46px;
+    max-height: 46px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+.cs-sidebar-logo-wrap img {
+    display: block;
+
     width: 46px !important;
     height: 46px !important;
+
+    min-width: 46px !important;
+    min-height: 46px !important;
 
     max-width: 46px !important;
     max-height: 46px !important;
@@ -277,10 +287,8 @@ span {
 
 .cs-sidebar-name {
     color: #FFFFFF;
-
     font-size: 15px;
     font-weight: 850;
-
     line-height: 1.15;
 
     white-space: nowrap;
@@ -290,9 +298,7 @@ span {
 
 .cs-sidebar-subtitle {
     color: #64748B;
-
     font-size: 9px;
-
     margin-top: 4px;
 
     text-transform: uppercase;
@@ -303,7 +309,7 @@ span {
 
 
 /* ==========================================================
-   SIDEBAR SECTION LABEL
+   SECTION LABEL
    ========================================================== */
 
 .cs-section-label {
@@ -321,33 +327,27 @@ span {
 
 
 /* ==========================================================
-   SIDEBAR BUTTONS
+   ACTIVE SIDEBAR MODULE
    ========================================================== */
-
-[data-testid="stSidebar"]
-div[data-testid="stButton"] {
-    margin-bottom: 3px;
-}
 
 [data-testid="stSidebar"]
 div[data-testid="stButton"] > button {
 
+    position: relative;
+
     background: transparent !important;
 
-    color: #94A3B8 !important;
+    color: #CBD5E1 !important;
 
     border: 1px solid transparent !important;
 
     border-radius: 9px !important;
 
-    min-height: 38px;
-
     text-align: left !important;
 
     transition:
         background 0.15s ease,
-        border 0.15s ease,
-        color 0.15s ease;
+        border-color 0.15s ease;
 }
 
 [data-testid="stSidebar"]
@@ -361,59 +361,18 @@ div[data-testid="stButton"] > button:hover {
 }
 
 
-/* ==========================================================
-   ACTIVE SIDEBAR MODULE
-   ========================================================== */
+/*
+   The selected module is given a blue accent through
+   Streamlit's button container state.
 
-.cs-nav-active {
+   The navigation behavior itself remains unchanged.
+*/
 
-    position: relative;
+[data-testid="stSidebar"]
+div[data-testid="stButton"]
+> button[kind="secondary"] {
 
-    background:
-        linear-gradient(
-            90deg,
-            rgba(37, 99, 235, 0.20),
-            rgba(37, 99, 235, 0.05)
-        );
-
-    border-left:
-        3px solid #3B82F6;
-
-    color: #FFFFFF;
-
-    border-radius: 9px;
-
-    min-height: 38px;
-
-    display: flex;
-    align-items: center;
-
-    padding:
-        0 12px;
-
-    margin-bottom: 3px;
-
-    font-size: 14px;
-    font-weight: 700;
-}
-
-.cs-nav-active::before {
-
-    content: "";
-
-    width: 6px;
-    height: 6px;
-
-    border-radius: 50%;
-
-    background: #60A5FA;
-
-    margin-right: 9px;
-
-    flex-shrink: 0;
-
-    box-shadow:
-        0 0 8px rgba(96, 165, 250, 0.7);
+    color: #E2E8F0 !important;
 }
 
 
@@ -422,7 +381,6 @@ div[data-testid="stButton"] > button:hover {
    ========================================================== */
 
 .cs-user-card {
-
     background: #0B0F17;
 
     border: 1px solid #172033;
@@ -435,7 +393,6 @@ div[data-testid="stButton"] > button:hover {
 }
 
 .user-label {
-
     color: #60A5FA;
 
     font-size: 9px;
@@ -448,7 +405,6 @@ div[data-testid="stButton"] > button:hover {
 }
 
 .user-name {
-
     color: #FFFFFF;
 
     font-size: 14px;
@@ -459,7 +415,6 @@ div[data-testid="stButton"] > button:hover {
 }
 
 .user-login {
-
     color: #64748B;
 
     font-size: 10px;
@@ -468,7 +423,6 @@ div[data-testid="stButton"] > button:hover {
 }
 
 .user-role {
-
     display: inline-block;
 
     margin-top: 8px;
@@ -492,94 +446,144 @@ div[data-testid="stButton"] > button:hover {
    ========================================================== */
 
 .cs-login-wrapper {
-
     width: min(430px, 92vw);
 
-    margin:
-        7vh auto 0 auto;
+    margin: 7vh auto 0 auto;
 }
 
 .cs-login-card {
-
     background: #0B0F17;
 
-    border:
-        1px solid #1E293B;
+    border: 1px solid #1E293B;
 
     border-radius: 20px;
 
-    padding:
-        30px 36px 36px 36px;
+    padding: 36px;
 
     box-shadow:
-        0 20px 70px rgba(0, 0, 0, 0.55),
-        0 0 40px rgba(37, 99, 235, 0.06);
-
-    text-align: center;
+        0 20px 70px rgba(0,0,0,0.55),
+        0 0 40px rgba(37,99,235,0.06);
 }
-
-
-/* ==========================================================
-   LOGIN LOGO
-   ========================================================== */
 
 .cs-login-logo {
-
-    width: 100%;
-
     display: flex;
 
     align-items: center;
-    justify-content: center;
-
-    margin:
-        0 auto 22px auto;
-
-    padding: 4px 0;
-}
-
-.cs-login-card
-[data-testid="stImage"] {
-
-    display: flex;
 
     justify-content: center;
-    align-items: center;
 
-    margin:
-        0 auto 20px auto;
+    margin-bottom: 24px;
 }
 
-.cs-login-card
-[data-testid="stImage"] img {
+.cs-login-logo img {
+    display: block;
 
-    width: 100px !important;
-    height: 100px !important;
+    width: 110px !important;
+    height: 110px !important;
 
-    max-width: 100px !important;
-    max-height: 100px !important;
+    max-width: 110px !important;
+    max-height: 110px !important;
 
     object-fit: contain;
 }
 
 
 /* ==========================================================
-   LOGIN INPUTS
+   PAGE
    ========================================================== */
 
-.cs-login-card
-[data-testid="stTextInput"] {
+.cs-page-title {
+    color: #FFFFFF;
 
-    margin-top: 4px;
+    font-size: 30px;
+
+    font-weight: 900;
+
+    letter-spacing: -0.7px;
+
+    line-height: 1.15;
 }
 
-.cs-login-card input {
+.cs-page-subtitle {
+    color: #64748B;
 
-    background: #0B0F17 !important;
+    font-size: 13px;
 
-    color: #FFFFFF !important;
+    margin-top: 5px;
 
-    border-color: #1E293B !important;
+    margin-bottom: 25px;
+}
+
+
+/* ==========================================================
+   CARDS
+   ========================================================== */
+
+.cs-card {
+    background: #0B0F17;
+
+    border: 1px solid #172033;
+
+    border-radius: 15px;
+
+    padding: 20px;
+}
+
+.cs-card-title {
+    color: #FFFFFF;
+
+    font-size: 18px;
+
+    font-weight: 850;
+
+    line-height: 1.25;
+}
+
+.cs-card-subtitle {
+    color: #64748B;
+
+    font-size: 12px;
+
+    margin-top: 7px;
+
+    line-height: 1.5;
+}
+
+
+/* ==========================================================
+   KPI CARDS
+   ========================================================== */
+
+.cs-kpi {
+    background: #0B0F17;
+
+    border: 1px solid #172033;
+
+    border-radius: 15px;
+
+    padding: 18px;
+
+    min-height: 110px;
+}
+
+.cs-kpi-label {
+    color: #64748B;
+
+    font-size: 11px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.8px;
+}
+
+.cs-kpi-value {
+    color: #FFFFFF;
+
+    font-size: 26px;
+
+    font-weight: 900;
+
+    margin-top: 7px;
 }
 
 
@@ -593,8 +597,7 @@ div[data-testid="stButton"] > button {
 
     color: #E2E8F0 !important;
 
-    border:
-        1px solid #1E293B !important;
+    border: 1px solid #1E293B !important;
 
     border-radius: 9px !important;
 }
@@ -644,88 +647,6 @@ textarea,
 
 
 /* ==========================================================
-   PAGE
-   ========================================================== */
-
-.cs-page-title {
-
-    color: #FFFFFF;
-
-    font-size: 30px;
-
-    font-weight: 900;
-
-    letter-spacing: -0.7px;
-
-    line-height: 1.15;
-}
-
-.cs-page-subtitle {
-
-    color: #64748B;
-
-    font-size: 13px;
-
-    margin-top: 5px;
-
-    margin-bottom: 25px;
-}
-
-
-/* ==========================================================
-   CARDS
-   ========================================================== */
-
-.cs-card {
-
-    background: #0B0F17;
-
-    border:
-        1px solid #172033;
-
-    border-radius: 15px;
-
-    padding: 20px;
-}
-
-.cs-kpi {
-
-    background: #0B0F17;
-
-    border:
-        1px solid #172033;
-
-    border-radius: 15px;
-
-    padding: 18px;
-
-    min-height: 110px;
-}
-
-.cs-kpi-label {
-
-    color: #64748B;
-
-    font-size: 11px;
-
-    text-transform: uppercase;
-
-    letter-spacing: 0.8px;
-}
-
-.cs-kpi-value {
-
-    color: #FFFFFF;
-
-    font-size: 26px;
-
-    font-weight: 900;
-
-    margin-top: 7px;
-}
-
-
-/* ==========================================================
    LOGIN ERROR
    ========================================================== */
 
@@ -735,7 +656,8 @@ textarea,
         rgba(127, 29, 29, 0.20);
 
     border:
-        1px solid rgba(248, 113, 113, 0.30);
+        1px solid
+        rgba(248, 113, 113, 0.30);
 
     border-radius: 9px;
 
@@ -748,91 +670,8 @@ textarea,
     font-size: 12px;
 }
 
-
-/* ==========================================================
-   LOGO WARNING
-   ========================================================== */
-
-.cs-logo-warning {
-
-    color: #FCA5A5;
-
-    background:
-        rgba(127, 29, 29, 0.20);
-
-    border:
-        1px solid rgba(248, 113, 113, 0.25);
-
-    border-radius: 9px;
-
-    padding: 10px;
-
-    font-size: 11px;
-
-    text-align: center;
-}
-
 </style>
 """,
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# SIDEBAR BRANDING
-# ============================================================
-
-def render_sidebar_branding() -> None:
-    """
-    Render the shared Creative Studios sidebar branding.
-
-    The logo is rendered using native Streamlit image
-    rendering from modules.branding.
-    """
-
-    st.sidebar.markdown(
-        """
-        <div class="cs-sidebar-brand">
-            <div class="cs-sidebar-brand-row">
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if logo_exists():
-
-        st.sidebar.image(
-            str(LOGO_PATH),
-            width=46,
-        )
-
-    else:
-
-        st.sidebar.markdown(
-            """
-            <div class="cs-logo-warning">
-                Creative Studios logo not found.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.sidebar.markdown(
-        """
-                <div class="cs-sidebar-brand-text">
-
-                    <div class="cs-sidebar-name">
-                        Creative Studios
-                    </div>
-
-                    <div class="cs-sidebar-subtitle">
-                        AEC Workspace
-                    </div>
-
-                </div>
-
-            </div>
-        </div>
-        """,
         unsafe_allow_html=True,
     )
 
@@ -885,7 +724,6 @@ def authenticate_user(
         users,
         list,
     ):
-
         return None
 
     for user in users:
@@ -894,7 +732,6 @@ def authenticate_user(
             user,
             dict,
         ):
-
             continue
 
         stored_username = str(
@@ -951,6 +788,46 @@ def initialize_session_state() -> None:
 
 
 # ============================================================
+# LOGIN BRANDING
+# ============================================================
+
+def render_login_branding() -> None:
+
+    st.markdown(
+        '<div class="cs-login-card">',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<div class="cs-login-logo">',
+        unsafe_allow_html=True,
+    )
+
+    if CREATIVE_STUDIOS_LOGO.exists():
+
+        st.image(
+            str(CREATIVE_STUDIOS_LOGO),
+            width=110,
+        )
+
+    else:
+
+        render_logo(
+            width=110
+        )
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
 # LOGIN
 # ============================================================
 
@@ -963,46 +840,9 @@ def render_login(
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        '<div class="cs-login-card">',
-        unsafe_allow_html=True,
-    )
+    render_login_branding()
 
-    # --------------------------------------------------------
-    # LOGO ONLY
-    # --------------------------------------------------------
-
-    if logo_exists():
-
-        st.markdown(
-            '<div class="cs-login-logo">',
-            unsafe_allow_html=True,
-        )
-
-        render_logo(
-            width=100,
-        )
-
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
-    else:
-
-        st.markdown(
-            """
-            <div class="cs-logo-warning">
-                Creative Studios logo not found.
-                Check assets/creative_studios.png.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    # --------------------------------------------------------
-    # LOGIN FORM
-    # --------------------------------------------------------
+    st.write("")
 
     with st.form(
         "creative_studios_login",
@@ -1064,7 +904,7 @@ def render_login(
             color:#475569;
             font-size:11px;
         ">
-            AEC Collaboration Platform
+            Creative Studios • AEC Collaboration Platform
         </div>
         """,
         unsafe_allow_html=True,
@@ -1075,7 +915,69 @@ def render_login(
         unsafe_allow_html=True,
     )
 
-    st.markdown(
+
+# ============================================================
+# SIDEBAR BRANDING
+# ============================================================
+
+def render_sidebar_branding() -> None:
+
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-brand">',
+        unsafe_allow_html=True,
+    )
+
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-brand-row">',
+        unsafe_allow_html=True,
+    )
+
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-logo-wrap">',
+        unsafe_allow_html=True,
+    )
+
+    if CREATIVE_STUDIOS_LOGO.exists():
+
+        st.sidebar.image(
+            str(CREATIVE_STUDIOS_LOGO),
+            width=46,
+        )
+
+    else:
+
+        st.sidebar.warning(
+            "Creative Studios logo not found."
+        )
+
+    st.sidebar.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.sidebar.markdown(
+        """
+        <div class="cs-sidebar-brand-text">
+
+            <div class="cs-sidebar-name">
+                Creative Studios
+            </div>
+
+            <div class="cs-sidebar-subtitle">
+                AEC Workspace
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.sidebar.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.sidebar.markdown(
         "</div>",
         unsafe_allow_html=True,
     )
@@ -1123,32 +1025,29 @@ def render_sidebar() -> str:
 
     for module_key, label in modules:
 
-        if module_key == current:
+        is_active = (
+            module_key == current
+        )
 
-            st.sidebar.markdown(
-                f"""
-                <div class="cs-nav-active">
-                    {html.escape(label)}
-                </div>
-                """,
-                unsafe_allow_html=True,
+        button_label = (
+            f"●  {label}"
+            if is_active
+            else f"   {label}"
+        )
+
+        if st.sidebar.button(
+            button_label,
+            key=f"nav_{module_key}",
+            use_container_width=True,
+        ):
+
+            selected = module_key
+
+            st.session_state.active_module = (
+                module_key
             )
 
-        else:
-
-            if st.sidebar.button(
-                label,
-                key=f"nav_{module_key}",
-                use_container_width=True,
-            ):
-
-                selected = module_key
-
-                st.session_state.active_module = (
-                    module_key
-                )
-
-                st.rerun()
+            st.rerun()
 
     st.sidebar.markdown(
         '<div class="cs-section-label">'
@@ -1157,81 +1056,43 @@ def render_sidebar() -> str:
         unsafe_allow_html=True,
     )
 
-    if current == "Settings":
+    if st.sidebar.button(
+        "   Settings",
+        key="nav_settings",
+        use_container_width=True,
+    ):
 
-        st.sidebar.markdown(
-            """
-            <div class="cs-nav-active">
-                Settings
-            </div>
-            """,
-            unsafe_allow_html=True,
+        st.session_state.active_module = (
+            "Settings"
         )
 
-    else:
+        st.rerun()
 
-        if st.sidebar.button(
-            "Settings",
-            key="nav_settings",
-            use_container_width=True,
-        ):
-
-            st.session_state.active_module = (
-                "Settings"
-            )
-
-            st.rerun()
-
-    # --------------------------------------------------------
-    # USER CARD
-    # --------------------------------------------------------
-
-    full_name = str(
-        user.get(
-            "full_name",
-            "",
-        )
-        or ""
-    ).strip()
-
-    username = str(
-        user.get(
-            "username",
-            "",
-        )
-        or ""
-    ).strip()
-
-    role = str(
-        user.get(
-            "role",
-            "",
-        )
-        or ""
-    ).strip()
-
-    if not full_name:
-
-        full_name = "System Administrator"
-
-    if not username:
-
-        username = "admin"
-
-    if not role:
-
-        role = "Admin"
-
-    safe_full_name = html.escape(
-        full_name
+    full_name = html.escape(
+        str(
+            user.get(
+                "full_name",
+                "",
+            ) or "System Administrator"
+        ).strip()
     )
 
-    safe_username = html.escape(
-        username
+    username = html.escape(
+        str(
+            user.get(
+                "username",
+                "",
+            ) or "admin"
+        ).strip()
     )
 
-    safe_role = html.escape(
-        role
+    role = html.escape(
+        str(
+            user.get(
+                "role",
+                "",
+            ) or "Admin"
+        ).strip()
     )
 
     st.sidebar.markdown(
@@ -1243,15 +1104,15 @@ def render_sidebar() -> str:
             </div>
 
             <div class="user-name">
-                {safe_full_name}
+                {full_name}
             </div>
 
             <div class="user-login">
-                @{safe_username}
+                @{username}
             </div>
 
             <div class="user-role">
-                {safe_role}
+                {role}
             </div>
 
         </div>
@@ -1268,12 +1129,8 @@ def render_sidebar() -> str:
     ):
 
         st.session_state.authenticated = False
-
         st.session_state.user = None
-
-        st.session_state.active_module = (
-            "Overview"
-        )
+        st.session_state.active_module = "Overview"
 
         st.rerun()
 
@@ -1297,7 +1154,6 @@ def render_overview(
         projects,
         list,
     ):
-
         projects = []
 
     total = len(projects)
@@ -1358,7 +1214,6 @@ def render_overview(
             project,
             dict,
         ):
-
             continue
 
         try:
@@ -1378,14 +1233,21 @@ def render_overview(
             TypeError,
             ValueError,
         ):
-
             pass
+
+    # ========================================================
+    # SHARED HEADER
+    # ========================================================
 
     render_module_header(
         "AEC Workspace",
         "Central workspace for architectural, "
         "engineering and construction activities.",
     )
+
+    # ========================================================
+    # KPI CARDS
+    # ========================================================
 
     cols = st.columns(4)
 
@@ -1411,7 +1273,7 @@ def render_overview(
                 <div class="cs-kpi">
 
                     <div class="cs-kpi-label">
-                        {html.escape(label)}
+                        {html.escape(str(label))}
                     </div>
 
                     <div class="cs-kpi-value">
@@ -1425,23 +1287,19 @@ def render_overview(
 
     st.write("")
 
+    # ========================================================
+    # WORKSPACE OVERVIEW
+    # ========================================================
+
     st.markdown(
         """
         <div class="cs-card">
 
-            <div style="
-                color:#FFFFFF;
-                font-size:18px;
-                font-weight:850;
-            ">
+            <div class="cs-card-title">
                 Workspace Overview
             </div>
 
-            <div style="
-                color:#64748B;
-                font-size:12px;
-                margin-top:7px;
-            ">
+            <div class="cs-card-subtitle">
                 Use the navigation panel to manage
                 projects, documents, drawings, RFIs,
                 tasks and approvals.
@@ -1512,30 +1370,11 @@ def render_placeholder(
         f"""
         <div class="cs-card">
 
-            <div style="
-                color:#60A5FA;
-                font-size:12px;
-                font-weight:800;
-                text-transform:uppercase;
-                letter-spacing:1px;
-            ">
-                Module
-            </div>
-
-            <div style="
-                color:#FFFFFF;
-                font-size:20px;
-                font-weight:850;
-                margin-top:8px;
-            ">
+            <div class="cs-card-title">
                 {html.escape(title)}
             </div>
 
-            <div style="
-                color:#64748B;
-                font-size:12px;
-                margin-top:8px;
-            ">
+            <div class="cs-card-subtitle">
                 {html.escape(description)}
             </div>
 
@@ -1561,91 +1400,58 @@ def render_settings() -> None:
         or {}
     )
 
-    name = str(
-        user.get(
-            "full_name",
-            "",
-        )
-        or ""
-    ).strip()
-
-    username = str(
-        user.get(
-            "username",
-            "",
-        )
-        or ""
-    ).strip()
-
-    role = str(
-        user.get(
-            "role",
-            "",
-        )
-        or ""
-    ).strip()
-
-    if not name:
-
-        name = "System Administrator"
-
-    if not username:
-
-        username = "admin"
-
-    if not role:
-
-        role = "Admin"
-
-    safe_name = html.escape(
-        name
+    name = html.escape(
+        str(
+            user.get(
+                "full_name",
+                "",
+            ) or "System Administrator"
+        ).strip()
     )
 
-    safe_username = html.escape(
-        username
+    username = html.escape(
+        str(
+            user.get(
+                "username",
+                "",
+            ) or "admin"
+        ).strip()
     )
 
-    safe_role = html.escape(
-        role
+    role = html.escape(
+        str(
+            user.get(
+                "role",
+                "",
+            ) or "Admin"
+        ).strip()
     )
 
     st.markdown(
         f"""
         <div class="cs-card">
 
-            <div style="
-                color:#FFFFFF;
-                font-size:18px;
-                font-weight:850;
-            ">
+            <div class="cs-card-title">
                 Current User
             </div>
 
-            <div style="
-                color:#94A3B8;
-                margin-top:12px;
-                font-size:13px;
-            ">
-                Name:
-                <strong>{safe_name}</strong>
-            </div>
+            <div class="cs-card-subtitle">
 
-            <div style="
-                color:#94A3B8;
-                margin-top:7px;
-                font-size:13px;
-            ">
-                Username:
-                <strong>@{safe_username}</strong>
-            </div>
+                <div style="margin-top:12px;">
+                    Name:
+                    <strong>{name}</strong>
+                </div>
 
-            <div style="
-                color:#94A3B8;
-                margin-top:7px;
-                font-size:13px;
-            ">
-                Role:
-                <strong>{safe_role}</strong>
+                <div style="margin-top:7px;">
+                    Username:
+                    <strong>@{username}</strong>
+                </div>
+
+                <div style="margin-top:7px;">
+                    Role:
+                    <strong>{role}</strong>
+                </div>
+
             </div>
 
         </div>
@@ -1763,26 +1569,9 @@ def main() -> None:
 
     inject_global_css()
 
-    # --------------------------------------------------------
-    # BRANDING CHECK
-    # --------------------------------------------------------
-
-    if not logo_exists():
-
-        st.warning(
-            "Creative Studios logo not found at "
-            "assets/creative_studios.png"
-        )
-
-    # --------------------------------------------------------
-    # DATABASE
-    # --------------------------------------------------------
+    inject_branding_css()
 
     database = get_database()
-
-    # --------------------------------------------------------
-    # AUTHENTICATION
-    # --------------------------------------------------------
 
     if not st.session_state.authenticated:
 
@@ -1792,15 +1581,7 @@ def main() -> None:
 
         return
 
-    # --------------------------------------------------------
-    # NAVIGATION
-    # --------------------------------------------------------
-
     active_module = render_sidebar()
-
-    # --------------------------------------------------------
-    # ACTIVE MODULE
-    # --------------------------------------------------------
 
     render_active_module(
         active_module,
