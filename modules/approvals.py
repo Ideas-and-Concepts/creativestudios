@@ -132,9 +132,7 @@ def render_approvals_module(
                 else:
 
                     approval = {
-                        "id": next_id(
-                            approvals
-                        ),
+                        "id": next_id("approvals", database),
                         "item": item.strip(),
                         "project": project.strip(),
                         "requester": requester.strip(),
@@ -143,11 +141,7 @@ def render_approvals_module(
                         "status": status,
                     }
 
-                    add_record(
-                        database,
-                        "approvals",
-                        approval,
-                    )
+                    add_record("approvals", approval, database)
 
                     st.session_state[
                         "show_approval_form"
@@ -420,7 +414,6 @@ def render_approvals_module(
                 if save:
 
                     update_record(
-                        database,
                         "approvals",
                         approval_id,
                         {
@@ -437,6 +430,7 @@ def render_approvals_module(
                                 edit_comments.strip()
                             ),
                         },
+                        database,
                     )
 
                     st.success(
@@ -451,9 +445,9 @@ def render_approvals_module(
             ):
 
                 delete_record(
-                    database,
                     "approvals",
                     approval_id,
+                    database,
                 )
 
                 st.success(
