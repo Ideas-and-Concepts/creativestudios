@@ -128,9 +128,7 @@ def render_rfis_module(
                 else:
 
                     rfi = {
-                        "id": next_id(
-                            rfis
-                        ),
+                        "id": next_id("rfis", database),
                         "subject": subject.strip(),
                         "project": project.strip(),
                         "requester": requester.strip(),
@@ -139,11 +137,7 @@ def render_rfis_module(
                         "response": "",
                     }
 
-                    add_record(
-                        database,
-                        "rfis",
-                        rfi,
-                    )
+                    add_record("rfis", rfi, database)
 
                     st.session_state[
                         "show_rfi_form"
@@ -396,7 +390,6 @@ def render_rfis_module(
                 if save:
 
                     update_record(
-                        database,
                         "rfis",
                         rfi_id,
                         {
@@ -417,6 +410,7 @@ def render_rfis_module(
                                 response.strip()
                             ),
                         },
+                        database,
                     )
 
                     st.success(
@@ -431,9 +425,9 @@ def render_rfis_module(
             ):
 
                 delete_record(
-                    database,
                     "rfis",
                     rfi_id,
+                    database,
                 )
 
                 st.success(
