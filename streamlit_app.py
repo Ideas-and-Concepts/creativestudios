@@ -42,7 +42,7 @@ st.set_page_config(
 )
 
 # Inject CSS as early as possible
-inject_branding_css()
+
 
 
 # ============================================================
