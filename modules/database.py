@@ -3,29 +3,6 @@ Creative Studios
 AEC Collaboration Platform
 
 JSON Database Layer
--------------------
-
-Single, reliable database contract for the Streamlit application.
-
-Public functions:
-
-    load_memory()
-    save_memory(db)
-    initialize_database()
-
-    add_record(collection, record, db)
-    get_record(collection, record_id, db)
-    get_records(collection, db)
-    update_record(collection, record_id, updates, db)
-    delete_record(collection, record_id, db)
-
-    next_id(collection, db)
-
-Compatibility aliases:
-
-    load_database()
-    save_database()
-    get_all()
 """
 
 from __future__ import annotations
@@ -64,31 +41,30 @@ DEFAULT_DATABASE: dict[str, Any] = {
 }
 
 
-LIST_COLLECTIONS = (
-    "users",
-    "projects",
-    "documents",
-    "drawings",
-    "rfis",
-    "tasks",
-    "teams",
-)
-
-
 # ============================================================
-# SERIALIZATION
+# JSON SERIALIZATION
 # ============================================================
 
-def _json_default(value: Any) -> str:
-    """Convert common Python values into JSON-safe values."""
+def _json_default(
+    value: Any,
+) -> str:
 
-    if isinstance(value, datetime):
+    if isinstance(
+        value,
+        datetime,
+    ):
         return value.isoformat()
 
-    if isinstance(value, date):
+    if isinstance(
+        value,
+        date,
+    ):
         return value.isoformat()
 
-    if isinstance(value, Path):
+    if isinstance(
+        value,
+        Path,
+    ):
         return str(value)
 
     return str(value)
@@ -98,58 +74,55 @@ def _json_default(value: Any) -> str:
 # NORMALIZATION
 # ============================================================
 
-def _normalize_database(data: Any) -> dict[str, Any]:
-    """
-    Normalize any loaded database into the expected structure.
-    """
+def _normalize_database(
+    data: Any,
+) -> dict[str, Any]:
 
-    if not isinstance(data, dict):
+    if not isinstance(
+        data,
+        dict,
+    ):
         data = {}
 
-    normalized = copy.deepcopy(DEFAULT_DATABASE)
+    normalized = copy.deepcopy(
+        DEFAULT_DATABASE
+    )
 
     for key, value in data.items():
+
         normalized[key] = value
 
-    for collection in LIST_COLLECTIONS:
-        if not isinstance(normalized.get(collection), list):
+    collections = [
+        "users",
+        "projects",
+        "documents",
+        "drawings",
+        "rfis",
+        "tasks",
+        "teams",
+    ]
+
+    for collection in collections:
+
+        if not isinstance(
+            normalized.get(
+                collection
+            ),
+            list,
+        ):
+
             normalized[collection] = []
 
-    if not isinstance(normalized.get("settings"), dict):
+    if not isinstance(
+        normalized.get(
+            "settings"
+        ),
+        dict,
+    ):
+
         normalized["settings"] = {}
 
     return normalized
-
-
-# ============================================================
-# COLLECTION
-# ============================================================
-
-def _ensure_collection(
-    db: dict[str, Any],
-    collection: str,
-) -> list[dict[str, Any]]:
-    """
-    Ensure a collection exists and is a list.
-    """
-
-    if not isinstance(db, dict):
-        raise TypeError(
-            "Database must be a dictionary."
-        )
-
-    if not isinstance(collection, str) or not collection.strip():
-        raise ValueError(
-            "Collection name must be a non-empty string."
-        )
-
-    if collection not in db:
-        db[collection] = []
-
-    if not isinstance(db[collection], list):
-        db[collection] = []
-
-    return db[collection]
 
 
 # ============================================================
@@ -157,31 +130,23 @@ def _ensure_collection(
 # ============================================================
 
 def load_memory() -> dict[str, Any]:
-    """
-    Load the JSON database safely.
-
-    Missing database:
-        Creates a new database.
-
-    Corrupted database:
-        Creates a backup and restores safe defaults.
-
-    Unexpected read errors:
-        Returns safe defaults instead of crashing startup.
-    """
 
     try:
+
         DB_FILE.parent.mkdir(
             parents=True,
             exist_ok=True,
         )
 
         if not DB_FILE.exists():
+
             database = copy.deepcopy(
                 DEFAULT_DATABASE
             )
 
-            save_memory(database)
+            save_memory(
+                database
+            )
 
             return database
 
@@ -189,22 +154,28 @@ def load_memory() -> dict[str, Any]:
             "r",
             encoding="utf-8",
         ) as file:
-            data = json.load(file)
 
-        return _normalize_database(data)
+            data = json.load(
+                file
+            )
+
+        return _normalize_database(
+            data
+        )
 
     except json.JSONDecodeError:
-        # Preserve corrupted file if possible.
+
         try:
-            backup = DB_FILE.with_name(
-                "creativestudios_db.corrupt.json"
+
+            backup = DB_FILE.with_suffix(
+                ".corrupt.json"
             )
 
             if DB_FILE.exists():
-                if backup.exists():
-                    backup.unlink()
 
-                DB_FILE.replace(backup)
+                DB_FILE.replace(
+                    backup
+                )
 
         except Exception:
             pass
@@ -214,13 +185,16 @@ def load_memory() -> dict[str, Any]:
         )
 
         try:
-            save_memory(database)
+            save_memory(
+                database
+            )
         except Exception:
             pass
 
         return database
 
     except Exception:
+
         return copy.deepcopy(
             DEFAULT_DATABASE
         )
@@ -233,20 +207,20 @@ def load_memory() -> dict[str, Any]:
 def save_memory(
     db: dict[str, Any],
 ) -> bool:
-    """
-    Atomically save the complete database.
-    """
 
-    database = _normalize_database(db)
+    database = _normalize_database(
+        db
+    )
 
     DB_FILE.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    temporary_path: Path | None = None
+    temporary_path = None
 
     try:
+
         with tempfile.NamedTemporaryFile(
             mode="w",
             encoding="utf-8",
@@ -287,6 +261,7 @@ def save_memory(
             temporary_path is not None
             and temporary_path.exists()
         ):
+
             try:
                 temporary_path.unlink()
             except Exception:
@@ -296,23 +271,35 @@ def save_memory(
 
 
 # ============================================================
-# INITIALIZE
+# COLLECTION
 # ============================================================
 
-def initialize_database() -> dict[str, Any]:
-    """
-    Load and normalize the database.
-    """
+def _ensure_collection(
+    db: dict[str, Any],
+    collection: str,
+) -> list[dict[str, Any]]:
 
-    db = load_memory()
+    if not isinstance(
+        db,
+        dict,
+    ):
 
-    # Ensure all standard collections exist.
-    _normalize_database(db)
+        raise TypeError(
+            "Database must be a dictionary."
+        )
 
-    # Persist the normalized structure.
-    save_memory(db)
+    if collection not in db:
 
-    return db
+        db[collection] = []
+
+    if not isinstance(
+        db[collection],
+        list,
+    ):
+
+        db[collection] = []
+
+    return db[collection]
 
 
 # ============================================================
@@ -323,9 +310,6 @@ def next_id(
     collection: str,
     db: dict[str, Any],
 ) -> int:
-    """
-    Return the next available numeric ID.
-    """
 
     records = _ensure_collection(
         db,
@@ -336,21 +320,31 @@ def next_id(
 
     for record in records:
 
-        if not isinstance(record, dict):
+        if not isinstance(
+            record,
+            dict,
+        ):
             continue
 
-        value = record.get("id")
-
         try:
-            numeric_value = int(value)
 
-            if numeric_value > highest:
-                highest = numeric_value
+            value = int(
+                record.get(
+                    "id",
+                    0,
+                )
+            )
+
+            highest = max(
+                highest,
+                value,
+            )
 
         except (
             TypeError,
             ValueError,
         ):
+
             continue
 
     return highest + 1
@@ -365,11 +359,12 @@ def add_record(
     record: dict[str, Any],
     db: dict[str, Any],
 ) -> dict[str, Any]:
-    """
-    Add a new record.
-    """
 
-    if not isinstance(record, dict):
+    if not isinstance(
+        record,
+        dict,
+    ):
+
         raise TypeError(
             "Record must be a dictionary."
         )
@@ -379,17 +374,26 @@ def add_record(
         collection,
     )
 
-    new_record = copy.deepcopy(record)
+    new_record = copy.deepcopy(
+        record
+    )
 
-    if new_record.get("id") is None:
+    if new_record.get(
+        "id"
+    ) is None:
+
         new_record["id"] = next_id(
             collection,
             db,
         )
 
-    records.append(new_record)
+    records.append(
+        new_record
+    )
 
-    if not save_memory(db):
+    if not save_memory(
+        db
+    ):
 
         records.pop()
 
@@ -409,9 +413,6 @@ def get_record(
     record_id: Any,
     db: dict[str, Any],
 ) -> dict[str, Any] | None:
-    """
-    Find one record by ID.
-    """
 
     records = _ensure_collection(
         db,
@@ -420,10 +421,20 @@ def get_record(
 
     for record in records:
 
-        if not isinstance(record, dict):
+        if not isinstance(
+            record,
+            dict,
+        ):
             continue
 
-        if str(record.get("id")) == str(record_id):
+        if str(
+            record.get(
+                "id"
+            )
+        ) == str(
+            record_id
+        ):
+
             return record
 
     return None
@@ -437,19 +448,17 @@ def get_records(
     collection: str,
     db: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """
-    Return all dictionary records in a collection.
-    """
-
-    records = _ensure_collection(
-        db,
-        collection,
-    )
 
     return [
         record
-        for record in records
-        if isinstance(record, dict)
+        for record in _ensure_collection(
+            db,
+            collection,
+        )
+        if isinstance(
+            record,
+            dict,
+        )
     ]
 
 
@@ -463,11 +472,12 @@ def update_record(
     updates: dict[str, Any],
     db: dict[str, Any],
 ) -> dict[str, Any] | None:
-    """
-    Update a record by ID.
-    """
 
-    if not isinstance(updates, dict):
+    if not isinstance(
+        updates,
+        dict,
+    ):
+
         raise TypeError(
             "Updates must be a dictionary."
         )
@@ -477,28 +487,45 @@ def update_record(
         collection,
     )
 
-    for index, record in enumerate(records):
+    for index, record in enumerate(
+        records
+    ):
 
-        if not isinstance(record, dict):
+        if not isinstance(
+            record,
+            dict,
+        ):
             continue
 
-        if str(record.get("id")) != str(record_id):
+        if str(
+            record.get(
+                "id"
+            )
+        ) != str(
+            record_id
+        ):
+
             continue
 
-        original = copy.deepcopy(record)
-
-        updated = copy.deepcopy(record)
-
-        updated.update(
-            copy.deepcopy(updates)
+        original = copy.deepcopy(
+            record
         )
 
-        # Prevent accidental ID changes.
-        updated["id"] = record.get("id")
+        updated = copy.deepcopy(
+            record
+        )
+
+        updated.update(
+            copy.deepcopy(
+                updates
+            )
+        )
 
         records[index] = updated
 
-        if not save_memory(db):
+        if not save_memory(
+            db
+        ):
 
             records[index] = original
 
@@ -520,26 +547,39 @@ def delete_record(
     record_id: Any,
     db: dict[str, Any],
 ) -> bool:
-    """
-    Delete a record by ID.
-    """
 
     records = _ensure_collection(
         db,
         collection,
     )
 
-    for index, record in enumerate(records):
+    for index, record in enumerate(
+        records
+    ):
 
-        if not isinstance(record, dict):
+        if not isinstance(
+            record,
+            dict,
+        ):
             continue
 
-        if str(record.get("id")) != str(record_id):
+        if str(
+            record.get(
+                "id"
+            )
+        ) != str(
+            record_id
+        ):
+
             continue
 
-        deleted = records.pop(index)
+        deleted = records.pop(
+            index
+        )
 
-        if not save_memory(db):
+        if not save_memory(
+            db
+        ):
 
             records.insert(
                 index,
@@ -556,24 +596,44 @@ def delete_record(
 
 
 # ============================================================
+# INITIALIZE
+# ============================================================
+
+def initialize_database() -> dict[str, Any]:
+
+    db = load_memory()
+
+    save_memory(
+        db
+    )
+
+    return db
+
+
+# ============================================================
 # COMPATIBILITY ALIASES
 # ============================================================
 
 def load_database() -> dict[str, Any]:
+
     return load_memory()
 
 
 def save_database(
     db: dict[str, Any],
 ) -> bool:
-    return save_memory(db)
+
+    return save_memory(
+        db
+    )
 
 
 def get_all(
     collection: str,
     db: dict[str, Any],
 ) -> list[dict[str, Any]]:
+
     return get_records(
         collection,
-        db,
+        db
     )
