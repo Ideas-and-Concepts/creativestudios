@@ -1,5 +1,0 @@
-LOGO_PATH = (
-    BASE_DIR
-    / "assets"
-    / "Artboard 1.png"
-)
