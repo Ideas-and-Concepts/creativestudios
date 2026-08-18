@@ -21,6 +21,8 @@ Database contract:
     modules.database.py
 """
 
+from modules.branding import render_module_header
+
 from __future__ import annotations
 
 from datetime import datetime
