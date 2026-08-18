@@ -3,9 +3,12 @@ Creative Studios
 Utility Functions
 """
 
+from __future__ import annotations
+
 import base64
 import hashlib
 from pathlib import Path
+from typing import Optional
 
 
 # ============================================================
@@ -14,20 +17,17 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-LOGO_FILE = str(
-    BASE_DIR / "logo.svg"
-)
+LOGO_FILE = str(BASE_DIR / "logo.svg")
 
 
 # ============================================================
 # PASSWORD HASHING
 # ============================================================
 
-def hash_password(password: str) -> str:
+def hash_password(password: Optional[str]) -> str:
     """
     Return a SHA-256 hash for a password.
     """
-
     if password is None:
         password = ""
 
@@ -40,17 +40,7 @@ def hash_password(password: str) -> str:
 # LOGO
 # ============================================================
 
-def ensure_logo_svg() -> None:
-    """
-    Make sure logo.svg exists.
-    """
-
-    logo_path = Path(LOGO_FILE)
-
-    if logo_path.exists():
-        return
-
-    svg = """
+_LOGO_SVG = """
 <svg xmlns="http://www.w3.org/2000/svg"
      viewBox="0 0 200 200">
 
@@ -93,12 +83,22 @@ def ensure_logo_svg() -> None:
 </svg>
 """
 
+
+def ensure_logo_svg() -> None:
+    """
+    Make sure logo.svg exists.
+    """
+
+    logo_path = Path(LOGO_FILE)
+
+    if logo_path.exists():
+        return
+
     try:
         logo_path.write_text(
-            svg.strip(),
+            _LOGO_SVG.strip(),
             encoding="utf-8",
         )
-
     except OSError:
         pass
 
@@ -107,9 +107,7 @@ def ensure_logo_svg() -> None:
 # LOGO HTML
 # ============================================================
 
-def get_logo_html(
-    width: int = 130,
-) -> str:
+def get_logo_html(width: int = 130) -> str:
     """
     Return the logo as embedded base64 HTML.
     """
@@ -123,17 +121,21 @@ def get_logo_html(
         return ""
 
     try:
+        # Ensure width is a positive integer
+        try:
+            width_int = int(width)
+        except (TypeError, ValueError):
+            width_int = 130
+        width_int = max(width_int, 1)
 
         data = logo_path.read_bytes()
 
-        encoded = base64.b64encode(
-            data
-        ).decode("utf-8")
+        encoded = base64.b64encode(data).decode("utf-8")
 
         return (
             '<div style="text-align:center;">'
             f'<img src="data:image/svg+xml;base64,{encoded}" '
-            f'width="{int(width)}" '
+            f'width="{width_int}" '
             'alt="Creative Studios Logo">'
             '</div>'
         )
