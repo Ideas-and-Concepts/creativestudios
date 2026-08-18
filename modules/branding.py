@@ -5,7 +5,7 @@ Shared branding utilities.
 Single source of truth for:
 - Creative Studios logo
 - Branding CSS
-- Logo rendering
+- Native Streamlit logo rendering
 - Module headers
 - Shared cards
 - KPI cards
@@ -31,7 +31,7 @@ LOGO_PATH = ASSETS_DIR / "creative_studios.png"
 
 
 # ============================================================
-# BRAND CONSTANTS
+# BRAND INFORMATION
 # ============================================================
 
 BRAND_NAME = "Creative Studios"
@@ -40,17 +40,41 @@ BRAND_SUBTITLE = "AEC Workspace"
 
 
 # ============================================================
-# LOGO VALIDATION
+# LOGO
 # ============================================================
 
 def logo_exists() -> bool:
-    """
-    Return True when the Creative Studios logo exists.
-    """
+    """Return True when the native branding image exists."""
 
     return (
         LOGO_PATH.exists()
         and LOGO_PATH.is_file()
+    )
+
+
+def render_logo(
+    width: int = 76,
+) -> None:
+    """
+    Render the Creative Studios logo using Streamlit's
+    native image renderer.
+
+    No HTML <img> wrapper.
+    No base64.
+    No data URI.
+    """
+
+    if not logo_exists():
+
+        st.warning(
+            f"Creative Studios logo not found: {LOGO_PATH}"
+        )
+
+        return
+
+    st.image(
+        str(LOGO_PATH),
+        width=width,
     )
 
 
@@ -60,9 +84,7 @@ def logo_exists() -> bool:
 
 def inject_branding_css() -> None:
     """
-    Inject all shared Creative Studios branding CSS.
-
-    This is the single source of truth for branding styles.
+    Inject the single shared Creative Studios stylesheet.
     """
 
     st.markdown(
@@ -80,16 +102,6 @@ def inject_branding_css() -> None:
             color: #F8FAFC !important;
         }
 
-        [data-testid="stAppViewContainer"] {
-            background:
-                radial-gradient(
-                    circle at top right,
-                    rgba(37, 99, 235, 0.10),
-                    transparent 35%
-                ),
-                #05070B !important;
-        }
-
         [data-testid="stHeader"] {
             background: transparent !important;
         }
@@ -101,25 +113,6 @@ def inject_branding_css() -> None:
         .block-container {
             padding-top: 2rem !important;
             padding-bottom: 3rem !important;
-        }
-
-
-        /* ==================================================
-           TYPOGRAPHY
-           ================================================== */
-
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6 {
-            color: #F8FAFC !important;
-        }
-
-        p,
-        label {
-            color: #CBD5E1;
         }
 
 
@@ -138,7 +131,7 @@ def inject_branding_css() -> None:
 
 
         /* ==================================================
-           SIDEBAR BRAND
+           SIDEBAR BRANDING
            ================================================== */
 
         .cs-sidebar-name {
@@ -195,10 +188,6 @@ def inject_branding_css() -> None:
             margin-bottom: 24px;
         }
 
-        .cs-login-spacing {
-            height: 2px;
-        }
-
         .cs-login-footer {
             text-align: center;
             margin-top: 18px;
@@ -218,7 +207,7 @@ def inject_branding_css() -> None:
 
 
         /* ==================================================
-           SECTION LABEL
+           SIDEBAR SECTION
            ================================================== */
 
         .cs-section-label {
@@ -233,7 +222,7 @@ def inject_branding_css() -> None:
 
 
         /* ==================================================
-           ACTIVE SIDEBAR MODULE
+           ACTIVE MODULE
            ================================================== */
 
         .cs-active-module {
@@ -391,7 +380,6 @@ def inject_branding_css() -> None:
             font-size: 24px;
             font-weight: 900;
             margin-top: 7px;
-
             overflow-wrap: anywhere;
         }
 
@@ -418,7 +406,6 @@ def inject_branding_css() -> None:
         div[data-testid="stButton"] > button {
             background: #111827 !important;
             color: #E2E8F0 !important;
-
             border: 1px solid #1E293B !important;
             border-radius: 9px !important;
         }
@@ -432,10 +419,8 @@ def inject_branding_css() -> None:
         div[data-testid="stFormSubmitButton"] > button {
             background: #2563EB !important;
             color: #FFFFFF !important;
-
             border: 0 !important;
             border-radius: 10px !important;
-
             font-weight: 800 !important;
         }
 
@@ -484,46 +469,22 @@ def inject_branding_css() -> None:
 
 
 # ============================================================
-# LOGO
-# ============================================================
-
-def render_logo(
-    width: int = 76,
-) -> None:
-    """
-    Render the Creative Studios logo using native Streamlit.
-
-    No HTML image wrapper.
-    No base64.
-    No SVG recreation.
-    No emoji dependency.
-    """
-
-    if not logo_exists():
-
-        st.warning(
-            "Creative Studios logo not found: "
-            f"{LOGO_PATH}"
-        )
-
-        return
-
-    st.image(
-        str(LOGO_PATH),
-        width=width,
-    )
-
-
-# ============================================================
 # MODULE HEADER
 # ============================================================
 
 def render_module_header(
     title: str,
-    subtitle: str,
+    subtitle: str = "",
 ) -> None:
     """
-    Shared module header used by all modules.
+    Shared module header.
+
+    Existing modules can continue calling:
+
+        render_module_header(
+            "Projects",
+            "Manage projects"
+        )
     """
 
     safe_title = html.escape(
