@@ -51,11 +51,22 @@ def render_rfis_module(
     ):
         rfis = []
 
+    # ========================================================
+    # SEARCH
+    # ========================================================
+
     search = st.text_input(
         "Search RFIs",
-        placeholder="Search RFI number, subject, project or requester...",
+        placeholder=(
+            "Search RFI number, subject, project "
+            "or requester..."
+        ),
         key="rfis_search",
     )
+
+    # ========================================================
+    # NEW RFI
+    # ========================================================
 
     if st.button(
         "New RFI",
@@ -65,6 +76,10 @@ def render_rfis_module(
         st.session_state[
             "show_rfi_form"
         ] = True
+
+    # ========================================================
+    # CREATE RFI
+    # ========================================================
 
     if st.session_state.get(
         "show_rfi_form",
@@ -140,6 +155,10 @@ def render_rfis_module(
 
                     st.rerun()
 
+    # ========================================================
+    # FILTER
+    # ========================================================
+
     search_value = search.lower().strip()
 
     filtered = []
@@ -168,6 +187,10 @@ def render_rfis_module(
         ):
 
             filtered.append(rfi)
+
+    # ========================================================
+    # SUMMARY
+    # ========================================================
 
     cols = st.columns(4)
 
@@ -225,6 +248,10 @@ def render_rfis_module(
 
     st.write("")
 
+    # ========================================================
+    # RFI LIST
+    # ========================================================
+
     if not filtered:
 
         st.info(
@@ -269,23 +296,19 @@ def render_rfis_module(
             )
         )
 
+        # ====================================================
+        # RFI CARD
+        # ====================================================
+
         st.markdown(
             f"""
             <div class="cs-card">
 
-                <div style="
-                    color:#FFFFFF;
-                    font-size:16px;
-                    font-weight:850;
-                ">
+                <div class="cs-card-title">
                     RFI #{rfi_id} · {subject}
                 </div>
 
-                <div style="
-                    color:#64748B;
-                    font-size:12px;
-                    margin-top:6px;
-                ">
+                <div class="cs-card-subtitle">
                     Project: {project}
                     &nbsp; • &nbsp;
                     Requested by: {requester}
@@ -297,6 +320,10 @@ def render_rfis_module(
             """,
             unsafe_allow_html=True,
         )
+
+        # ====================================================
+        # EDIT / DELETE
+        # ====================================================
 
         with st.expander(
             f"Manage RFI #{rfi_id}"
@@ -373,12 +400,22 @@ def render_rfis_module(
                         "rfis",
                         rfi_id,
                         {
-                            "subject": edit_subject.strip(),
-                            "project": edit_project.strip(),
-                            "requester": edit_requester.strip(),
-                            "question": edit_question.strip(),
+                            "subject": (
+                                edit_subject.strip()
+                            ),
+                            "project": (
+                                edit_project.strip()
+                            ),
+                            "requester": (
+                                edit_requester.strip()
+                            ),
+                            "question": (
+                                edit_question.strip()
+                            ),
                             "status": edit_status,
-                            "response": response.strip(),
+                            "response": (
+                                response.strip()
+                            ),
                         },
                     )
 
