@@ -51,11 +51,22 @@ def render_approvals_module(
     ):
         approvals = []
 
+    # ========================================================
+    # SEARCH
+    # ========================================================
+
     search = st.text_input(
         "Search approvals",
-        placeholder="Search item, project, requester or approver...",
+        placeholder=(
+            "Search item, project, requester "
+            "or approver..."
+        ),
         key="approvals_search",
     )
+
+    # ========================================================
+    # NEW APPROVAL
+    # ========================================================
 
     if st.button(
         "New Approval",
@@ -65,6 +76,10 @@ def render_approvals_module(
         st.session_state[
             "show_approval_form"
         ] = True
+
+    # ========================================================
+    # CREATE APPROVAL
+    # ========================================================
 
     if st.session_state.get(
         "show_approval_form",
@@ -144,6 +159,10 @@ def render_approvals_module(
 
                     st.rerun()
 
+    # ========================================================
+    # FILTER
+    # ========================================================
+
     search_value = search.lower().strip()
 
     filtered = []
@@ -158,11 +177,21 @@ def render_approvals_module(
 
         searchable = " ".join(
             [
-                _text(approval.get("item")),
-                _text(approval.get("project")),
-                _text(approval.get("requester")),
-                _text(approval.get("approver")),
-                _text(approval.get("status")),
+                _text(
+                    approval.get("item")
+                ),
+                _text(
+                    approval.get("project")
+                ),
+                _text(
+                    approval.get("requester")
+                ),
+                _text(
+                    approval.get("approver")
+                ),
+                _text(
+                    approval.get("status")
+                ),
             ]
         ).lower()
 
@@ -172,6 +201,10 @@ def render_approvals_module(
         ):
 
             filtered.append(approval)
+
+    # ========================================================
+    # SUMMARY
+    # ========================================================
 
     cols = st.columns(4)
 
@@ -229,6 +262,10 @@ def render_approvals_module(
 
     st.write("")
 
+    # ========================================================
+    # APPROVAL LIST
+    # ========================================================
+
     if not filtered:
 
         st.info(
@@ -279,23 +316,19 @@ def render_approvals_module(
             )
         )
 
+        # ====================================================
+        # APPROVAL CARD
+        # ====================================================
+
         st.markdown(
             f"""
             <div class="cs-card">
 
-                <div style="
-                    color:#FFFFFF;
-                    font-size:16px;
-                    font-weight:850;
-                ">
+                <div class="cs-card-title">
                     {item}
                 </div>
 
-                <div style="
-                    color:#64748B;
-                    font-size:12px;
-                    margin-top:6px;
-                ">
+                <div class="cs-card-subtitle">
                     {project}
                     &nbsp; • &nbsp;
                     Requested by: {requester}
@@ -309,6 +342,10 @@ def render_approvals_module(
             """,
             unsafe_allow_html=True,
         )
+
+        # ====================================================
+        # EDIT / DELETE
+        # ====================================================
 
         with st.expander(
             f"Manage Approval #{approval_id}"
@@ -389,10 +426,16 @@ def render_approvals_module(
                         {
                             "item": edit_item.strip(),
                             "project": edit_project.strip(),
-                            "requester": edit_requester.strip(),
-                            "approver": edit_approver.strip(),
+                            "requester": (
+                                edit_requester.strip()
+                            ),
+                            "approver": (
+                                edit_approver.strip()
+                            ),
                             "status": edit_status,
-                            "comments": edit_comments.strip(),
+                            "comments": (
+                                edit_comments.strip()
+                            ),
                         },
                     )
 
