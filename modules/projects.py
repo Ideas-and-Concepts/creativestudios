@@ -1,11 +1,9 @@
 """
 Creative Studios
-Project Directory module.
+AEC Collaboration Platform
+AEC Workspace
 
-This is a clean replacement for the old projects.py.
-
-Important:
-No st.success/st.warning/st.error calls with custom icons are used.
+Project Directory Module
 """
 
 from __future__ import annotations
@@ -18,228 +16,487 @@ import streamlit as st
 from modules.database import (
     add_record,
     delete_record,
+    get_collection,
+    save_memory,
     update_record,
 )
 
 
 # ============================================================
-# SAFE HELPERS
+# CONSTANTS
 # ============================================================
 
-def safe_text(
-    value: Any,
-    default: str = "",
-) -> str:
+PROJECT_COLLECTION = "projects"
 
-    if value is None:
+STATUS_OPTIONS = [
+    "All",
+    "Planning",
+    "Active",
+    "On Hold",
+    "Completed",
+    "Cancelled",
+]
 
-        return default
-
-    return str(
-        value
-    )
-
-
-def safe_number(
-    value: Any,
-    default: float = 0.0,
-) -> float:
-
-    try:
-
-        if value is None:
-            return default
-
-        return float(
-            value
-        )
-
-    except (
-        TypeError,
-        ValueError,
-    ):
-
-        return default
-
-
-def money(
-    value: Any,
-) -> str:
-
-    amount = safe_number(
-        value
-    )
-
-    return (
-        f"${amount:,.2f}"
-    )
-
-
-def clean_status(
-    value: Any,
-) -> str:
-
-    status = safe_text(
-        value,
-        "Active",
-    ).strip()
-
-    if not status:
-
-        return "Active"
-
-    return status
-
-
-def status_class(
-    status: str,
-) -> str:
-
-    normalized = (
-        status.lower()
-        .replace(
-            " ",
-            "-",
-        )
-    )
-
-    if normalized == "active":
-
-        return "status-active"
-
-    if normalized == "planning":
-
-        return "status-planning"
-
-    if normalized == "completed":
-
-        return "status-completed"
-
-    if normalized in {
-        "on-hold",
-        "on_hold",
-        "hold",
-    }:
-
-        return "status-on-hold"
-
-    return "status-planning"
+PROJECT_TYPES = [
+    "All",
+    "Commercial",
+    "Residential",
+    "Industrial",
+    "Infrastructure",
+    "Institutional",
+    "Mixed Use",
+    "Other",
+]
 
 
 # ============================================================
-# PAGE HEADER
+# CSS
 # ============================================================
 
-def render_header() -> None:
+def _inject_project_css() -> None:
+    """Inject project-module styling."""
 
     st.markdown(
         """
-        <div style="
-            color:#FFFFFF;
-            font-size:30px;
-            font-weight:900;
-            letter-spacing:-1px;
-        ">
-            Project Directory
-        </div>
+        <style>
 
-        <div style="
-            color:#64748B;
-            font-size:13px;
-            margin-top:5px;
-            margin-bottom:25px;
-        ">
-            Central project workspace for architectural,
-            engineering and construction activities.
-        </div>
+        /* ==================================================
+           PROJECT MODULE
+           ================================================== */
+
+        .cs-project-page {
+            color: #E5E7EB;
+        }
+
+        .cs-project-title {
+            font-size: 32px;
+            font-weight: 850;
+            line-height: 1.1;
+            color: #FFFFFF;
+            margin-bottom: 6px;
+        }
+
+        .cs-project-subtitle {
+            color: #94A3B8;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+
+        /* ==================================================
+           KPI CARDS
+           ================================================== */
+
+        .cs-kpi {
+            background: #0B0F17;
+            border: 1px solid #1E293B;
+            border-radius: 14px;
+            padding: 18px;
+            min-height: 105px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.20);
+        }
+
+        .cs-kpi-label {
+            color: #94A3B8;
+            font-size: 11px;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+        }
+
+        .cs-kpi-value {
+            color: #FFFFFF;
+            font-size: 27px;
+            font-weight: 850;
+            margin-top: 8px;
+        }
+
+        .cs-kpi-blue {
+            color: #60A5FA;
+        }
+
+
+        /* ==================================================
+           SECTION
+           ================================================== */
+
+        .cs-section {
+            background: #080C12;
+            border: 1px solid #172033;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .cs-section-title {
+            color: #FFFFFF;
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .cs-section-subtitle {
+            color: #64748B;
+            font-size: 12px;
+            margin-bottom: 16px;
+        }
+
+
+        /* ==================================================
+           PROJECT CARD
+           ================================================== */
+
+        .cs-project-card {
+            background: #0B0F17;
+            border: 1px solid #1E293B;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 10px 0;
+            transition: border-color .15s ease,
+                        box-shadow .15s ease,
+                        transform .15s ease;
+        }
+
+        .cs-project-card:hover {
+            border-color: #2563EB;
+            box-shadow: 0 10px 30px rgba(37,99,235,.12);
+            transform: translateY(-1px);
+        }
+
+        .cs-project-name {
+            color: #FFFFFF;
+            font-size: 18px;
+            font-weight: 820;
+            margin-bottom: 5px;
+        }
+
+        .cs-project-meta {
+            color: #64748B;
+            font-size: 12px;
+            margin-bottom: 14px;
+        }
+
+        .cs-project-label {
+            color: #64748B;
+            font-size: 10px;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .cs-project-value {
+            color: #CBD5E1;
+            font-size: 13px;
+            margin-top: 3px;
+        }
+
+
+        /* ==================================================
+           STATUS BADGES
+           ================================================== */
+
+        .cs-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .3px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .cs-status-active {
+            color: #86EFAC;
+            background: rgba(22,163,74,.14);
+            border: 1px solid rgba(34,197,94,.25);
+        }
+
+        .cs-status-planning {
+            color: #93C5FD;
+            background: rgba(37,99,235,.15);
+            border: 1px solid rgba(59,130,246,.25);
+        }
+
+        .cs-status-on-hold {
+            color: #FDE68A;
+            background: rgba(217,119,6,.14);
+            border: 1px solid rgba(245,158,11,.25);
+        }
+
+        .cs-status-completed {
+            color: #67E8F9;
+            background: rgba(8,145,178,.14);
+            border: 1px solid rgba(6,182,212,.25);
+        }
+
+        .cs-status-cancelled {
+            color: #FDA4AF;
+            background: rgba(190,24,93,.14);
+            border: 1px solid rgba(244,63,94,.25);
+        }
+
+        .cs-status-default {
+            color: #CBD5E1;
+            background: rgba(100,116,139,.14);
+            border: 1px solid rgba(100,116,139,.25);
+        }
+
+
+        /* ==================================================
+           EMPTY STATE
+           ================================================== */
+
+        .cs-empty {
+            text-align: center;
+            padding: 50px 20px;
+            color: #64748B;
+        }
+
+        .cs-empty-title {
+            color: #CBD5E1;
+            font-size: 18px;
+            font-weight: 750;
+            margin-bottom: 6px;
+        }
+
+        .cs-empty-text {
+            color: #64748B;
+            font-size: 13px;
+        }
+
+
+        /* ==================================================
+           FORM
+           ================================================== */
+
+        .cs-form-title {
+            color: #FFFFFF;
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+
+
+        /* ==================================================
+           STREAMLIT BUTTONS
+           ================================================== */
+
+        div.stButton > button {
+            border-radius: 9px;
+            border: 1px solid #26354D;
+            background: #101827;
+            color: #E5E7EB;
+            font-weight: 700;
+        }
+
+        div.stButton > button:hover {
+            border-color: #2563EB;
+            color: #FFFFFF;
+            background: #111C30;
+        }
+
+        div.stButton > button[kind="primary"] {
+            background: #2563EB;
+            border-color: #2563EB;
+            color: #FFFFFF;
+        }
+
+        div.stButton > button[kind="primary"]:hover {
+            background: #1D4ED8;
+            border-color: #1D4ED8;
+        }
+
+        </style>
         """,
         unsafe_allow_html=True,
     )
 
 
 # ============================================================
-# STATISTICS
+# HELPERS
 # ============================================================
 
-def render_statistics(
-    projects: list[dict],
-) -> None:
+def _text(
+    value: Any,
+    default: str = "",
+) -> str:
+    """Safely convert a value to text."""
 
-    total = len(
-        projects
-    )
+    if value is None:
+        return default
 
-    active = sum(
-        1
-        for project in projects
-        if clean_status(
-            project.get(
-                "status"
-            )
-        ).lower()
-        == "active"
-    )
+    return str(value)
 
-    planning = sum(
-        1
-        for project in projects
-        if clean_status(
-            project.get(
-                "status"
-            )
-        ).lower()
-        == "planning"
-    )
 
-    completed = sum(
-        1
-        for project in projects
-        if clean_status(
-            project.get(
-                "status"
-            )
-        ).lower()
-        == "completed"
-    )
+def _number(
+    value: Any,
+    default: float = 0.0,
+) -> float:
+    """Safely convert a value to float."""
 
-    budget = sum(
-        safe_number(
-            project.get(
-                "estimated_budget"
-            )
-        )
-        for project in projects
-    )
+    try:
+        return float(value)
 
-    columns = st.columns(
-        5
-    )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return default
 
-    columns[0].metric(
-        "Total Projects",
-        total,
-    )
 
-    columns[1].metric(
+def _money(
+    value: Any,
+) -> str:
+    """Format project budget."""
+
+    amount = _number(value)
+
+    return f"${amount:,.2f}"
+
+
+def _status_class(
+    status: Any,
+) -> str:
+    """Return CSS class for a project status."""
+
+    normalized = _text(
+        status,
         "Active",
-        active,
+    ).strip().lower()
+
+
+    mapping = {
+        "active": "cs-status-active",
+        "planning": "cs-status-planning",
+        "on hold": "cs-status-on-hold",
+        "completed": "cs-status-completed",
+        "cancelled": "cs-status-cancelled",
+    }
+
+
+    return mapping.get(
+        normalized,
+        "cs-status-default",
     )
 
-    columns[2].metric(
-        "Planning",
-        planning,
+
+def _status_badge(
+    status: Any,
+) -> str:
+    """Generate safe HTML status badge."""
+
+    status_text = _text(
+        status,
+        "Active",
+    ).strip()
+
+
+    if not status_text:
+        status_text = "Active"
+
+
+    css_class = _status_class(
+        status_text
     )
 
-    columns[3].metric(
-        "Completed",
-        completed,
+
+    return (
+        f'<span class="cs-status {css_class}">'
+        f"{status_text}"
+        f"</span>"
     )
 
-    columns[4].metric(
-        "Portfolio Budget",
-        money(
-            budget
-        ),
+
+def _project_id(
+    project: dict[str, Any],
+) -> str:
+    """Return project display ID."""
+
+    value = (
+        project.get("project_id")
+        or project.get("code")
+        or project.get("reference")
+    )
+
+
+    if value:
+        return _text(value)
+
+
+    project_id = project.get(
+        "id"
+    )
+
+
+    if project_id is not None:
+        return f"PRJ-{int(project_id):03d}"
+
+
+    return "PRJ-NEW"
+
+
+def _project_name(
+    project: dict[str, Any],
+) -> str:
+    """Return project name."""
+
+    return (
+        _text(
+            project.get("name")
+        ).strip()
+        or _text(
+            project.get("project_name")
+        ).strip()
+        or "Untitled Project"
+    )
+
+
+def _project_type(
+    project: dict[str, Any],
+) -> str:
+    """Return project type."""
+
+    return (
+        _text(
+            project.get("project_type")
+        ).strip()
+        or _text(
+            project.get("type")
+        ).strip()
+        or "Other"
+    )
+
+
+def _project_status(
+    project: dict[str, Any],
+) -> str:
+    """Return project status."""
+
+    status = (
+        _text(
+            project.get("status")
+        ).strip()
+    )
+
+
+    return status or "Active"
+
+
+def _project_budget(
+    project: dict[str, Any],
+) -> float:
+    """Return project estimated budget."""
+
+    return _number(
+        project.get(
+            "estimated_budget",
+            project.get(
+                "budget",
+                0,
+            ),
+        )
     )
 
 
@@ -247,181 +504,146 @@ def render_statistics(
 # PROJECT CARD
 # ============================================================
 
-def render_project_card(
-    db: dict,
-    project: dict,
+def _render_project_card(
+    db: dict[str, Any],
+    project: dict[str, Any],
 ) -> None:
+    """
+    Render one project card.
 
-    project_name = safe_text(
-        project.get(
-            "name"
-        ),
-        "Untitled Project",
+    IMPORTANT:
+    This function does NOT use st.success(), st.warning(),
+    st.error(), or icon="●".
+
+    Status is rendered entirely using CSS.
+    """
+
+    name = _project_name(
+        project
     )
 
-    project_id = safe_text(
-        project.get(
-            "project_id"
-        ),
-        "N/A",
+    project_id = _project_id(
+        project
     )
 
-    project_type = safe_text(
-        project.get(
-            "project_type"
-        ),
-        "General",
+    project_type = _project_type(
+        project
     )
 
-    client = safe_text(
+    status = _project_status(
+        project
+    )
+
+    client = _text(
         project.get(
             "client"
         ),
         "Not specified",
     )
 
-    location = safe_text(
+    location = _text(
         project.get(
             "location"
         ),
         "Not specified",
     )
 
-    manager = safe_text(
+    manager = _text(
         project.get(
-            "manager"
+            "project_manager",
+            project.get(
+                "manager",
+                "Not assigned",
+            ),
         ),
         "Not assigned",
     )
 
-    status = clean_status(
-        project.get(
-            "status"
-        )
+    budget = _project_budget(
+        project
     )
 
-    budget = money(
-        project.get(
-            "estimated_budget"
-        )
-    )
 
-    badge_class = status_class(
-        status
-    )
+    # --------------------------------------------------------
+    # CARD
+    # --------------------------------------------------------
 
     st.markdown(
         f"""
-        <div class="project-card">
+        <div class="cs-project-card">
 
             <div style="
                 display:flex;
                 justify-content:space-between;
-                gap:20px;
                 align-items:flex-start;
+                gap:15px;
             ">
 
-                <div>
+                <div style="flex:1;">
 
-                    <div class="project-title">
-                        {project_name}
+                    <div class="cs-project-name">
+                        {_escape_html(name)}
                     </div>
 
-                    <div class="project-meta">
-                        {project_id}
+                    <div class="cs-project-meta">
+                        {_escape_html(project_id)}
                         &nbsp;•&nbsp;
-                        {project_type}
+                        {_escape_html(project_type)}
                     </div>
 
                 </div>
 
-                <span class="
-                    status-badge
-                    {badge_class}
-                ">
-                    {status}
-                </span>
+                <div>
+                    {_status_badge(status)}
+                </div>
 
             </div>
 
             <div style="
-                margin-top:18px;
                 display:grid;
                 grid-template-columns:
-                    repeat(4, 1fr);
-                gap:15px;
+                    repeat(auto-fit,minmax(130px,1fr));
+                gap:16px;
+                margin-top:15px;
             ">
 
                 <div>
-                    <div style="
-                        color:#475569;
-                        font-size:10px;
-                        text-transform:uppercase;
-                    ">
+                    <div class="cs-project-label">
                         Client
                     </div>
 
-                    <div style="
-                        color:#CBD5E1;
-                        font-size:12px;
-                        margin-top:4px;
-                    ">
-                        {client}
+                    <div class="cs-project-value">
+                        {_escape_html(client)}
                     </div>
                 </div>
 
                 <div>
-                    <div style="
-                        color:#475569;
-                        font-size:10px;
-                        text-transform:uppercase;
-                    ">
+                    <div class="cs-project-label">
                         Location
                     </div>
 
-                    <div style="
-                        color:#CBD5E1;
-                        font-size:12px;
-                        margin-top:4px;
-                    ">
-                        {location}
+                    <div class="cs-project-value">
+                        {_escape_html(location)}
                     </div>
                 </div>
 
                 <div>
-                    <div style="
-                        color:#475569;
-                        font-size:10px;
-                        text-transform:uppercase;
-                    ">
+                    <div class="cs-project-label">
                         Manager
                     </div>
 
-                    <div style="
-                        color:#CBD5E1;
-                        font-size:12px;
-                        margin-top:4px;
-                    ">
-                        {manager}
+                    <div class="cs-project-value">
+                        {_escape_html(manager)}
                     </div>
                 </div>
 
                 <div>
-                    <div style="
-                        color:#475569;
-                        font-size:10px;
-                        text-transform:uppercase;
-                    ">
+                    <div class="cs-project-label">
                         Budget
                     </div>
 
-                    <div style="
-                        color:#60A5FA;
-                        font-size:12px;
-                        font-weight:800;
-                        margin-top:4px;
-                    ">
-                        {budget}
+                    <div class="cs-project-value">
+                        {_escape_html(_money(budget))}
                     </div>
                 </div>
 
@@ -432,473 +654,724 @@ def render_project_card(
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        "<div style='height:4px'></div>",
-        unsafe_allow_html=True,
-    )
 
-    edit_col, delete_col, spacer = st.columns(
-        [1, 1, 5]
-    )
+    # --------------------------------------------------------
+    # ACTION BUTTONS
+    # --------------------------------------------------------
 
-    project_db_id = project.get(
+    project_key = project.get(
         "id"
     )
 
-    if edit_col.button(
-        "Edit",
-        key=f"edit_{project_db_id}",
-    ):
 
-        st.session_state[
-            "editing_project"
-        ] = project_db_id
-
-        st.rerun()
-
-    if delete_col.button(
-        "Delete",
-        key=f"delete_{project_db_id}",
-    ):
-
-        st.session_state[
-            "delete_project"
-        ] = project_db_id
-
-        st.rerun()
+    if project_key is None:
+        return
 
 
-# ============================================================
-# CREATE PROJECT
-# ============================================================
-
-def create_project_form(
-    db: dict,
-) -> None:
-
-    st.markdown(
-        "### Create New Project"
+    col1, col2, col3 = st.columns(
+        [1, 1, 1]
     )
 
+
+    with col1:
+
+        if st.button(
+            "View",
+            key=f"project_view_{project_key}",
+            use_container_width=True,
+        ):
+
+            st.session_state[
+                "selected_project_id"
+            ] = project_key
+
+            st.session_state[
+                "project_action"
+            ] = "view"
+
+            st.rerun()
+
+
+    with col2:
+
+        if st.button(
+            "Edit",
+            key=f"project_edit_{project_key}",
+            use_container_width=True,
+        ):
+
+            st.session_state[
+                "selected_project_id"
+            ] = project_key
+
+            st.session_state[
+                "project_action"
+            ] = "edit"
+
+            st.rerun()
+
+
+    with col3:
+
+        if st.button(
+            "Delete",
+            key=f"project_delete_{project_key}",
+            use_container_width=True,
+        ):
+
+            st.session_state[
+                "selected_project_id"
+            ] = project_key
+
+            st.session_state[
+                "project_action"
+            ] = "delete"
+
+            st.rerun()
+
+
+# ============================================================
+# HTML ESCAPING
+# ============================================================
+
+def _escape_html(
+    value: Any,
+) -> str:
+    """
+    Escape user/database text before putting it into HTML.
+    """
+
+    import html
+
+    return html.escape(
+        _text(value)
+    )
+
+
+# ============================================================
+# PROJECT FORM
+# ============================================================
+
+def _render_project_form(
+    db: dict[str, Any],
+    project: dict[str, Any] | None = None,
+) -> None:
+    """Render create/edit project form."""
+
+    editing = project is not None
+
+
+    title = (
+        "Edit Project"
+        if editing
+        else "Create New Project"
+    )
+
+
+    st.markdown(
+        f"""
+        <div class="cs-section">
+            <div class="cs-form-title">
+                {title}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+    existing_name = (
+        _project_name(project)
+        if editing
+        else ""
+    )
+
+    existing_type = (
+        _project_type(project)
+        if editing
+        else "Commercial"
+    )
+
+    existing_status = (
+        _project_status(project)
+        if editing
+        else "Planning"
+    )
+
+    existing_client = (
+        _text(
+            project.get("client")
+        )
+        if editing
+        else ""
+    )
+
+    existing_location = (
+        _text(
+            project.get("location")
+        )
+        if editing
+        else ""
+    )
+
+    existing_manager = (
+        _text(
+            project.get(
+                "project_manager",
+                project.get(
+                    "manager"
+                ),
+            )
+        )
+        if editing
+        else ""
+    )
+
+    existing_budget = (
+        _project_budget(project)
+        if editing
+        else 0.0
+    )
+
+    existing_description = (
+        _text(
+            project.get(
+                "description"
+            )
+        )
+        if editing
+        else ""
+    )
+
+
     with st.form(
-        "create_project_form",
-        clear_on_submit=True,
+        key=(
+            "edit_project_form"
+            if editing
+            else "create_project_form"
+        )
     ):
 
         col1, col2 = st.columns(
             2
         )
 
-        with col1:
 
-            project_id = st.text_input(
-                "Project ID",
-                placeholder="PRJ-002",
-            )
+        with col1:
 
             name = st.text_input(
                 "Project Name",
+                value=existing_name,
+                placeholder=(
+                    "Grand Horizon Commercial Complex"
+                ),
             )
 
-            client = st.text_input(
-                "Client",
-            )
-
-            location = st.text_input(
-                "Location",
-            )
-
-        with col2:
-
-            manager = st.text_input(
-                "Project Manager",
-            )
 
             project_type = st.selectbox(
                 "Project Type",
-                [
-                    "Commercial",
-                    "Residential",
-                    "Industrial",
-                    "Infrastructure",
-                    "Institutional",
-                    "Other",
-                ],
+                PROJECT_TYPES[1:],
+                index=(
+                    PROJECT_TYPES[1:].index(
+                        existing_type
+                    )
+                    if existing_type
+                    in PROJECT_TYPES[1:]
+                    else 0
+                ),
             )
+
+
+            client = st.text_input(
+                "Client",
+                value=existing_client,
+            )
+
+
+            location = st.text_input(
+                "Location",
+                value=existing_location,
+            )
+
+
+        with col2:
 
             status = st.selectbox(
                 "Status",
-                [
-                    "Planning",
-                    "Active",
-                    "On Hold",
-                    "Completed",
-                ],
+                STATUS_OPTIONS[1:],
+                index=(
+                    STATUS_OPTIONS[1:].index(
+                        existing_status
+                    )
+                    if existing_status
+                    in STATUS_OPTIONS[1:]
+                    else 0
+                ),
             )
+
+
+            manager = st.text_input(
+                "Project Manager",
+                value=existing_manager,
+            )
+
 
             budget = st.number_input(
                 "Estimated Budget",
                 min_value=0.0,
+                value=float(
+                    existing_budget
+                ),
                 step=1000.0,
             )
 
+
         description = st.text_area(
-            "Description"
+            "Project Description",
+            value=existing_description,
+            placeholder=(
+                "Brief description of the project..."
+            ),
         )
+
 
         submitted = st.form_submit_button(
-            "Create Project",
+            "Update Project"
+            if editing
+            else "Create Project",
+            type="primary",
             use_container_width=True,
         )
 
-    if not submitted:
 
-        return
+        if submitted:
 
-    if not name.strip():
+            if not name.strip():
 
-        st.error(
-            "Project Name is required."
-        )
+                st.error(
+                    "Project Name is required."
+                )
 
-        return
+                return
 
-    if not project_id.strip():
 
-        project_id = (
-            f"PRJ-{len(db.get('projects', [])) + 1:03d}"
-        )
+            project_data = {
+                "name": name.strip(),
+                "project_name": name.strip(),
+                "project_type": project_type,
+                "status": status,
+                "client": client.strip(),
+                "location": location.strip(),
+                "project_manager": manager.strip(),
+                "estimated_budget": float(
+                    budget
+                ),
+                "description": description.strip(),
+                "updated_at": datetime.now().isoformat(),
+            }
 
-    record = {
-        "project_id":
-            project_id.strip(),
-        "name":
-            name.strip(),
-        "client":
-            client.strip(),
-        "location":
-            location.strip(),
-        "manager":
-            manager.strip(),
-        "project_type":
-            project_type,
-        "status":
-            status,
-        "estimated_budget":
-            budget,
-        "description":
-            description.strip(),
-        "created_at":
-            datetime.now().isoformat(),
-    }
 
-    add_record(
-        db,
-        "projects",
-        record,
-    )
+            if editing:
 
-    st.success(
-        "Project created successfully."
-    )
+                update_record(
+                    PROJECT_COLLECTION,
+                    project.get("id"),
+                    project_data,
+                    db,
+                    save=True,
+                )
 
-    st.rerun()
+                st.session_state[
+                    "project_action"
+                ] = None
+
+                st.success(
+                    "Project updated successfully."
+                )
+
+            else:
+
+                project_data[
+                    "project_id"
+                ] = (
+                    f"PRJ-"
+                    f"{len(get_collection(PROJECT_COLLECTION, db)) + 1:03d}"
+                )
+
+                project_data[
+                    "created_at"
+                ] = datetime.now().isoformat()
+
+
+                add_record(
+                    PROJECT_COLLECTION,
+                    project_data,
+                    db,
+                    save=True,
+                )
+
+                st.session_state[
+                    "project_action"
+                ] = None
+
+                st.success(
+                    "Project created successfully."
+                )
+
+
+            st.rerun()
 
 
 # ============================================================
-# EDIT PROJECT
+# PROJECT DETAILS
 # ============================================================
 
-def edit_project_form(
-    db: dict,
-    project: dict,
+def _render_project_details(
+    project: dict[str, Any],
 ) -> None:
+    """Render project detail view."""
+
+    name = _project_name(
+        project
+    )
+
+    project_id = _project_id(
+        project
+    )
+
+    status = _project_status(
+        project
+    )
+
+    project_type = _project_type(
+        project
+    )
+
+    budget = _project_budget(
+        project
+    )
+
 
     st.markdown(
-        "### Edit Project"
+        f"""
+        <div class="cs-section">
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:20px;
+            ">
+
+                <div>
+
+                    <div class="cs-project-name">
+                        {_escape_html(name)}
+                    </div>
+
+                    <div class="cs-project-meta">
+                        {_escape_html(project_id)}
+                        &nbsp;•&nbsp;
+                        {_escape_html(project_type)}
+                    </div>
+
+                </div>
+
+                {_status_badge(status)}
+
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    with st.form(
-        f"edit_project_{project.get('id')}"
-    ):
 
-        col1, col2 = st.columns(
-            2
+    col1, col2, col3 = st.columns(
+        3
+    )
+
+
+    with col1:
+
+        st.metric(
+            "Estimated Budget",
+            _money(budget),
         )
 
-        with col1:
 
-            project_id = st.text_input(
-                "Project ID",
-                value=safe_text(
-                    project.get(
-                        "project_id"
-                    )
+    with col2:
+
+        st.metric(
+            "Client",
+            _text(
+                project.get(
+                    "client"
                 ),
-            )
+                "Not specified",
+            ),
+        )
 
-            name = st.text_input(
-                "Project Name",
-                value=safe_text(
-                    project.get(
-                        "name"
-                    )
-                ),
-            )
 
-            client = st.text_input(
-                "Client",
-                value=safe_text(
-                    project.get(
-                        "client"
-                    )
-                ),
-            )
+    with col3:
 
-            location = st.text_input(
-                "Location",
-                value=safe_text(
-                    project.get(
-                        "location"
-                    )
-                ),
-            )
-
-        with col2:
-
-            manager = st.text_input(
-                "Project Manager",
-                value=safe_text(
+        st.metric(
+            "Manager",
+            _text(
+                project.get(
+                    "project_manager",
                     project.get(
                         "manager"
-                    )
+                    ),
                 ),
-            )
-
-            project_types = [
-                "Commercial",
-                "Residential",
-                "Industrial",
-                "Infrastructure",
-                "Institutional",
-                "Other",
-            ]
-
-            current_type = safe_text(
-                project.get(
-                    "project_type"
-                ),
-                "Commercial",
-            )
-
-            if current_type not in project_types:
-
-                project_types.append(
-                    current_type
-                )
-
-            project_type = st.selectbox(
-                "Project Type",
-                project_types,
-                index=project_types.index(
-                    current_type
-                ),
-            )
-
-            statuses = [
-                "Planning",
-                "Active",
-                "On Hold",
-                "Completed",
-            ]
-
-            current_status = clean_status(
-                project.get(
-                    "status"
-                )
-            )
-
-            if current_status not in statuses:
-
-                statuses.append(
-                    current_status
-                )
-
-            status = st.selectbox(
-                "Status",
-                statuses,
-                index=statuses.index(
-                    current_status
-                ),
-            )
-
-            budget = st.number_input(
-                "Estimated Budget",
-                min_value=0.0,
-                value=safe_number(
-                    project.get(
-                        "estimated_budget"
-                    )
-                ),
-                step=1000.0,
-            )
-
-        description = st.text_area(
-            "Description",
-            value=safe_text(
-                project.get(
-                    "description"
-                )
+                "Not assigned",
             ),
         )
 
-        save_col, cancel_col = st.columns(
-            2
-        )
 
-        save = save_col.form_submit_button(
-            "Save Changes",
-            use_container_width=True,
-        )
-
-        cancel = cancel_col.form_submit_button(
-            "Cancel",
-            use_container_width=True,
-        )
-
-    if cancel:
-
-        st.session_state.pop(
-            "editing_project",
-            None,
-        )
-
-        st.rerun()
-
-    if save:
-
-        if not name.strip():
-
-            st.error(
-                "Project Name is required."
-            )
-
-            return
-
-        update_record(
-            db,
-            "projects",
-            int(
-                project.get(
-                    "id"
-                )
-            ),
-            {
-                "project_id":
-                    project_id.strip(),
-                "name":
-                    name.strip(),
-                "client":
-                    client.strip(),
-                "location":
-                    location.strip(),
-                "manager":
-                    manager.strip(),
-                "project_type":
-                    project_type,
-                "status":
-                    status,
-                "estimated_budget":
-                    budget,
-                "description":
-                    description.strip(),
-            },
-        )
-
-        st.session_state.pop(
-            "editing_project",
-            None,
-        )
-
-        st.success(
-            "Project updated successfully."
-        )
-
-        st.rerun()
-
-
-# ============================================================
-# DELETE CONFIRMATION
-# ============================================================
-
-def render_delete_confirmation(
-    db: dict,
-    project: dict,
-) -> None:
-
-    name = safe_text(
-        project.get(
-            "name"
-        ),
-        "this project",
+    st.markdown(
+        "### Project Information"
     )
+
+
+    details = {
+        "Project ID": project_id,
+        "Project Name": name,
+        "Project Type": project_type,
+        "Status": status,
+        "Client": _text(
+            project.get("client"),
+            "Not specified",
+        ),
+        "Location": _text(
+            project.get("location"),
+            "Not specified",
+        ),
+        "Project Manager": _text(
+            project.get(
+                "project_manager",
+                project.get(
+                    "manager"
+                ),
+            ),
+            "Not assigned",
+        ),
+        "Description": _text(
+            project.get(
+                "description"
+            ),
+            "No description provided.",
+        ),
+    }
+
+
+    for label, value in details.items():
+
+        c1, c2 = st.columns(
+            [1, 3]
+        )
+
+
+        with c1:
+
+            st.caption(
+                label
+            )
+
+
+        with c2:
+
+            st.write(
+                value
+            )
+
+
+# ============================================================
+# PROJECT DELETE
+# ============================================================
+
+def _render_delete_confirmation(
+    db: dict[str, Any],
+    project: dict[str, Any],
+) -> None:
+    """Render delete confirmation."""
+
+    name = _project_name(
+        project
+    )
+
 
     st.warning(
-        f"Delete '{name}'?"
+        f'You are about to delete "{name}".'
     )
 
-    yes_col, no_col = st.columns(
+
+    col1, col2 = st.columns(
         2
     )
 
-    if yes_col.button(
-        "Delete Project",
-        key=f"confirm_delete_{project.get('id')}",
-        use_container_width=True,
-    ):
 
-        delete_record(
-            db,
-            "projects",
-            int(
-                project.get(
-                    "id"
-                )
-            ),
-        )
+    with col1:
 
-        st.session_state.pop(
-            "delete_project",
-            None,
-        )
+        if st.button(
+            "Cancel",
+            key="cancel_delete_project",
+            use_container_width=True,
+        ):
 
-        st.success(
-            "Project deleted successfully."
-        )
+            st.session_state[
+                "project_action"
+            ] = None
 
-        st.rerun()
+            st.rerun()
 
-    if no_col.button(
-        "Cancel",
-        key=f"cancel_delete_{project.get('id')}",
-        use_container_width=True,
-    ):
 
-        st.session_state.pop(
-            "delete_project",
-            None,
-        )
+    with col2:
 
-        st.rerun()
+        if st.button(
+            "Delete Project",
+            key="confirm_delete_project",
+            type="primary",
+            use_container_width=True,
+        ):
+
+            delete_record(
+                PROJECT_COLLECTION,
+                project.get("id"),
+                db,
+                save=True,
+            )
+
+
+            st.session_state[
+                "project_action"
+            ] = None
+
+            st.session_state[
+                "selected_project_id"
+            ] = None
+
+            st.success(
+                "Project deleted successfully."
+            )
+
+            st.rerun()
 
 
 # ============================================================
-# MAIN MODULE
+# KPI
+# ============================================================
+
+def _render_project_kpis(
+    projects: list[dict[str, Any]],
+) -> None:
+    """Render project KPI cards."""
+
+    total = len(
+        projects
+    )
+
+
+    active = sum(
+        1
+        for project in projects
+        if _project_status(project).lower()
+        == "active"
+    )
+
+
+    planning = sum(
+        1
+        for project in projects
+        if _project_status(project).lower()
+        == "planning"
+    )
+
+
+    completed = sum(
+        1
+        for project in projects
+        if _project_status(project).lower()
+        == "completed"
+    )
+
+
+    budget = sum(
+        _project_budget(project)
+        for project in projects
+    )
+
+
+    columns = st.columns(
+        5
+    )
+
+
+    values = [
+        (
+            "Total Projects",
+            total,
+        ),
+        (
+            "Active",
+            active,
+        ),
+        (
+            "Planning",
+            planning,
+        ),
+        (
+            "Completed",
+            completed,
+        ),
+        (
+            "Portfolio Budget",
+            _money(budget),
+        ),
+    ]
+
+
+    for column, (
+        label,
+        value,
+    ) in zip(
+        columns,
+        values,
+    ):
+
+        with column:
+
+            st.markdown(
+                f"""
+                <div class="cs-kpi">
+
+                    <div class="cs-kpi-label">
+                        {_escape_html(label)}
+                    </div>
+
+                    <div class="cs-kpi-value cs-kpi-blue">
+                        {_escape_html(value)}
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+# ============================================================
+# MAIN PROJECT MODULE
 # ============================================================
 
 def render_projects_module(
-    db: dict,
+    db: dict[str, Any],
 ) -> None:
+    """
+    Render the complete Creative Studios Project Directory.
+    """
+
+    _inject_project_css()
+
 
     if not isinstance(
         db,
@@ -909,283 +1382,349 @@ def render_projects_module(
             "projects": []
         }
 
-    projects = db.get(
-        "projects",
-        [],
+
+    projects = get_collection(
+        PROJECT_COLLECTION,
+        db,
     )
 
-    if not isinstance(
-        projects,
-        list,
-    ):
-
-        projects = []
-
-    projects = [
-        project
-        for project in projects
-        if isinstance(
-            project,
-            dict,
-        )
-    ]
 
     # --------------------------------------------------------
-    # HEADER
-    # --------------------------------------------------------
-
-    render_header()
-
-    # --------------------------------------------------------
-    # STATISTICS
-    # --------------------------------------------------------
-
-    render_statistics(
-        projects
-    )
-
-    st.markdown(
-        "<br>",
-        unsafe_allow_html=True,
-    )
-
-    # --------------------------------------------------------
-    # CREATE PROJECT
-    # --------------------------------------------------------
-
-    with st.expander(
-        "Create New Project"
-    ):
-
-        create_project_form(
-            db
-        )
-
-    # --------------------------------------------------------
-    # SEARCH / FILTERS
+    # Header
     # --------------------------------------------------------
 
     st.markdown(
-        "### Project Portfolio"
-    )
+        """
+        <div class="cs-project-page">
 
-    search = st.text_input(
-        "Search Projects",
-        placeholder=(
-            "Search by project ID, name, "
-            "client, location or manager..."
-        ),
-    )
+            <div class="cs-project-title">
+                Project Directory
+            </div>
 
-    col1, col2 = st.columns(
-        2
-    )
+            <div class="cs-project-subtitle">
+                Central project workspace for architectural,
+                engineering and construction activities.
+            </div>
 
-    statuses = sorted(
-        {
-            clean_status(
-                project.get(
-                    "status"
-                )
-            )
-            for project in projects
-        }
-    )
-
-    project_types = sorted(
-        {
-            safe_text(
-                project.get(
-                    "project_type"
-                ),
-                "General",
-            )
-            for project in projects
-        }
-    )
-
-    with col1:
-
-        status_filter = st.selectbox(
-            "Status",
-            ["All"] + statuses,
-        )
-
-    with col2:
-
-        type_filter = st.selectbox(
-            "Project Type",
-            ["All"] + project_types,
-        )
-
-    # --------------------------------------------------------
-    # FILTER
-    # --------------------------------------------------------
-
-    search_lower = search.strip().lower()
-
-    filtered = []
-
-    for project in projects:
-
-        searchable = " ".join(
-            [
-                safe_text(
-                    project.get(
-                        "project_id"
-                    )
-                ),
-                safe_text(
-                    project.get(
-                        "name"
-                    )
-                ),
-                safe_text(
-                    project.get(
-                        "client"
-                    )
-                ),
-                safe_text(
-                    project.get(
-                        "location"
-                    )
-                ),
-                safe_text(
-                    project.get(
-                        "manager"
-                    )
-                ),
-            ]
-        ).lower()
-
-        if search_lower and search_lower not in searchable:
-
-            continue
-
-        if (
-            status_filter != "All"
-            and clean_status(
-                project.get(
-                    "status"
-                )
-            )
-            != status_filter
-        ):
-
-            continue
-
-        if (
-            type_filter != "All"
-            and safe_text(
-                project.get(
-                    "project_type"
-                ),
-                "General",
-            )
-            != type_filter
-        ):
-
-            continue
-
-        filtered.append(
-            project
-        )
-
-    st.markdown(
-        f"""
-        <div style="
-            color:#64748B;
-            font-size:12px;
-            margin-top:15px;
-            margin-bottom:10px;
-        ">
-            Showing {len(filtered)}
-            of {len(projects)}
-            projects
         </div>
         """,
         unsafe_allow_html=True,
     )
 
+
     # --------------------------------------------------------
-    # EDIT
+    # KPIs
     # --------------------------------------------------------
 
-    editing_id = st.session_state.get(
-        "editing_project"
+    _render_project_kpis(
+        projects
     )
 
-    if editing_id is not None:
-
-        editing_project = next(
-            (
-                project
-                for project in projects
-                if project.get(
-                    "id"
-                )
-                == editing_id
-            ),
-            None,
-        )
-
-        if editing_project:
-
-            edit_project_form(
-                db,
-                editing_project,
-            )
-
-            st.divider()
 
     # --------------------------------------------------------
-    # DELETE
+    # Active action
     # --------------------------------------------------------
 
-    deleting_id = st.session_state.get(
-        "delete_project"
+    action = st.session_state.get(
+        "project_action"
     )
 
-    if deleting_id is not None:
 
-        deleting_project = next(
-            (
-                project
-                for project in projects
-                if project.get(
-                    "id"
-                )
-                == deleting_id
-            ),
-            None,
+    selected_id = st.session_state.get(
+        "selected_project_id"
+    )
+
+
+    selected_project = None
+
+
+    if selected_id is not None:
+
+        for project in projects:
+
+            if str(
+                project.get("id")
+            ) == str(
+                selected_id
+            ):
+
+                selected_project = project
+
+                break
+
+
+    if action == "create":
+
+        _render_project_form(
+            db
         )
 
-        if deleting_project:
+        st.divider()
 
-            render_delete_confirmation(
-                db,
-                deleting_project,
-            )
 
-            st.divider()
+    elif (
+        action == "edit"
+        and selected_project
+    ):
+
+        _render_project_form(
+            db,
+            selected_project,
+        )
+
+        st.divider()
+
+
+    elif (
+        action == "view"
+        and selected_project
+    ):
+
+        _render_project_details(
+            selected_project
+        )
+
+        st.divider()
+
+
+    elif (
+        action == "delete"
+        and selected_project
+    ):
+
+        _render_delete_confirmation(
+            db,
+            selected_project,
+        )
+
+        st.divider()
+
 
     # --------------------------------------------------------
-    # PROJECTS
+    # Project portfolio
     # --------------------------------------------------------
 
-    if not filtered:
+    st.markdown(
+        """
+        <div class="cs-section">
+
+            <div class="cs-section-title">
+                Project Portfolio
+            </div>
+
+            <div class="cs-section-subtitle">
+                Search, filter and manage your active
+                construction project portfolio.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+    # --------------------------------------------------------
+    # Create button
+    # --------------------------------------------------------
+
+    create_col, spacer = st.columns(
+        [1, 4]
+    )
+
+
+    with create_col:
+
+        if st.button(
+            "Create New Project",
+            type="primary",
+            use_container_width=True,
+        ):
+
+            st.session_state[
+                "project_action"
+            ] = "create"
+
+            st.session_state[
+                "selected_project_id"
+            ] = None
+
+            st.rerun()
+
+
+    st.write("")
+
+
+    # --------------------------------------------------------
+    # Search and filters
+    # --------------------------------------------------------
+
+    search_col, status_col, type_col = st.columns(
+        [2, 1, 1]
+    )
+
+
+    with search_col:
+
+        search = st.text_input(
+            "Search Projects",
+            placeholder=(
+                "Search by project ID, name, client, "
+                "location or manager..."
+            ),
+            label_visibility="visible",
+        )
+
+
+    with status_col:
+
+        selected_status = st.selectbox(
+            "Status",
+            STATUS_OPTIONS,
+        )
+
+
+    with type_col:
+
+        selected_type = st.selectbox(
+            "Project Type",
+            PROJECT_TYPES,
+        )
+
+
+    # --------------------------------------------------------
+    # Filtering
+    # --------------------------------------------------------
+
+    search_value = (
+        search.strip().lower()
+    )
+
+
+    filtered_projects: list[
+        dict[str, Any]
+    ] = []
+
+
+    for project in projects:
+
+        if not isinstance(
+            project,
+            dict,
+        ):
+
+            continue
+
+
+        project_status = _project_status(
+            project
+        )
+
+
+        project_type = _project_type(
+            project
+        )
+
+
+        # Status filter
+        if (
+            selected_status != "All"
+            and project_status.lower()
+            != selected_status.lower()
+        ):
+
+            continue
+
+
+        # Type filter
+        if (
+            selected_type != "All"
+            and project_type.lower()
+            != selected_type.lower()
+        ):
+
+            continue
+
+
+        # Search
+        if search_value:
+
+            searchable = " ".join(
+                [
+                    _text(
+                        project.get(
+                            "id"
+                        )
+                    ),
+                    _text(
+                        project.get(
+                            "project_id"
+                        )
+                    ),
+                    _project_name(
+                        project
+                    ),
+                    _project_type(
+                        project
+                    ),
+                    _text(
+                        project.get(
+                            "client"
+                        )
+                    ),
+                    _text(
+                        project.get(
+                            "location"
+                        )
+                    ),
+                    _text(
+                        project.get(
+                            "project_manager",
+                            project.get(
+                                "manager"
+                            ),
+                        )
+                    ),
+                ]
+            ).lower()
+
+
+            if search_value not in searchable:
+
+                continue
+
+
+        filtered_projects.append(
+            project
+        )
+
+
+    # --------------------------------------------------------
+    # Result count
+    # --------------------------------------------------------
+
+    st.caption(
+        f"Showing {len(filtered_projects)} "
+        f"of {len(projects)} projects"
+    )
+
+
+    # --------------------------------------------------------
+    # No projects
+    # --------------------------------------------------------
+
+    if not filtered_projects:
 
         st.markdown(
             """
-            <div class="project-card">
+            <div class="cs-empty">
 
-                <div class="project-title">
+                <div class="cs-empty-title">
                     No Projects Found
                 </div>
 
-                <div class="project-meta">
-                    Try changing your search or
-                    filters, or create a new project.
+                <div class="cs-empty-text">
+                    Create a project or adjust your
+                    search and filters.
                 </div>
 
             </div>
@@ -1195,9 +1734,14 @@ def render_projects_module(
 
         return
 
-    for project in filtered:
 
-        render_project_card(
+    # --------------------------------------------------------
+    # Project cards
+    # --------------------------------------------------------
+
+    for project in filtered_projects:
+
+        _render_project_card(
             db,
             project,
         )
