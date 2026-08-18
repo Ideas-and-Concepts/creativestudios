@@ -1,25 +1,16 @@
 """
 Creative Studios
-Shared application branding.
+Central branding utilities.
 
-Canonical branding asset
-------------------------
-assets/creative_studios.png
-
-This module provides:
-- Shared Creative Studios logo path
-- Native Streamlit logo rendering
-- Shared module headers
-- Safe logo existence checking
-
-All application modules should import branding
-from this module instead of defining their own
-logo implementation.
+Single source of truth for:
+- Creative Studios logo
+- Branding CSS
+- Module headers
 """
 
 from __future__ import annotations
 
-import html
+import base64
 from pathlib import Path
 
 import streamlit as st
@@ -29,28 +20,21 @@ import streamlit as st
 # PATHS
 # ============================================================
 
-# modules/branding.py
-MODULES_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Project root
-BASE_DIR = MODULES_DIR.parent
-
-# Canonical assets directory
-ASSETS_DIR = BASE_DIR / "assets"
-
-# Single Creative Studios branding asset
-LOGO_PATH = ASSETS_DIR / "creative_studios.png"
+LOGO_PATH = (
+    BASE_DIR
+    / "assets"
+    / "creative_studios.png"
+)
 
 
 # ============================================================
-# LOGO HELPERS
+# LOGO
 # ============================================================
 
 def logo_exists() -> bool:
-    """
-    Return True when the canonical Creative Studios
-    PNG logo exists and is a regular file.
-    """
+    """Return True when the Creative Studios logo exists."""
 
     return (
         LOGO_PATH.exists()
@@ -58,34 +42,50 @@ def logo_exists() -> bool:
     )
 
 
+def _logo_data_uri() -> str | None:
+    """
+    Return the logo as a base64 data URI.
+
+    This allows the logo to be used safely inside HTML
+    without depending on Streamlit static-file serving.
+    """
+
+    if not logo_exists():
+        return None
+
+    try:
+
+        encoded = base64.b64encode(
+            LOGO_PATH.read_bytes()
+        ).decode("ascii")
+
+        return (
+            "data:image/png;base64,"
+            + encoded
+        )
+
+    except OSError:
+
+        return None
+
+
+# ============================================================
+# NATIVE STREAMLIT LOGO
+# ============================================================
+
 def render_logo(
-    width: int = 100,
+    width: int = 80,
 ) -> None:
     """
-    Render the Creative Studios logo using native
-    Streamlit image rendering.
-
-    Parameters
-    ----------
-    width:
-        Display width of the logo in pixels.
-
-    Notes
-    -----
-    The function intentionally uses st.image()
-    rather than:
-    - SVG
-    - base64
-    - HTML <img>
-    - emoji
-    - external URLs
+    Render the Creative Studios logo using Streamlit's
+    native image renderer.
     """
 
     if not logo_exists():
 
         st.warning(
-            "Creative Studios logo not found at "
-            "assets/creative_studios.png"
+            "Creative Studios logo was not found: "
+            f"{LOGO_PATH}"
         )
 
         return
@@ -97,267 +97,418 @@ def render_logo(
 
 
 # ============================================================
-# MODULE HEADER
-# ============================================================
-
-def render_module_header(
-    title: str,
-    subtitle: str = "",
-) -> None:
-    """
-    Render the standard Creative Studios module header.
-
-    The canonical Creative Studios logo is displayed
-    above the module title.
-
-    Existing modules can continue using:
-
-        from modules.branding import render_module_header
-
-        render_module_header(
-            "Projects",
-            "Manage project records."
-        )
-    """
-
-    safe_title = html.escape(
-        str(title or "")
-    )
-
-    safe_subtitle = html.escape(
-        str(subtitle or "")
-    )
-
-    # --------------------------------------------------------
-    # Header container
-    # --------------------------------------------------------
-
-    st.markdown(
-        """
-        <div class="cs-module-header">
-            <div class="cs-module-header-logo">
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # --------------------------------------------------------
-    # Native Streamlit logo
-    # --------------------------------------------------------
-
-    if logo_exists():
-
-        st.image(
-            str(LOGO_PATH),
-            width=54,
-        )
-
-    else:
-
-        st.markdown(
-            """
-            <div class="cs-branding-warning">
-                Creative Studios logo not found.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    # --------------------------------------------------------
-    # Header text
-    # --------------------------------------------------------
-
-    st.markdown(
-        f"""
-            </div>
-
-            <div class="cs-module-header-content">
-
-                <div class="cs-page-title">
-                    {safe_title}
-                </div>
-
-                <div class="cs-page-subtitle">
-                    {safe_subtitle}
-                </div>
-
-            </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
 # BRANDING CSS
 # ============================================================
 
 def inject_branding_css() -> None:
     """
-    Inject CSS required by the shared branding components.
+    Inject all Creative Studios branding CSS.
 
-    This is optional. streamlit_app.py may call it if it
-    wants branding-specific CSS separated from global CSS.
+    This function is the single source of truth for
+    application branding.
     """
 
     st.markdown(
         """
-        <style>
+<style>
 
-        /* ==================================================
-           CREATIVE STUDIOS MODULE HEADER
-           ================================================== */
+/* ==========================================================
+   GLOBAL
+   ========================================================== */
 
-        .cs-module-header {
+html,
+body,
+[data-testid="stAppViewContainer"] {
+    background: #05070B !important;
+    color: #F8FAFC !important;
+}
 
-            display: flex;
+[data-testid="stAppViewContainer"] {
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(37,99,235,0.10),
+            transparent 35%
+        ),
+        #05070B !important;
+}
 
-            align-items: center;
+[data-testid="stHeader"] {
+    background: transparent !important;
+}
 
-            gap: 16px;
+[data-testid="stToolbar"] {
+    background: transparent !important;
+}
 
-            margin-bottom: 25px;
+.block-container {
+    padding-top: 2rem !important;
+    padding-bottom: 3rem !important;
+}
 
-            padding-bottom: 14px;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: #F8FAFC !important;
+}
 
-            border-bottom:
-                1px solid #172033;
-        }
-
-        .cs-module-header-logo {
-
-            width: 54px;
-
-            min-width: 54px;
-
-            height: 54px;
-
-            min-height: 54px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            flex-shrink: 0;
-        }
-
-        .cs-module-header-logo
-        [data-testid="stImage"] {
-
-            margin: 0 !important;
-
-            padding: 0 !important;
-        }
-
-        .cs-module-header-logo img {
-
-            width: 54px !important;
-
-            height: 54px !important;
-
-            max-width: 54px !important;
-
-            max-height: 54px !important;
-
-            object-fit: contain;
-        }
-
-        .cs-module-header-content {
-
-            min-width: 0;
-
-            flex: 1;
-        }
+p,
+label,
+span {
+    color: #CBD5E1;
+}
 
 
-        /* ==================================================
-           PAGE TITLE
-           ================================================== */
+/* ==========================================================
+   SIDEBAR
+   ========================================================== */
 
-        .cs-page-title {
+[data-testid="stSidebar"] {
+    background: #080B12 !important;
+    border-right: 1px solid #172033 !important;
+}
 
-            color: #FFFFFF;
-
-            font-size: 30px;
-
-            font-weight: 900;
-
-            letter-spacing: -0.7px;
-
-            line-height: 1.15;
-        }
+[data-testid="stSidebar"] > div:first-child {
+    background: #080B12 !important;
+}
 
 
-        /* ==================================================
-           PAGE SUBTITLE
-           ================================================== */
+/* ==========================================================
+   LOGIN
+   ========================================================== */
 
-        .cs-page-subtitle {
+.cs-login-wrapper {
+    width: min(430px, 92vw);
+    margin: 7vh auto 0 auto;
+}
 
-            color: #64748B;
+.cs-login-card {
+    background: #0B0F17;
+    border: 1px solid #1E293B;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow:
+        0 20px 70px rgba(0,0,0,0.55),
+        0 0 40px rgba(37,99,235,0.06);
+}
 
-            font-size: 13px;
+.cs-login-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin: 0 auto 22px auto;
+}
 
-            margin-top: 5px;
-        }
+.cs-login-logo img {
+    display: block;
+    object-fit: contain;
+}
 
 
-        /* ==================================================
-           BRANDING WARNING
-           ================================================== */
+/* ==========================================================
+   LOGIN FOOTER
+   ========================================================== */
 
-        .cs-branding-warning {
+.cs-login-footer {
+    text-align: center;
+    margin-top: 18px;
+    color: #475569;
+    font-size: 11px;
+}
 
-            color: #FCA5A5;
 
-            background:
-                rgba(127, 29, 29, 0.20);
+/* ==========================================================
+   SIDEBAR BRAND
+   ========================================================== */
 
-            border:
-                1px solid
-                rgba(248, 113, 113, 0.25);
+.cs-sidebar-brand {
+    width: 100%;
+    padding: 6px 2px 18px 2px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #172033;
+}
 
-            border-radius: 8px;
+.cs-sidebar-brand-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 48px;
+}
 
-            padding: 7px;
+.cs-sidebar-logo-wrap {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    max-width: 46px;
+    min-height: 46px;
+    max-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
 
-            font-size: 9px;
+.cs-sidebar-logo-wrap img {
+    width: 46px !important;
+    height: 46px !important;
+    object-fit: contain;
+}
 
-            text-align: center;
+.cs-sidebar-brand-text {
+    min-width: 0;
+    overflow: hidden;
+}
 
-            width: 54px;
-        }
+.cs-sidebar-name {
+    color: #FFFFFF;
+    font-size: 15px;
+    font-weight: 850;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-        </style>
-        """,
+.cs-sidebar-subtitle {
+    color: #64748B;
+    font-size: 9px;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+}
+
+
+/* ==========================================================
+   SECTION LABEL
+   ========================================================== */
+
+.cs-section-label {
+    color: #475569;
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    margin-top: 17px;
+    margin-bottom: 7px;
+}
+
+
+/* ==========================================================
+   USER CARD
+   ========================================================== */
+
+.cs-user-card {
+    background: #0B0F17;
+    border: 1px solid #172033;
+    border-radius: 13px;
+    padding: 13px;
+    margin-top: 15px;
+}
+
+.user-label {
+    color: #60A5FA;
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.user-name {
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 800;
+    margin-top: 5px;
+}
+
+.user-login {
+    color: #64748B;
+    font-size: 10px;
+    margin-top: 3px;
+}
+
+.user-role {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 9px;
+    background: #2563EB;
+    color: #FFFFFF !important;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 850;
+}
+
+
+/* ==========================================================
+   MODULE HEADER
+   ========================================================== */
+
+.cs-page-title {
+    color: #FFFFFF;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: -0.7px;
+    line-height: 1.15;
+}
+
+.cs-page-subtitle {
+    color: #64748B;
+    font-size: 13px;
+    margin-top: 5px;
+    margin-bottom: 25px;
+}
+
+
+/* ==========================================================
+   CARDS
+   ========================================================== */
+
+.cs-card {
+    background: #0B0F17;
+    border: 1px solid #172033;
+    border-radius: 15px;
+    padding: 20px;
+}
+
+.cs-card-title {
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: 850;
+}
+
+.cs-card-subtitle {
+    color: #64748B;
+    font-size: 12px;
+    margin-top: 7px;
+}
+
+
+/* ==========================================================
+   KPI
+   ========================================================== */
+
+.cs-kpi {
+    background: #0B0F17;
+    border: 1px solid #172033;
+    border-radius: 15px;
+    padding: 18px;
+    min-height: 110px;
+}
+
+.cs-kpi-label {
+    color: #64748B;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.cs-kpi-value {
+    color: #FFFFFF;
+    font-size: 24px;
+    font-weight: 900;
+    margin-top: 7px;
+    overflow-wrap: anywhere;
+}
+
+
+/* ==========================================================
+   BUTTONS
+   ========================================================== */
+
+div[data-testid="stButton"] > button {
+    background: #111827 !important;
+    color: #E2E8F0 !important;
+    border: 1px solid #1E293B !important;
+    border-radius: 9px !important;
+}
+
+div[data-testid="stButton"] > button:hover {
+    background: #172554 !important;
+    border-color: #2563EB !important;
+    color: #FFFFFF !important;
+}
+
+div[data-testid="stFormSubmitButton"] > button {
+    background: #2563EB !important;
+    color: #FFFFFF !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    font-weight: 800 !important;
+}
+
+div[data-testid="stFormSubmitButton"] > button:hover {
+    background: #1D4ED8 !important;
+}
+
+
+/* ==========================================================
+   INPUTS
+   ========================================================== */
+
+input,
+textarea,
+[data-baseweb="select"] > div {
+    background: #0B0F17 !important;
+    color: #FFFFFF !important;
+    border-color: #1E293B !important;
+}
+
+
+/* ==========================================================
+   LOGIN ERROR
+   ========================================================== */
+
+.cs-login-error {
+    background: rgba(127,29,29,0.20);
+    border: 1px solid rgba(248,113,113,0.30);
+    border-radius: 9px;
+    padding: 9px 12px;
+    margin-top: 10px;
+    color: #FCA5A5 !important;
+    font-size: 12px;
+}
+
+
+/* ==========================================================
+   ACTIVE NAVIGATION INDICATOR
+   ========================================================== */
+
+[data-testid="stSidebar"] div[data-testid="stButton"] button {
+    text-align: left !important;
+}
+
+</style>
+""",
         unsafe_allow_html=True,
     )
 
 
 # ============================================================
-# BACKWARD-COMPATIBLE ALIASES
+# MODULE HEADER
 # ============================================================
 
-# Some application code may refer to the asset using
-# BRAND_LOGO_PATH. Keep this alias so existing code does
-# not break if it already imports it.
+def render_module_header(
+    title: str,
+    subtitle: str,
+) -> None:
+    """
+    Render the standard Creative Studios module header.
+    """
 
-BRAND_LOGO_PATH = LOGO_PATH
+    st.markdown(
+        f"""
+        <div class="cs-page-title">
+            {title}
+        </div>
 
-
-# ============================================================
-# PUBLIC API
-# ============================================================
-
-__all__ = [
-    "BASE_DIR",
-    "ASSETS_DIR",
-    "LOGO_PATH",
-    "BRAND_LOGO_PATH",
-    "logo_exists",
-    "render_logo",
-    "render_module_header",
-    "inject_branding_css",
-]
+        <div class="cs-page-subtitle">
+            {subtitle}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
