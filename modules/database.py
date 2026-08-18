@@ -1,9 +1,12 @@
 """
 Creative Studios
+AEC Collaboration Platform
 AEC Workspace
-JSON database layer.
 
-This module intentionally has NO Streamlit dependency.
+JSON-backed database layer.
+
+No Streamlit dependency.
+No SQLAlchemy dependency.
 """
 
 from __future__ import annotations
@@ -19,10 +22,11 @@ from typing import Any
 
 
 # ============================================================
-# DATABASE PATH
+# PATHS
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 DATABASE_FILE = BASE_DIR / "creativestudios_db.json"
 
 
@@ -36,6 +40,7 @@ DEFAULT_DATABASE: dict[str, Any] = {
     "users": [],
 
     "projects": [],
+
     "clients": [],
     "companies": [],
     "contacts": [],
@@ -68,18 +73,20 @@ DEFAULT_DATABASE: dict[str, Any] = {
 # INTERNAL HELPERS
 # ============================================================
 
-def _new_database() -> dict[str, Any]:
+def _fresh_database() -> dict[str, Any]:
     return copy.deepcopy(DEFAULT_DATABASE)
 
 
-def _normalize(data: Any) -> dict[str, Any]:
+def _normalize_database(
+    data: Any,
+) -> dict[str, Any]:
 
     if not isinstance(data, dict):
         data = {}
 
-    result = copy.deepcopy(data)
+    normalized = copy.deepcopy(data)
 
-    result.setdefault(
+    normalized.setdefault(
         "database_version",
         1,
     )
@@ -89,24 +96,36 @@ def _normalize(data: Any) -> dict[str, Any]:
         if key == "database_version":
             continue
 
-        if key not in result:
-            result[key] = copy.deepcopy(default)
+        if key not in normalized:
+            normalized[key] = copy.deepcopy(default)
 
-        elif not isinstance(result[key], list):
-            result[key] = []
+        elif not isinstance(
+            normalized[key],
+            list,
+        ):
+            normalized[key] = []
 
-    return result
+    return normalized
 
 
 def _json_default(value: Any) -> str:
 
-    if isinstance(value, datetime):
+    if isinstance(
+        value,
+        datetime,
+    ):
         return value.isoformat()
 
-    if isinstance(value, Path):
+    if isinstance(
+        value,
+        Path,
+    ):
         return str(value)
 
-    if hasattr(value, "isoformat"):
+    if hasattr(
+        value,
+        "isoformat",
+    ):
 
         try:
             return value.isoformat()
@@ -117,14 +136,14 @@ def _json_default(value: Any) -> str:
 
 
 # ============================================================
-# LOAD
+# LOAD DATABASE
 # ============================================================
 
 def load_memory() -> dict[str, Any]:
 
     if not DATABASE_FILE.exists():
 
-        data = _new_database()
+        data = _fresh_database()
 
         save_memory(data)
 
@@ -137,9 +156,9 @@ def load_memory() -> dict[str, Any]:
             encoding="utf-8",
         ) as file:
 
-            data = json.load(file)
+            raw = json.load(file)
 
-        return _normalize(data)
+        return _normalize_database(raw)
 
     except (
         OSError,
@@ -147,24 +166,24 @@ def load_memory() -> dict[str, Any]:
         UnicodeDecodeError,
     ):
 
-        data = _new_database()
-
-        save_memory(data)
-
-        return data
+        # Do not destroy a possibly recoverable file.
+        # Create a safe in-memory database instead.
+        return _fresh_database()
 
 
 # ============================================================
-# SAVE
+# SAVE DATABASE
 # ============================================================
 
 def save_memory(
     data: dict[str, Any],
 ) -> bool:
 
-    data = _normalize(data)
+    normalized = _normalize_database(
+        data
+    )
 
-    temporary_file = None
+    temporary_path: Path | None = None
 
     try:
 
@@ -176,10 +195,12 @@ def save_memory(
         fd, temporary_name = tempfile.mkstemp(
             prefix="creativestudios_",
             suffix=".tmp",
-            dir=str(DATABASE_FILE.parent),
+            dir=str(
+                DATABASE_FILE.parent
+            ),
         )
 
-        temporary_file = Path(
+        temporary_path = Path(
             temporary_name
         )
 
@@ -190,7 +211,7 @@ def save_memory(
         ) as file:
 
             json.dump(
-                data,
+                normalized,
                 file,
                 indent=2,
                 ensure_ascii=False,
@@ -202,16 +223,18 @@ def save_memory(
             file.flush()
 
             try:
-                os.fsync(file.fileno())
+                os.fsync(
+                    file.fileno()
+                )
             except OSError:
                 pass
 
         os.replace(
-            temporary_file,
+            temporary_path,
             DATABASE_FILE,
         )
 
-        temporary_file = None
+        temporary_path = None
 
         return True
 
@@ -226,18 +249,18 @@ def save_memory(
     finally:
 
         if (
-            temporary_file is not None
-            and temporary_file.exists()
+            temporary_path is not None
+            and temporary_path.exists()
         ):
 
             try:
-                temporary_file.unlink()
+                temporary_path.unlink()
             except OSError:
                 pass
 
 
 # ============================================================
-# COMPATIBILITY FUNCTIONS
+# COMPATIBILITY ALIASES
 # ============================================================
 
 def load_database() -> dict[str, Any]:
@@ -265,7 +288,7 @@ def ensure_database() -> dict[str, Any]:
 def get_collection(
     collection_name: str,
     data: dict[str, Any] | None = None,
-) -> list:
+) -> list[dict[str, Any]]:
 
     if data is None:
         data = load_memory()
@@ -306,7 +329,7 @@ def next_id(
 
         try:
 
-            value = int(
+            record_id = int(
                 record.get(
                     "id",
                     0,
@@ -315,7 +338,7 @@ def next_id(
 
             highest = max(
                 highest,
-                value,
+                record_id,
             )
 
         except (
@@ -328,7 +351,7 @@ def next_id(
 
 
 # ============================================================
-# RECORD CRUD
+# RECORD OPERATIONS
 # ============================================================
 
 def add_record(
@@ -348,7 +371,9 @@ def add_record(
             "record must be a dictionary"
         )
 
-    new_record = copy.deepcopy(record)
+    new_record = copy.deepcopy(
+        record
+    )
 
     if new_record.get("id") is None:
 
@@ -520,11 +545,17 @@ def find_one(
         ):
             continue
 
-        if str(
-            record.get(field, "")
-        ).lower() == str(
-            value
-        ).lower():
+        record_value = record.get(
+            field
+        )
+
+        if (
+            record_value is not None
+            and str(
+                record_value
+            ).lower()
+            == str(value).lower()
+        ):
 
             return record
 
@@ -540,7 +571,9 @@ def hash_password(
 ) -> str:
 
     return hashlib.sha256(
-        password.encode("utf-8")
+        str(password).encode(
+            "utf-8"
+        )
     ).hexdigest()
 
 
@@ -552,9 +585,130 @@ def verify_password(
     if not password_hash:
         return False
 
-    return hash_password(
-        password
-    ) == password_hash
+    return (
+        hash_password(password)
+        == str(password_hash)
+    )
+
+
+# ============================================================
+# AUTHENTICATION
+# ============================================================
+
+def authenticate_user(
+    username: str,
+    password: str,
+    data: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+
+    if data is None:
+        data = load_memory()
+
+    username = str(
+        username or ""
+    ).strip()
+
+    password = str(
+        password or ""
+    )
+
+    if not username or not password:
+        return None
+
+    users = get_collection(
+        "users",
+        data,
+    )
+
+    for user in users:
+
+        if not isinstance(
+            user,
+            dict,
+        ):
+            continue
+
+        stored_username = str(
+            user.get(
+                "username",
+                "",
+            )
+        ).strip()
+
+        if (
+            stored_username.lower()
+            != username.lower()
+        ):
+            continue
+
+        if not user.get(
+            "active",
+            True,
+        ):
+            return None
+
+        stored_hash = user.get(
+            "password_hash"
+        )
+
+        # New format
+        if stored_hash and verify_password(
+            password,
+            stored_hash,
+        ):
+            return user
+
+        # Compatibility with a plain password
+        # from an older JSON database.
+        if (
+            user.get("password")
+            and str(
+                user.get("password")
+            ) == password
+        ):
+
+            user["password_hash"] = (
+                hash_password(password)
+            )
+
+            user.pop(
+                "password",
+                None,
+            )
+
+            save_memory(data)
+
+            return user
+
+        return None
+
+    return None
+
+
+def login_user(
+    username: str,
+    password: str,
+    data: dict[str, Any] | None = None,
+):
+    """
+    Compatibility wrapper.
+
+    Returns:
+        (True, user)
+        or
+        (False, None)
+    """
+
+    user = authenticate_user(
+        username,
+        password,
+        data,
+    )
+
+    if user is None:
+        return False, None
+
+    return True, user
 
 
 # ============================================================
@@ -575,33 +729,67 @@ def ensure_admin_user(
 
     for user in users:
 
+        if not isinstance(
+            user,
+            dict,
+        ):
+            continue
+
         if str(
             user.get(
                 "username",
                 "",
             )
-        ).lower() == "admin":
+        ).lower() != "admin":
 
-            changed = False
+            continue
 
-            if "active" not in user:
-                user["active"] = True
-                changed = True
+        changed = False
 
-            if "role" not in user:
-                user["role"] = "Admin"
-                changed = True
+        if not user.get(
+            "full_name"
+        ):
 
-            if "full_name" not in user:
-                user[
-                    "full_name"
-                ] = "System Administrator"
-                changed = True
+            user[
+                "full_name"
+            ] = "System Administrator"
 
-            if changed:
-                save_memory(data)
+            changed = True
 
-            return user
+        if not user.get(
+            "role"
+        ):
+
+            user[
+                "role"
+            ] = "Admin"
+
+            changed = True
+
+        if "active" not in user:
+
+            user[
+                "active"
+            ] = True
+
+            changed = True
+
+        if not user.get(
+            "password_hash"
+        ):
+
+            user[
+                "password_hash"
+            ] = hash_password(
+                "admin"
+            )
+
+            changed = True
+
+        if changed:
+            save_memory(data)
+
+        return user
 
     admin = {
         "id": next_id(
@@ -633,38 +821,40 @@ def ensure_admin_user(
 
 
 # ============================================================
-# INITIALIZE
+# INITIALIZATION
 # ============================================================
 
 def initialize_database() -> dict[str, Any]:
 
     data = load_memory()
 
-    ensure_admin_user(data)
+    ensure_admin_user(
+        data
+    )
 
     return data
 
 
 # ============================================================
-# MODULE TEST
+# STARTUP TEST
 # ============================================================
 
 if __name__ == "__main__":
 
-    database = initialize_database()
+    db = initialize_database()
 
     print(
-        "Creative Studios database OK"
+        "Creative Studios database initialized."
     )
 
     print(
-        f"Database file: {DATABASE_FILE}"
+        f"Database: {DATABASE_FILE}"
     )
 
     print(
-        f"Users: {len(database.get('users', []))}"
+        f"Users: {len(db.get('users', []))}"
     )
 
     print(
-        f"Projects: {len(database.get('projects', []))}"
+        f"Projects: {len(db.get('projects', []))}"
     )
