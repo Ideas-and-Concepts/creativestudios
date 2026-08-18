@@ -24,6 +24,8 @@ Does NOT modify authentication, login, sidebar,
 or global navigation behavior.
 """
 
+from modules.branding import render_module_header
+
 from __future__ import annotations
 
 from datetime import date, datetime
