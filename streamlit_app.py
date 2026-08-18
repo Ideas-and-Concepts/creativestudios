@@ -26,12 +26,17 @@ Features
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import html
 import importlib
-from pathlib import Path
 from typing import Any
 
 import streamlit as st
+
+from modules.branding import (
+    render_logo,
+)
 
 
 # ============================================================
