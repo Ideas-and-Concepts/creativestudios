@@ -61,7 +61,10 @@ def render_tasks_module(
 
     search = st.text_input(
         "Search tasks",
-        placeholder="Search task, project, assignee or priority...",
+        placeholder=(
+            "Search task, project, assignee "
+            "or priority..."
+        ),
         key="tasks_search",
     )
 
@@ -73,6 +76,10 @@ def render_tasks_module(
         st.session_state[
             "show_task_form"
         ] = True
+
+    # ========================================================
+    # CREATE TASK
+    # ========================================================
 
     if st.session_state.get(
         "show_task_form",
@@ -153,6 +160,10 @@ def render_tasks_module(
 
                     st.rerun()
 
+    # ========================================================
+    # FILTER
+    # ========================================================
+
     search_value = search.lower().strip()
 
     filtered = []
@@ -181,6 +192,10 @@ def render_tasks_module(
         ):
 
             filtered.append(task)
+
+    # ========================================================
+    # SUMMARY
+    # ========================================================
 
     cols = st.columns(4)
 
@@ -238,6 +253,10 @@ def render_tasks_module(
 
     st.write("")
 
+    # ========================================================
+    # TASK LIST
+    # ========================================================
+
     if not filtered:
 
         st.info(
@@ -291,23 +310,19 @@ def render_tasks_module(
             )
         )
 
+        # ====================================================
+        # TASK CARD
+        # ====================================================
+
         st.markdown(
             f"""
             <div class="cs-card">
 
-                <div style="
-                    color:#FFFFFF;
-                    font-size:16px;
-                    font-weight:850;
-                ">
+                <div class="cs-card-title">
                     {title}
                 </div>
 
-                <div style="
-                    color:#64748B;
-                    font-size:12px;
-                    margin-top:6px;
-                ">
+                <div class="cs-card-subtitle">
                     {project}
                     &nbsp; • &nbsp;
                     {assignee}
@@ -321,6 +336,10 @@ def render_tasks_module(
             """,
             unsafe_allow_html=True,
         )
+
+        # ====================================================
+        # EDIT / DELETE
+        # ====================================================
 
         with st.expander(
             f"Manage Task #{task_id}"
@@ -415,7 +434,9 @@ def render_tasks_module(
                             "assignee": edit_assignee.strip(),
                             "priority": edit_priority,
                             "status": edit_status,
-                            "description": edit_description.strip(),
+                            "description": (
+                                edit_description.strip()
+                            ),
                         },
                     )
 
