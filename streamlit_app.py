@@ -24,7 +24,6 @@ from modules import (
     tasks,
 )
 
-from modules.branding import inject_branding_css
 from modules.database import load_memory
 
 
