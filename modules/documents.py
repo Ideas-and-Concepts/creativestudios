@@ -126,9 +126,7 @@ def render_documents_module(
                 else:
 
                     record = {
-                        "id": next_id(
-                            documents
-                        ),
+                        "id": next_id("documents", database),
                         "title": title.strip(),
                         "document_number": (
                             document_number.strip()
@@ -141,11 +139,7 @@ def render_documents_module(
                         ),
                     }
 
-                    add_record(
-                        database,
-                        "documents",
-                        record,
-                    )
+                    add_record("documents", record, database)
 
                     st.session_state[
                         "show_document_form"
@@ -371,7 +365,6 @@ def render_documents_module(
                 if save:
 
                     update_record(
-                        database,
                         "documents",
                         document_id,
                         {
@@ -390,6 +383,7 @@ def render_documents_module(
                                 edit_description.strip()
                             ),
                         },
+                        database,
                     )
 
                     st.success(
@@ -404,9 +398,9 @@ def render_documents_module(
             ):
 
                 delete_record(
-                    database,
                     "documents",
                     document_id,
+                    database,
                 )
 
                 st.success(
