@@ -164,6 +164,110 @@ def inject_global_css() -> None:
             padding-bottom:3rem !important;
         }
 
+# ============================================================
+# CREATIVE STUDIOS SVG BRANDING
+# ============================================================
+
+def render_cs_logo(
+    size: int = 74,
+    sidebar: bool = False,
+) -> None:
+    """
+    Render the Creative Studios logo using inline SVG.
+
+    Inline SVG is used so the logo does not depend on:
+    - emoji fonts
+    - local image files
+    - relative asset paths
+    - Streamlit Cloud static-file paths
+    """
+
+    if sidebar:
+        logo_size = 46
+        radius = 13
+        font_size = 17
+        wrapper_class = "cs-sidebar-logo"
+        text_class = "cs-sidebar-logo-text"
+
+    else:
+        logo_size = size
+        radius = 18
+        font_size = 27
+        wrapper_class = "cs-logo"
+        text_class = "cs-logo-text"
+
+    st.markdown(
+        f"""
+        <div class="{wrapper_class}"
+             style="
+                width:{logo_size}px;
+                height:{logo_size}px;
+                min-width:{logo_size}px;
+                border-radius:{radius}px;
+                background:#2563EB;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                overflow:hidden;
+             ">
+
+            <svg
+                width="{logo_size}"
+                height="{logo_size}"
+                viewBox="0 0 100 100"
+                xmlns="http://www.w3.org/2000/svg"
+                role="img"
+                aria-label="Creative Studios"
+            >
+
+                <rect
+                    x="0"
+                    y="0"
+                    width="100"
+                    height="100"
+                    rx="18"
+                    fill="#2563EB"
+                />
+
+                <!-- C -->
+                <path
+                    d="
+                        M67 28
+                        C61 22 53 19 45 19
+                        C28 19 16 32 16 50
+                        C16 68 28 81 45 81
+                        C53 81 61 78 67 72
+                    "
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="9"
+                    stroke-linecap="round"
+                />
+
+                <!-- S -->
+                <path
+                    d="
+                        M75 31
+                        C71 26 66 24 60 24
+                        C53 24 48 28 48 34
+                        C48 41 54 44 62 47
+                        C70 50 76 54 76 62
+                        C76 70 70 76 61 76
+                        C54 76 48 73 44 68
+                    "
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                />
+
+            </svg>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
         /* ==================================================
            TEXT
