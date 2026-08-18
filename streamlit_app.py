@@ -7,6 +7,7 @@ Main Streamlit application.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import html
@@ -78,7 +79,6 @@ render_module_header = branding.render_module_header
 
 def initialize_session_state() -> None:
     """Initialize application session state."""
-
     defaults = {
         "authenticated": False,
         "user": None,
@@ -154,18 +154,28 @@ def authenticate_user(username: str, password: str, database: dict[str, Any]):
 
 
 # ============================================================
-# LOGIN (simplified, centered logo only)
+# LOGIN (centered logo, clean design)
 # ============================================================
 
 def render_login(database: dict[str, Any]) -> None:
     """Render a clean, centered login screen."""
-
-    # Center column layout
     col_left, col_center, col_right = st.columns([1, 2, 1])
 
     with col_center:
-        # Centered logo
-        st.image(str(LOGO_PATH), width=150)
+        # Centered logo using base64 HTML
+        if LOGO_PATH.exists():
+            logo_bytes = LOGO_PATH.read_bytes()
+            logo_b64 = base64.b64encode(logo_bytes).decode()
+            st.markdown(
+                f"""
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="data:image/png;base64,{logo_b64}" width="150" alt="Creative Studios Logo">
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.warning(f"Logo not found: {LOGO_PATH}")
 
         # Login form
         with st.form("creative_studios_login", clear_on_submit=False):
