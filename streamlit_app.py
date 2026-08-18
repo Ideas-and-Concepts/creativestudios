@@ -155,17 +155,24 @@ def authenticate_user(username: str, password: str, database: dict[str, Any]):
 # ============================================================
 
 def render_login(database: dict[str, Any]) -> None:
-    st.markdown('<div class="cs-login-wrapper">', unsafe_allow_html=True)
-    st.markdown('<div class="cs-login-card">', unsafe_allow_html=True)
+    """Render a clean, centered login screen."""
 
-    st.markdown('<div class="cs-login-logo">', unsafe_allow_html=True)
-    render_logo(width=100)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Create a centered layout: left spacer, main column, right spacer
+    col_left, col_center, col_right = st.columns([1, 2, 1])
 
-    with st.form("creative_studios_login", clear_on_submit=False):
-        username = st.text_input("Username", placeholder="Enter username")
-        password = st.text_input("Password", type="password", placeholder="Enter password")
-        submitted = st.form_submit_button("Login", use_container_width=True)
+    with col_center:
+        # Center the logo
+        st.image(
+            str(LOGO_PATH),
+            width=150,  # Adjust width as needed
+            use_column_width=False,
+        )
+
+        # Login form
+        with st.form("creative_studios_login", clear_on_submit=False):
+            username = st.text_input("Username", placeholder="Enter username")
+            password = st.text_input("Password", type="password", placeholder="Enter password")
+            submitted = st.form_submit_button("Login", use_container_width=True)
 
         if submitted:
             user = authenticate_user(username, password, database)
@@ -175,7 +182,7 @@ def render_login(database: dict[str, Any]) -> None:
                 st.session_state.active_module = "Overview"
                 st.rerun()
             else:
-                st.markdown('<div class="cs-login-error">Invalid username or password.</div>', unsafe_allow_html=True)
+                st.error("Invalid username or password.")
 
     st.markdown('<div class="cs-login-footer">Creative Studios • AEC Collaboration Platform</div>', unsafe_allow_html=True)
     st.markdown('</div></div>', unsafe_allow_html=True)
