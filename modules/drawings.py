@@ -1,24 +1,51 @@
 """
 Creative Studios
-Drawing Repository Module
+AEC Collaboration Platform
 
-Manages project drawings, revisions, disciplines,
-statuses and document control.
+Drawings Module
+----------------
+JSON-backed AEC drawing register.
+
+Features:
+- Create drawings
+- List drawings
+- Edit drawings
+- Delete drawings
+- Search
+- Project filtering
+- Drawing type filtering
+- Status filtering
+- Revision tracking
+- Revision history
+- Links to Projects and Documents
+- Streamlit-safe status badges
+
+Does NOT modify authentication, login, sidebar,
+or global navigation behavior.
 """
 
-from datetime import date
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Any
 
 import streamlit as st
 
-from .database import (
+from modules.database import (
     add_record,
     delete_record,
-    get_collection,
+    load_memory,
+    next_id,
+    save_memory,
     update_record,
 )
 
 
-DISCIPLINES = [
+DRAWINGS_COLLECTION = "drawings"
+PROJECTS_COLLECTION = "projects"
+DOCUMENTS_COLLECTION = "documents"
+
+DRAWING_TYPES = [
     "Architectural",
     "Structural",
     "Civil",
@@ -27,1250 +54,1936 @@ DISCIPLINES = [
     "Plumbing",
     "Fire Protection",
     "Landscape",
-    "Interior Design",
-    "Other",
-]
-
-DRAWING_TYPES = [
-    "General Arrangement",
-    "Floor Plan",
-    "Elevation",
-    "Section",
-    "Detail",
-    "Structural",
-    "MEP",
-    "Civil",
+    "Interior",
     "Site Plan",
-    "Schedule",
-    "Specification",
+    "Shop Drawing",
     "As-Built",
     "Other",
 ]
 
 DRAWING_STATUSES = [
     "Draft",
-    "For Review",
-    "For Approval",
+    "Under Review",
     "Approved",
-    "Issued for Construction",
+    "Issued",
     "Superseded",
-    "As-Built",
+    "Archived",
+]
+
+REVISION_REASONS = [
+    "Initial Issue",
+    "Client Comments",
+    "Consultant Comments",
+    "Design Change",
+    "Site Change",
+    "Coordination",
+    "Correction",
+    "As-Built Update",
+    "Other",
 ]
 
 
-def _get_projects(db):
-    return get_collection(db, "projects")
+# ============================================================
+# CSS
+# ============================================================
 
+def _inject_css() -> None:
+    st.markdown(
+        """
+<style>
 
-def _get_drawings(db):
-    return get_collection(db, "drawings")
+.cs-drawing-header {
+    margin-bottom: 24px;
+}
 
+.cs-drawing-title {
+    color: #F8FAFC;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: -0.7px;
+}
 
-def _project_name(db, project_id):
-    for project in _get_projects(db):
-        if str(project.get("id")) == str(project_id):
-            return project.get("name", project_id)
+.cs-drawing-subtitle {
+    color: #64748B;
+    font-size: 13px;
+    margin-top: 5px;
+}
 
-    return project_id
+.cs-drawing-card {
+    background: #0B0F17;
+    border: 1px solid #172033;
+    border-radius: 15px;
+    padding: 19px;
+    margin-top: 14px;
+}
 
+.cs-drawing-card:hover {
+    border-color: #2563EB;
+}
 
-def _next_revision(db, drawing_number):
-    revisions = []
+.cs-drawing-name {
+    color: #FFFFFF;
+    font-size: 17px;
+    font-weight: 850;
+}
 
-    for drawing in _get_drawings(db):
-        if (
-            str(drawing.get("drawing_number", "")).strip().lower()
-            == str(drawing_number).strip().lower()
-        ):
-            revisions.append(
-                str(drawing.get("revision", "0"))
-            )
+.cs-drawing-meta {
+    color: #64748B;
+    font-size: 11px;
+    margin-top: 5px;
+}
 
-    if not revisions:
-        return "0"
+.cs-drawing-info {
+    color: #CBD5E1;
+    font-size: 12px;
+    margin-top: 5px;
+}
 
-    numeric = []
+.cs-drawing-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 850;
+}
 
-    for revision in revisions:
-        cleaned = revision.upper().replace("REV", "").strip()
+.cs-drawing-draft {
+    color: #CBD5E1;
+    background: rgba(71, 85, 105, 0.18);
+    border: 1px solid #334155;
+}
 
-        try:
-            numeric.append(int(cleaned))
-        except ValueError:
-            pass
+.cs-drawing-review {
+    color: #93C5FD;
+    background: rgba(30, 64, 175, 0.15);
+    border: 1px solid rgba(30, 64, 175, 0.35);
+}
 
-    if numeric:
-        return str(max(numeric) + 1)
+.cs-drawing-approved {
+    color: #BFDBFE;
+    background: rgba(37, 99, 235, 0.15);
+    border: 1px solid rgba(37, 99, 235, 0.35);
+}
 
-    return "0"
+.cs-drawing-issued {
+    color: #60A5FA;
+    background: rgba(37, 99, 235, 0.20);
+    border: 1px solid rgba(37, 99, 235, 0.45);
+}
 
+.cs-drawing-superseded {
+    color: #FBBF24;
+    background: rgba(245, 158, 11, 0.10);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
 
-def _drawing_exists(db, project_id, drawing_number, exclude_id=None):
-    for drawing in _get_drawings(db):
+.cs-drawing-archived {
+    color: #94A3B8;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid #334155;
+}
 
-        if (
-            str(drawing.get("project_id")) == str(project_id)
-            and str(drawing.get("drawing_number", "")).strip().lower()
-            == str(drawing_number).strip().lower()
-            and str(drawing.get("id")) != str(exclude_id)
-        ):
-            return True
+.cs-drawing-empty {
+    background: #0B0F17;
+    border: 1px dashed #1E293B;
+    border-radius: 15px;
+    padding: 40px;
+    text-align: center;
+    color: #64748B;
+}
 
-    return False
+.cs-drawing-section {
+    color: #FFFFFF;
+    font-size: 17px;
+    font-weight: 850;
+    margin-bottom: 12px;
+}
 
+.cs-revision-box {
+    background: #080C13;
+    border: 1px solid #172033;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 8px;
+}
 
-def _status_badge(status):
-    if status == "Approved":
-        st.success(status, icon="✓")
+.cs-revision-number {
+    color: #60A5FA;
+    font-size: 14px;
+    font-weight: 900;
+}
 
-    elif status == "Issued for Construction":
-        st.success(status, icon="🏗️")
+.cs-revision-text {
+    color: #CBD5E1;
+    font-size: 12px;
+}
 
-    elif status == "For Approval":
-        st.warning(status, icon="!")
-
-    elif status == "For Review":
-        st.info(status, icon="◌")
-
-    elif status == "Superseded":
-        st.error(status, icon="↗")
-
-    else:
-        st.caption(status)
-
-
-def _render_drawing_card(db, drawing):
-
-    drawing_id = drawing.get("id", "")
-    project_id = drawing.get("project_id", "")
-    drawing_number = drawing.get(
-        "drawing_number",
-        "N/A",
+</style>
+""",
+        unsafe_allow_html=True,
     )
 
-    title = drawing.get(
-        "title",
-        "Untitled Drawing",
+
+# ============================================================
+# SAFE HELPERS
+# ============================================================
+
+def _text(
+    value: Any,
+    default: str = "",
+) -> str:
+
+    if value is None:
+        return default
+
+    return str(value).strip()
+
+
+def _date(
+    value: Any,
+) -> date | None:
+
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value.date()
+
+    if isinstance(value, date):
+        return value
+
+    value = _text(value)
+
+    if not value:
+        return None
+
+    try:
+        return datetime.strptime(
+            value,
+            "%Y-%m-%d",
+        ).date()
+
+    except ValueError:
+        return None
+
+
+def _date_string(
+    value: Any,
+) -> str:
+
+    parsed = _date(value)
+
+    if parsed is None:
+        return ""
+
+    return parsed.isoformat()
+
+
+def _collection(
+    db: dict[str, Any],
+    name: str,
+) -> list[dict[str, Any]]:
+
+    records = db.get(name, [])
+
+    if not isinstance(records, list):
+
+        records = []
+
+        db[name] = records
+
+        save_memory(db)
+
+    return [
+        record
+        for record in records
+        if isinstance(record, dict)
+    ]
+
+
+def _status_class(
+    status: str,
+) -> str:
+
+    return {
+        "Draft": "cs-drawing-draft",
+        "Under Review": "cs-drawing-review",
+        "Approved": "cs-drawing-approved",
+        "Issued": "cs-drawing-issued",
+        "Superseded": "cs-drawing-superseded",
+        "Archived": "cs-drawing-archived",
+    }.get(
+        status,
+        "cs-drawing-draft",
     )
 
-    discipline = drawing.get(
-        "discipline",
-        "Other",
+
+def _projects(
+    db: dict[str, Any],
+) -> list[dict[str, Any]]:
+
+    return _collection(
+        db,
+        PROJECTS_COLLECTION,
     )
 
-    drawing_type = drawing.get(
-        "drawing_type",
-        "Other",
+
+def _documents(
+    db: dict[str, Any],
+) -> list[dict[str, Any]]:
+
+    return _collection(
+        db,
+        DOCUMENTS_COLLECTION,
     )
 
-    revision = drawing.get(
-        "revision",
-        "0",
+
+def _drawings(
+    db: dict[str, Any],
+) -> list[dict[str, Any]]:
+
+    return _collection(
+        db,
+        DRAWINGS_COLLECTION,
     )
 
-    status = drawing.get(
-        "status",
-        "Draft",
+
+# ============================================================
+# PROJECT / DOCUMENT LOOKUPS
+# ============================================================
+
+def _project_label(
+    project: dict[str, Any],
+) -> str:
+
+    project_id = _text(
+        project.get("project_id"),
+        _text(project.get("id"), "N/A"),
     )
 
-    with st.container(border=True):
+    name = _text(
+        project.get("name"),
+        project_id,
+    )
 
-        top_left, top_right = st.columns(
-            [4, 1]
-        )
-
-        with top_left:
-
-            st.markdown(
-                f"### {drawing_number} — {title}"
-            )
-
-            st.caption(
-                f"{_project_name(db, project_id)} "
-                f"• {discipline} • {drawing_type}"
-            )
-
-        with top_right:
-            _status_badge(status)
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-            st.markdown("**Revision**")
-            st.write(f"Rev {revision}")
-
-        with col2:
-            st.markdown("**Issue Date**")
-            st.write(
-                drawing.get(
-                    "issue_date",
-                    "Not issued",
-                )
-            )
-
-        with col3:
-            st.markdown("**Prepared By**")
-            st.write(
-                drawing.get(
-                    "prepared_by",
-                    "Not assigned",
-                )
-            )
-
-        with col4:
-            st.markdown("**Checked By**")
-            st.write(
-                drawing.get(
-                    "checked_by",
-                    "Not assigned",
-                )
-            )
-
-        with st.expander("Drawing Details"):
-
-            st.markdown(
-                f"**Project:** "
-                f"{_project_name(db, project_id)}"
-            )
-
-            st.markdown(
-                f"**Project ID:** {project_id}"
-            )
-
-            st.markdown(
-                f"**Drawing Type:** {drawing_type}"
-            )
-
-            st.markdown(
-                f"**Approved By:** "
-                f"{drawing.get('approved_by', 'Not assigned')}"
-            )
-
-            st.markdown(
-                f"**Created:** "
-                f"{drawing.get('created_at', '')}"
-            )
-
-            notes = drawing.get(
-                "notes",
-                "",
-            )
-
-            if notes:
-                st.markdown(
-                    f"**Notes:** {notes}"
-                )
-
-        edit_col, revision_col, delete_col = st.columns(3)
-
-        with edit_col:
-
-            if st.button(
-                "Edit",
-                key=f"edit_drawing_{drawing_id}",
-                use_container_width=True,
-            ):
-                st.session_state[
-                    "editing_drawing_id"
-                ] = drawing_id
-
-                st.rerun()
-
-        with revision_col:
-
-            if st.button(
-                "New Revision",
-                key=f"revision_drawing_{drawing_id}",
-                use_container_width=True,
-            ):
-                st.session_state[
-                    "revision_drawing_id"
-                ] = drawing_id
-
-                st.rerun()
-
-        with delete_col:
-
-            if st.button(
-                "Delete",
-                key=f"delete_drawing_{drawing_id}",
-                use_container_width=True,
-            ):
-                st.session_state[
-                    "delete_drawing_id"
-                ] = drawing_id
-
-                st.rerun()
+    return f"{project_id} • {name}"
 
 
-def _render_create_drawing(db):
+def _document_label(
+    document: dict[str, Any],
+) -> str:
 
-    projects = _get_projects(db)
+    document_id = _text(
+        document.get("document_id"),
+        _text(document.get("id"), "N/A"),
+    )
 
-    st.subheader("Register Drawing")
+    title = _text(
+        document.get("title"),
+        document_id,
+    )
 
-    if not projects:
+    return f"{document_id} • {title}"
 
-        st.warning(
-            "Create a project before registering drawings."
-        )
 
-        return
+def _project_by_id(
+    db: dict[str, Any],
+    project_id: str,
+) -> dict[str, Any] | None:
 
-    project_options = {
-        _project_name(db, project.get("id")):
-            project.get("id")
-        for project in projects
+    for project in _projects(db):
+
+        if str(
+            project.get("project_id", "")
+        ).strip().lower() == project_id.strip().lower():
+
+            return project
+
+    return None
+
+
+def _document_by_id(
+    db: dict[str, Any],
+    document_id: str,
+) -> dict[str, Any] | None:
+
+    for document in _documents(db):
+
+        if str(
+            document.get("document_id", "")
+        ).strip().lower() == document_id.strip().lower():
+
+            return document
+
+    return None
+
+
+# ============================================================
+# REVISION HELPERS
+# ============================================================
+
+def _revision_history(
+    drawing: dict[str, Any],
+) -> list[dict[str, Any]]:
+
+    history = drawing.get(
+        "revision_history",
+        [],
+    )
+
+    if not isinstance(history, list):
+        return []
+
+    return [
+        item
+        for item in history
+        if isinstance(item, dict)
+    ]
+
+
+def _make_initial_revision(
+    revision: str,
+    reason: str,
+    revision_date: date,
+    author: str,
+) -> dict[str, Any]:
+
+    return {
+        "revision": revision.strip(),
+        "reason": reason,
+        "date": revision_date.isoformat(),
+        "author": author.strip(),
+        "created_at": datetime.now().isoformat(),
     }
 
-    with st.form("create_drawing_form"):
 
-        project_label = st.selectbox(
-            "Project *",
-            list(project_options.keys()),
+# ============================================================
+# VALIDATION
+# ============================================================
+
+def _validate(
+    db: dict[str, Any],
+    drawing_number: str,
+    title: str,
+    project_id: str,
+    document_id: str,
+    drawing_type: str,
+    status: str,
+    revision: str,
+    revision_reason: str,
+    drawing_date: date | None,
+    exclude_id: Any = None,
+) -> list[str]:
+
+    errors: list[str] = []
+
+    drawing_number = drawing_number.strip()
+    title = title.strip()
+    project_id = project_id.strip()
+    document_id = document_id.strip()
+
+    if not drawing_number:
+
+        errors.append(
+            "Drawing number is required."
         )
 
-        project_id = project_options[
+    elif len(drawing_number) > 80:
+
+        errors.append(
+            "Drawing number cannot exceed 80 characters."
+        )
+
+    else:
+
+        for drawing in _drawings(db):
+
+            existing = _text(
+                drawing.get(
+                    "drawing_number"
+                )
+            )
+
+            if (
+                existing.lower()
+                == drawing_number.lower()
+            ):
+
+                if (
+                    exclude_id is None
+                    or str(
+                        drawing.get("id")
+                    )
+                    != str(exclude_id)
+                ):
+
+                    errors.append(
+                        "A drawing with this number already exists."
+                    )
+
+                    break
+
+    if not title:
+
+        errors.append(
+            "Drawing title is required."
+        )
+
+    if not project_id:
+
+        errors.append(
+            "A project must be selected."
+        )
+
+    elif _project_by_id(
+        db,
+        project_id,
+    ) is None:
+
+        errors.append(
+            f"Project '{project_id}' does not exist."
+        )
+
+    if document_id:
+
+        if _document_by_id(
+            db,
+            document_id,
+        ) is None:
+
+            errors.append(
+                f"Document '{document_id}' does not exist."
+            )
+
+    if drawing_type not in DRAWING_TYPES:
+
+        errors.append(
+            "Invalid drawing type."
+        )
+
+    if status not in DRAWING_STATUSES:
+
+        errors.append(
+            "Invalid drawing status."
+        )
+
+    if not revision.strip():
+
+        errors.append(
+            "Revision is required."
+        )
+
+    if revision_reason not in REVISION_REASONS:
+
+        errors.append(
+            "Invalid revision reason."
+        )
+
+    if drawing_date is None:
+
+        errors.append(
+            "Drawing date is required."
+        )
+
+    return errors
+
+
+# ============================================================
+# CREATE
+# ============================================================
+
+def _create_drawing(
+    db: dict[str, Any],
+    drawing_number: str,
+    title: str,
+    project_id: str,
+    document_id: str,
+    drawing_type: str,
+    status: str,
+    revision: str,
+    revision_reason: str,
+    drawing_date: date,
+    author: str,
+    description: str,
+) -> None:
+
+    now = datetime.now().isoformat()
+
+    revision_entry = _make_initial_revision(
+        revision,
+        revision_reason,
+        drawing_date,
+        author,
+    )
+
+    record = {
+        "id": next_id(
+            DRAWINGS_COLLECTION,
+            db,
+        ),
+        "drawing_number": drawing_number.strip(),
+        "title": title.strip(),
+        "project_id": project_id.strip(),
+        "document_id": document_id.strip(),
+        "drawing_type": drawing_type,
+        "status": status,
+        "current_revision": revision.strip(),
+        "drawing_date": drawing_date.isoformat(),
+        "author": author.strip(),
+        "description": description.strip(),
+        "revision_history": [
+            revision_entry
+        ],
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    add_record(
+        DRAWINGS_COLLECTION,
+        record,
+        db,
+    )
+
+
+# ============================================================
+# CREATE FORM
+# ============================================================
+
+def _render_create_form(
+    db: dict[str, Any],
+) -> None:
+
+    projects = _projects(db)
+    documents = _documents(db)
+
+    with st.expander(
+        "Create New Drawing",
+        expanded=False,
+    ):
+
+        if not projects:
+
+            st.warning(
+                "Create a Project before creating a Drawing."
+            )
+
+            return
+
+        project_options = [
+            _project_label(project)
+            for project in projects
+        ]
+
+        project_map = {
+            _project_label(project):
+            _text(
+                project.get(
+                    "project_id"
+                )
+            )
+            for project in projects
+        }
+
+        document_options = [
+            "No linked document"
+        ]
+
+        document_map = {
+            "No linked document": ""
+        }
+
+        for document in documents:
+
+            label = _document_label(
+                document
+            )
+
+            document_options.append(
+                label
+            )
+
+            document_map[
+                label
+            ] = _text(
+                document.get(
+                    "document_id"
+                )
+            )
+
+        with st.form(
+            "create_drawing_form",
+            clear_on_submit=True,
+        ):
+
+            left, right = st.columns(2)
+
+            with left:
+
+                drawing_number = st.text_input(
+                    "Drawing Number *",
+                    placeholder="A-101",
+                )
+
+                title = st.text_input(
+                    "Drawing Title *",
+                    placeholder="Ground Floor Plan",
+                )
+
+                project_label = st.selectbox(
+                    "Project *",
+                    project_options,
+                )
+
+                drawing_type = st.selectbox(
+                    "Drawing Type *",
+                    DRAWING_TYPES,
+                )
+
+            with right:
+
+                document_label = st.selectbox(
+                    "Linked Document",
+                    document_options,
+                )
+
+                status = st.selectbox(
+                    "Status *",
+                    DRAWING_STATUSES,
+                )
+
+                revision = st.text_input(
+                    "Revision *",
+                    value="A",
+                )
+
+                drawing_date = st.date_input(
+                    "Drawing Date *",
+                    value=date.today(),
+                )
+
+            left2, right2 = st.columns(2)
+
+            with left2:
+
+                revision_reason = st.selectbox(
+                    "Revision Reason *",
+                    REVISION_REASONS,
+                )
+
+            with right2:
+
+                author = st.text_input(
+                    "Author / Originator",
+                    placeholder="Architect / Engineer",
+                )
+
+            description = st.text_area(
+                "Description",
+                height=100,
+            )
+
+            submitted = st.form_submit_button(
+                "Create Drawing",
+                use_container_width=True,
+            )
+
+        if not submitted:
+            return
+
+        project_id = project_map[
             project_label
         ]
 
-        col1, col2 = st.columns(2)
+        document_id = document_map[
+            document_label
+        ]
 
-        with col1:
+        errors = _validate(
+            db,
+            drawing_number,
+            title,
+            project_id,
+            document_id,
+            drawing_type,
+            status,
+            revision,
+            revision_reason,
+            drawing_date,
+        )
+
+        if errors:
+
+            for error in errors:
+                st.error(error)
+
+            return
+
+        try:
+
+            _create_drawing(
+                db,
+                drawing_number,
+                title,
+                project_id,
+                document_id,
+                drawing_type,
+                status,
+                revision,
+                revision_reason,
+                drawing_date,
+                author,
+                description,
+            )
+
+            st.success(
+                "Drawing created successfully."
+            )
+
+            st.rerun()
+
+        except Exception as exc:
+
+            st.error(
+                "Unable to create the drawing."
+            )
+
+            st.code(
+                f"{type(exc).__name__}: {exc}"
+            )
+
+
+# ============================================================
+# EDIT
+# ============================================================
+
+def _render_edit_form(
+    db: dict[str, Any],
+    drawing: dict[str, Any],
+) -> None:
+
+    record_id = drawing.get("id")
+
+    projects = _projects(db)
+    documents = _documents(db)
+
+    project_map = {
+        _project_label(project):
+        _text(
+            project.get(
+                "project_id"
+            )
+        )
+        for project in projects
+    }
+
+    project_labels = list(
+        project_map.keys()
+    )
+
+    current_project_id = _text(
+        drawing.get(
+            "project_id"
+        )
+    )
+
+    selected_project_label = next(
+        (
+            label
+            for label, project_id
+            in project_map.items()
+            if project_id.lower()
+            == current_project_id.lower()
+        ),
+        project_labels[0]
+        if project_labels
+        else "",
+    )
+
+    document_options = [
+        "No linked document"
+    ]
+
+    document_map = {
+        "No linked document": ""
+    }
+
+    for document in documents:
+
+        label = _document_label(
+            document
+        )
+
+        document_options.append(
+            label
+        )
+
+        document_map[
+            label
+        ] = _text(
+            document.get(
+                "document_id"
+            )
+        )
+
+    current_document_id = _text(
+        drawing.get(
+            "document_id"
+        )
+    )
+
+    selected_document_label = next(
+        (
+            label
+            for label, document_id
+            in document_map.items()
+            if document_id.lower()
+            == current_document_id.lower()
+        ),
+        "No linked document",
+    )
+
+    current_type = _text(
+        drawing.get(
+            "drawing_type"
+        ),
+        "Other",
+    )
+
+    if current_type not in DRAWING_TYPES:
+        current_type = "Other"
+
+    current_status = _text(
+        drawing.get(
+            "status"
+        ),
+        "Draft",
+    )
+
+    if current_status not in DRAWING_STATUSES:
+        current_status = "Draft"
+
+    with st.form(
+        f"edit_drawing_{record_id}",
+    ):
+
+        left, right = st.columns(2)
+
+        with left:
 
             drawing_number = st.text_input(
                 "Drawing Number *",
-                placeholder="A-101",
+                value=_text(
+                    drawing.get(
+                        "drawing_number"
+                    )
+                ),
             )
 
             title = st.text_input(
                 "Drawing Title *",
-                placeholder="Ground Floor Plan",
+                value=_text(
+                    drawing.get(
+                        "title"
+                    )
+                ),
             )
 
-            discipline = st.selectbox(
-                "Discipline",
-                DISCIPLINES,
-            )
+            if project_labels:
+
+                selected_project_label = st.selectbox(
+                    "Project *",
+                    project_labels,
+                    index=project_labels.index(
+                        selected_project_label
+                    ),
+                )
+
+            else:
+
+                st.error(
+                    "No projects are available."
+                )
+
+                selected_project_label = ""
 
             drawing_type = st.selectbox(
-                "Drawing Type",
+                "Drawing Type *",
                 DRAWING_TYPES,
+                index=DRAWING_TYPES.index(
+                    current_type
+                ),
+            )
+
+        with right:
+
+            selected_document_label = st.selectbox(
+                "Linked Document",
+                document_options,
+                index=document_options.index(
+                    selected_document_label
+                ),
+            )
+
+            status = st.selectbox(
+                "Status *",
+                DRAWING_STATUSES,
+                index=DRAWING_STATUSES.index(
+                    current_status
+                ),
+            )
+
+            current_revision = _text(
+                drawing.get(
+                    "current_revision"
+                ),
+                "A",
             )
 
             revision = st.text_input(
-                "Revision",
-                value="0",
+                "Revision *",
+                value=current_revision,
             )
 
-        with col2:
-
-            status = st.selectbox(
-                "Status",
-                DRAWING_STATUSES,
-                index=1,
+            drawing_date = st.date_input(
+                "Drawing Date *",
+                value=_date(
+                    drawing.get(
+                        "drawing_date"
+                    )
+                ) or date.today(),
             )
 
-            issue_date = st.date_input(
-                "Issue Date",
-                value=date.today(),
-            )
+        revision_reason = st.selectbox(
+            "Revision Reason *",
+            REVISION_REASONS,
+        )
 
-            prepared_by = st.text_input(
-                "Prepared By",
-            )
+        author = st.text_input(
+            "Author / Originator",
+            value=_text(
+                drawing.get(
+                    "author"
+                )
+            ),
+        )
 
-            checked_by = st.text_input(
-                "Checked By",
-            )
-
-            approved_by = st.text_input(
-                "Approved By",
-            )
-
-        notes = st.text_area(
-            "Notes",
+        description = st.text_area(
+            "Description",
+            value=_text(
+                drawing.get(
+                    "description"
+                )
+            ),
             height=100,
         )
 
         submitted = st.form_submit_button(
-            "Register Drawing",
+            "Save Changes",
             use_container_width=True,
         )
 
     if not submitted:
         return
 
-    drawing_number = drawing_number.strip()
-    title = title.strip()
+    project_id = project_map.get(
+        selected_project_label,
+        "",
+    )
 
-    if not drawing_number:
-        st.error(
-            "Drawing number is required."
-        )
-        return
+    document_id = document_map.get(
+        selected_document_label,
+        "",
+    )
 
-    if not title:
-        st.error(
-            "Drawing title is required."
-        )
-        return
-
-    if _drawing_exists(
+    errors = _validate(
         db,
-        project_id,
         drawing_number,
-    ):
-        st.error(
-            f"Drawing {drawing_number} already exists "
-            f"for this project."
-        )
+        title,
+        project_id,
+        document_id,
+        drawing_type,
+        status,
+        revision,
+        revision_reason,
+        drawing_date,
+        exclude_id=record_id,
+    )
+
+    if errors:
+
+        for error in errors:
+            st.error(error)
+
         return
 
-    user = st.session_state.get(
-        "user"
+    old_revision = _text(
+        drawing.get(
+            "current_revision"
+        )
     )
 
-    if isinstance(user, dict):
-        created_by = user.get(
-            "username",
-            "System",
-        )
-    else:
-        created_by = str(
-            user or "System"
+    history = _revision_history(
+        drawing
+    )
+
+    if revision.strip() != old_revision.strip():
+
+        history.append(
+            _make_initial_revision(
+                revision,
+                revision_reason,
+                drawing_date,
+                author,
+            )
         )
 
-    drawing = {
-        "id": (
-            f"DRW-{project_id}-"
-            f"{drawing_number}-REV{revision}"
-        ),
+    updates = {
+        "drawing_number": drawing_number.strip(),
+        "title": title.strip(),
         "project_id": project_id,
-        "drawing_number": drawing_number,
-        "title": title,
-        "discipline": discipline,
+        "document_id": document_id,
         "drawing_type": drawing_type,
-        "revision": revision.strip() or "0",
         "status": status,
-        "issue_date": str(issue_date),
-        "prepared_by": prepared_by.strip(),
-        "checked_by": checked_by.strip(),
-        "approved_by": approved_by.strip(),
-        "notes": notes.strip(),
-        "created_at": str(date.today()),
-        "created_by": created_by,
+        "current_revision": revision.strip(),
+        "drawing_date": drawing_date.isoformat(),
+        "author": author.strip(),
+        "description": description.strip(),
+        "revision_history": history,
+        "updated_at": datetime.now().isoformat(),
     }
 
-    add_record(
-        db,
-        "drawings",
-        drawing,
-    )
+    try:
 
-    st.success(
-        f"Drawing {drawing_number} registered."
-    )
-
-    st.rerun()
-
-
-def _render_edit_drawing(db, drawing):
-
-    projects = _get_projects(db)
-
-    st.subheader(
-        f"Edit Drawing: "
-        f"{drawing.get('drawing_number', '')}"
-    )
-
-    project_options = {
-        _project_name(db, project.get("id")):
-            project.get("id")
-        for project in projects
-    }
-
-    current_project = drawing.get(
-        "project_id"
-    )
-
-    project_labels = list(
-        project_options.keys()
-    )
-
-    current_label = next(
-        (
-            label
-            for label, project_id
-            in project_options.items()
-            if str(project_id)
-            == str(current_project)
-        ),
-        project_labels[0]
-        if project_labels
-        else None,
-    )
-
-    with st.form(
-        f"edit_drawing_form_{drawing.get('id')}"
-    ):
-
-        project_label = st.selectbox(
-            "Project",
-            project_labels,
-            index=(
-                project_labels.index(
-                    current_label
-                )
-                if current_label in project_labels
-                else 0
-            ),
+        result = update_record(
+            DRAWINGS_COLLECTION,
+            record_id,
+            updates,
+            db,
         )
 
-        project_id = project_options[
-            project_label
-        ]
+        if result is None:
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            drawing_number = st.text_input(
-                "Drawing Number",
-                value=drawing.get(
-                    "drawing_number",
-                    "",
-                ),
+            st.error(
+                "Drawing could not be found."
             )
 
-            title = st.text_input(
-                "Drawing Title",
-                value=drawing.get(
-                    "title",
-                    "",
-                ),
-            )
+            return
 
-            discipline = st.selectbox(
-                "Discipline",
-                DISCIPLINES,
-                index=(
-                    DISCIPLINES.index(
-                        drawing.get(
-                            "discipline",
-                            DISCIPLINES[0],
-                        )
-                    )
-                    if drawing.get("discipline")
-                    in DISCIPLINES
-                    else 0
-                ),
-            )
-
-            drawing_type = st.selectbox(
-                "Drawing Type",
-                DRAWING_TYPES,
-                index=(
-                    DRAWING_TYPES.index(
-                        drawing.get(
-                            "drawing_type",
-                            DRAWING_TYPES[0],
-                        )
-                    )
-                    if drawing.get("drawing_type")
-                    in DRAWING_TYPES
-                    else 0
-                ),
-            )
-
-        with col2:
-
-            revision = st.text_input(
-                "Revision",
-                value=str(
-                    drawing.get(
-                        "revision",
-                        "0",
-                    )
-                ),
-            )
-
-            status = st.selectbox(
-                "Status",
-                DRAWING_STATUSES,
-                index=(
-                    DRAWING_STATUSES.index(
-                        drawing.get(
-                            "status",
-                            DRAWING_STATUSES[0],
-                        )
-                    )
-                    if drawing.get("status")
-                    in DRAWING_STATUSES
-                    else 0
-                ),
-            )
-
-            try:
-                existing_date = date.fromisoformat(
-                    str(
-                        drawing.get(
-                            "issue_date",
-                            date.today(),
-                        )
-                    )
-                )
-            except ValueError:
-                existing_date = date.today()
-
-            issue_date = st.date_input(
-                "Issue Date",
-                value=existing_date,
-            )
-
-            prepared_by = st.text_input(
-                "Prepared By",
-                value=drawing.get(
-                    "prepared_by",
-                    "",
-                ),
-            )
-
-            checked_by = st.text_input(
-                "Checked By",
-                value=drawing.get(
-                    "checked_by",
-                    "",
-                ),
-            )
-
-            approved_by = st.text_input(
-                "Approved By",
-                value=drawing.get(
-                    "approved_by",
-                    "",
-                ),
-            )
-
-        notes = st.text_area(
-            "Notes",
-            value=drawing.get(
-                "notes",
-                "",
-            ),
-            height=100,
-        )
-
-        save_col, cancel_col = st.columns(2)
-
-        with save_col:
-
-            save_changes = st.form_submit_button(
-                "Save Changes",
-                use_container_width=True,
-            )
-
-        with cancel_col:
-
-            cancel = st.form_submit_button(
-                "Cancel",
-                use_container_width=True,
-            )
-
-    if cancel:
-
-        st.session_state.pop(
-            "editing_drawing_id",
-            None,
+        st.success(
+            "Drawing updated successfully."
         )
 
         st.rerun()
 
-    if not save_changes:
-        return
-
-    drawing_number = drawing_number.strip()
-    title = title.strip()
-
-    if not drawing_number or not title:
+    except Exception as exc:
 
         st.error(
-            "Drawing number and title are required."
+            "Unable to update the drawing."
+        )
+
+        st.code(
+            f"{type(exc).__name__}: {exc}"
+        )
+
+
+# ============================================================
+# REVISION HISTORY
+# ============================================================
+
+def _render_revision_history(
+    drawing: dict[str, Any],
+) -> None:
+
+    history = _revision_history(
+        drawing
+    )
+
+    if not history:
+
+        st.info(
+            "No revision history is available."
         )
 
         return
 
-    if _drawing_exists(
-        db,
-        project_id,
-        drawing_number,
-        exclude_id=drawing.get("id"),
-    ):
+    st.markdown(
+        "**Revision History**"
+    )
 
-        st.error(
-            "Another drawing with this number "
-            "already exists in the selected project."
+    for revision in reversed(history):
+
+        revision_number = _text(
+            revision.get(
+                "revision"
+            ),
+            "N/A",
         )
 
-        return
-
-    updates = {
-        "project_id": project_id,
-        "drawing_number": drawing_number,
-        "title": title,
-        "discipline": discipline,
-        "drawing_type": drawing_type,
-        "revision": revision.strip() or "0",
-        "status": status,
-        "issue_date": str(issue_date),
-        "prepared_by": prepared_by.strip(),
-        "checked_by": checked_by.strip(),
-        "approved_by": approved_by.strip(),
-        "notes": notes.strip(),
-    }
-
-    update_record(
-        db,
-        "drawings",
-        drawing.get("id"),
-        updates,
-    )
-
-    st.session_state.pop(
-        "editing_drawing_id",
-        None,
-    )
-
-    st.success(
-        "Drawing updated successfully."
-    )
-
-    st.rerun()
-
-
-def _render_new_revision(db, drawing):
-
-    st.subheader(
-        f"New Revision: "
-        f"{drawing.get('drawing_number', '')}"
-    )
-
-    current_revision = str(
-        drawing.get(
-            "revision",
-            "0",
+        reason = _text(
+            revision.get(
+                "reason"
+            ),
+            "Not specified",
         )
+
+        revision_date = _text(
+            revision.get(
+                "date"
+            ),
+            "N/A",
+        )
+
+        author = _text(
+            revision.get(
+                "author"
+            ),
+            "Not specified",
+        )
+
+        st.markdown(
+            f"""
+<div class="cs-revision-box">
+
+    <div class="cs-revision-number">
+        Revision {revision_number}
+    </div>
+
+    <div class="cs-revision-text">
+        {reason}
+        &nbsp; • &nbsp;
+        {revision_date}
+        &nbsp; • &nbsp;
+        {author}
+    </div>
+
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+
+# ============================================================
+# DELETE
+# ============================================================
+
+def _render_delete(
+    db: dict[str, Any],
+    drawing: dict[str, Any],
+) -> None:
+
+    record_id = drawing.get(
+        "id"
     )
 
-    next_revision = _next_revision(
-        db,
+    title = _text(
         drawing.get(
-            "drawing_number",
-            "",
+            "title"
         ),
+        "this drawing",
     )
-
-    st.info(
-        f"Current revision: Rev {current_revision}  "
-        f"→  Proposed revision: Rev {next_revision}"
-    )
-
-    with st.form(
-        f"revision_form_{drawing.get('id')}"
-    ):
-
-        revision = st.text_input(
-            "New Revision",
-            value=next_revision,
-        )
-
-        status = st.selectbox(
-            "Revision Status",
-            DRAWING_STATUSES,
-            index=1,
-        )
-
-        issue_date = st.date_input(
-            "Issue Date",
-            value=date.today(),
-        )
-
-        prepared_by = st.text_input(
-            "Prepared By",
-            value=drawing.get(
-                "prepared_by",
-                "",
-            ),
-        )
-
-        checked_by = st.text_input(
-            "Checked By",
-            value=drawing.get(
-                "checked_by",
-                "",
-            ),
-        )
-
-        notes = st.text_area(
-            "Revision Notes",
-            placeholder=(
-                "Describe the changes made in this revision."
-            ),
-        )
-
-        create_revision = st.form_submit_button(
-            "Create Revision",
-            use_container_width=True,
-        )
-
-    if not create_revision:
-        return
-
-    revision = revision.strip()
-
-    if not revision:
-
-        st.error(
-            "Revision number is required."
-        )
-
-        return
-
-    existing = _drawing_exists(
-        db,
-        drawing.get("project_id"),
-        drawing.get("drawing_number"),
-    )
-
-    # Existing record is expected, so create a new
-    # revision record with its own ID.
-    new_drawing = dict(drawing)
-
-    new_drawing["id"] = (
-        f"DRW-{drawing.get('project_id')}-"
-        f"{drawing.get('drawing_number')}-"
-        f"REV{revision}"
-    )
-
-    new_drawing["revision"] = revision
-    new_drawing["status"] = status
-    new_drawing["issue_date"] = str(issue_date)
-    new_drawing["prepared_by"] = prepared_by.strip()
-    new_drawing["checked_by"] = checked_by.strip()
-    new_drawing["approved_by"] = ""
-    new_drawing["notes"] = notes.strip()
-    new_drawing["created_at"] = str(date.today())
-
-    # Prevent duplicate revision IDs.
-    duplicate_revision = any(
-        str(item.get("id"))
-        == str(new_drawing["id"])
-        for item in _get_drawings(db)
-    )
-
-    if duplicate_revision:
-
-        st.error(
-            f"Revision {revision} already exists."
-        )
-
-        return
-
-    add_record(
-        db,
-        "drawings",
-        new_drawing,
-    )
-
-    st.session_state.pop(
-        "revision_drawing_id",
-        None,
-    )
-
-    st.success(
-        f"Revision {revision} created."
-    )
-
-    st.rerun()
-
-
-def _render_delete_confirmation(db, drawing):
 
     st.warning(
-        f"Delete drawing "
-        f"**{drawing.get('drawing_number', '')} "
-        f"- Rev {drawing.get('revision', '0')}**?"
+        f'Delete "{title}"? '
+        "This action cannot be undone."
     )
 
-    confirm_col, cancel_col = st.columns(2)
+    left, right = st.columns(2)
 
-    with confirm_col:
+    with left:
 
         if st.button(
             "Delete Drawing",
-            type="primary",
+            key=f"confirm_delete_drawing_{record_id}",
             use_container_width=True,
         ):
 
-            delete_record(
-                db,
-                "drawings",
-                drawing.get("id"),
-            )
+            try:
 
-            st.session_state.pop(
-                "delete_drawing_id",
-                None,
-            )
+                result = delete_record(
+                    DRAWINGS_COLLECTION,
+                    record_id,
+                    db,
+                )
 
-            st.success(
-                "Drawing deleted."
-            )
+                if result:
 
-            st.rerun()
+                    st.success(
+                        "Drawing deleted successfully."
+                    )
 
-    with cancel_col:
+                    st.rerun()
+
+                else:
+
+                    st.error(
+                        "Drawing could not be found."
+                    )
+
+            except Exception as exc:
+
+                st.error(
+                    "Unable to delete the drawing."
+                )
+
+                st.code(
+                    f"{type(exc).__name__}: {exc}"
+                )
+
+    with right:
 
         if st.button(
             "Cancel",
+            key=f"cancel_delete_drawing_{record_id}",
             use_container_width=True,
         ):
 
             st.session_state.pop(
-                "delete_drawing_id",
+                f"delete_drawing_{record_id}",
                 None,
             )
 
             st.rerun()
 
 
-def render_drawings_module(db):
+# ============================================================
+# DRAWING CARD
+# ============================================================
 
-    projects = _get_projects(db)
-    drawings = _get_drawings(db)
+def _render_drawing_card(
+    db: dict[str, Any],
+    drawing: dict[str, Any],
+) -> None:
+
+    record_id = drawing.get(
+        "id"
+    )
+
+    drawing_number = _text(
+        drawing.get(
+            "drawing_number"
+        ),
+        "N/A",
+    )
+
+    title = _text(
+        drawing.get(
+            "title"
+        ),
+        "Untitled Drawing",
+    )
+
+    project_id = _text(
+        drawing.get(
+            "project_id"
+        ),
+        "N/A",
+    )
+
+    document_id = _text(
+        drawing.get(
+            "document_id"
+        ),
+        "Not linked",
+    )
+
+    drawing_type = _text(
+        drawing.get(
+            "drawing_type"
+        ),
+        "Other",
+    )
+
+    status = _text(
+        drawing.get(
+            "status"
+        ),
+        "Draft",
+    )
+
+    revision = _text(
+        drawing.get(
+            "current_revision"
+        ),
+        "A",
+    )
+
+    author = _text(
+        drawing.get(
+            "author"
+        ),
+        "Not specified",
+    )
+
+    drawing_date = _date_string(
+        drawing.get(
+            "drawing_date"
+        )
+    )
+
+    project = _project_by_id(
+        db,
+        project_id,
+    )
+
+    document = _document_by_id(
+        db,
+        document_id,
+    )
+
+    project_name = (
+        _text(
+            project.get("name")
+        )
+        if project
+        else project_id
+    )
+
+    document_title = (
+        _text(
+            document.get("title")
+        )
+        if document
+        else document_id
+    )
+
+    css_class = _status_class(
+        status
+    )
 
     st.markdown(
-        """
-        <div class="module-header">
-            <div class="module-title">
-                Drawing Repository
+        f"""
+<div class="cs-drawing-card">
+
+    <div style="
+        display:flex;
+        justify-content:space-between;
+        gap:15px;
+        align-items:flex-start;
+    ">
+
+        <div>
+
+            <div class="cs-drawing-name">
+                {drawing_number} • {title}
             </div>
-            <div class="module-subtitle">
-                Controlled repository for project drawings,
-                revisions and technical documents.
+
+            <div class="cs-drawing-meta">
+                {drawing_type}
+                &nbsp; • &nbsp;
+                Revision {revision}
+            </div>
+
+        </div>
+
+        <div>
+            <span class="cs-drawing-status {css_class}">
+                {status}
+            </span>
+        </div>
+
+    </div>
+
+    <div style="
+        height:1px;
+        background:#172033;
+        margin:15px 0;
+    "></div>
+
+    <div style="
+        display:grid;
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+        gap:15px;
+    ">
+
+        <div>
+            <div class="cs-drawing-meta">
+                PROJECT
+            </div>
+
+            <div class="cs-drawing-info">
+                {project_id}
+                <br>
+                {project_name}
             </div>
         </div>
-        """,
+
+        <div>
+            <div class="cs-drawing-meta">
+                DOCUMENT
+            </div>
+
+            <div class="cs-drawing-info">
+                {document_id}
+                <br>
+                {document_title}
+            </div>
+        </div>
+
+        <div>
+            <div class="cs-drawing-meta">
+                AUTHOR
+            </div>
+
+            <div class="cs-drawing-info">
+                {author}
+            </div>
+        </div>
+
+        <div>
+            <div class="cs-drawing-meta">
+                DRAWING DATE
+            </div>
+
+            <div class="cs-drawing-info">
+                {drawing_date or "Not specified"}
+            </div>
+        </div>
+
+    </div>
+
+</div>
+""",
         unsafe_allow_html=True,
     )
 
-    # ========================================================
-    # KPI AREA
-    # ========================================================
+    left, middle, right = st.columns(
+        [1, 1, 4]
+    )
 
-    total_drawings = len(drawings)
+    with left:
+
+        if st.button(
+            "Edit",
+            key=f"edit_drawing_{record_id}",
+            use_container_width=True,
+        ):
+
+            st.session_state[
+                f"editing_drawing_{record_id}"
+            ] = True
+
+            st.session_state.pop(
+                f"delete_drawing_{record_id}",
+                None,
+            )
+
+            st.rerun()
+
+    with middle:
+
+        if st.button(
+            "Delete",
+            key=f"delete_drawing_{record_id}",
+            use_container_width=True,
+        ):
+
+            st.session_state[
+                f"delete_drawing_{record_id}"
+            ] = True
+
+            st.session_state.pop(
+                f"editing_drawing_{record_id}",
+                None,
+            )
+
+            st.rerun()
+
+    with right:
+
+        if st.button(
+            "Revision History",
+            key=f"revision_drawing_{record_id}",
+            use_container_width=False,
+        ):
+
+            st.session_state[
+                f"revision_history_drawing_{record_id}"
+            ] = not st.session_state.get(
+                f"revision_history_drawing_{record_id}",
+                False,
+            )
+
+            st.rerun()
+
+    if st.session_state.get(
+        f"editing_drawing_{record_id}",
+        False,
+    ):
+
+        _render_edit_form(
+            db,
+            drawing,
+        )
+
+    if st.session_state.get(
+        f"delete_drawing_{record_id}",
+        False,
+    ):
+
+        _render_delete(
+            db,
+            drawing,
+        )
+
+    if st.session_state.get(
+        f"revision_history_drawing_{record_id}",
+        False,
+    ):
+
+        _render_revision_history(
+            drawing
+        )
+
+
+# ============================================================
+# MAIN MODULE
+# ============================================================
+
+def render_drawings_module(
+    db: dict[str, Any] | None = None,
+) -> None:
+
+    _inject_css()
+
+    if not isinstance(
+        db,
+        dict,
+    ):
+
+        db = load_memory()
+
+    if DRAWINGS_COLLECTION not in db:
+
+        db[
+            DRAWINGS_COLLECTION
+        ] = []
+
+        save_memory(db)
+
+    if PROJECTS_COLLECTION not in db:
+
+        db[
+            PROJECTS_COLLECTION
+        ] = []
+
+        save_memory(db)
+
+    if DOCUMENTS_COLLECTION not in db:
+
+        db[
+            DOCUMENTS_COLLECTION
+        ] = []
+
+        save_memory(db)
+
+    drawings = _drawings(db)
+    projects = _projects(db)
+
+    # --------------------------------------------------------
+    # Header
+    # --------------------------------------------------------
+
+    st.markdown(
+        """
+<div class="cs-drawing-header">
+
+    <div class="cs-drawing-title">
+        Drawing Register
+    </div>
+
+    <div class="cs-drawing-subtitle">
+        Central AEC drawing workspace for architectural,
+        engineering, coordination and construction drawings.
+    </div>
+
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    # --------------------------------------------------------
+    # KPIs
+    # --------------------------------------------------------
+
+    total = len(drawings)
+
+    drafts = sum(
+        1
+        for drawing in drawings
+        if drawing.get("status")
+        == "Draft"
+    )
+
+    review = sum(
+        1
+        for drawing in drawings
+        if drawing.get("status")
+        == "Under Review"
+    )
 
     approved = sum(
         1
         for drawing in drawings
-        if drawing.get("status") == "Approved"
+        if drawing.get("status")
+        == "Approved"
     )
 
-    for_review = sum(
-        1
-        for drawing in drawings
-        if drawing.get("status") == "For Review"
-    )
-
-    ifc = sum(
+    issued = sum(
         1
         for drawing in drawings
         if drawing.get("status")
-        == "Issued for Construction"
+        == "Issued"
     )
 
-    col1, col2, col3, col4 = st.columns(4)
+    columns = st.columns(5)
 
-    with col1:
-        st.metric(
-            "Total Drawings",
-            total_drawings,
-        )
+    metrics = [
+        ("Total Drawings", total),
+        ("Draft", drafts),
+        ("Under Review", review),
+        ("Approved", approved),
+        ("Issued", issued),
+    ]
 
-    with col2:
-        st.metric(
-            "Approved",
-            approved,
-        )
+    for column, (
+        label,
+        value,
+    ) in zip(
+        columns,
+        metrics,
+    ):
 
-    with col3:
-        st.metric(
-            "For Review",
-            for_review,
-        )
+        with column:
 
-    with col4:
-        st.metric(
-            "Issued for Construction",
-            ifc,
-        )
-
-    st.divider()
-
-    # ========================================================
-    # EDIT
-    # ========================================================
-
-    editing_id = st.session_state.get(
-        "editing_drawing_id"
-    )
-
-    if editing_id:
-
-        drawing = next(
-            (
-                item
-                for item in drawings
-                if str(item.get("id"))
-                == str(editing_id)
-            ),
-            None,
-        )
-
-        if drawing:
-
-            _render_edit_drawing(
-                db,
-                drawing,
+            st.metric(
+                label,
+                value,
             )
 
-            st.divider()
+    st.write("")
 
-    # ========================================================
-    # NEW REVISION
-    # ========================================================
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
 
-    revision_id = st.session_state.get(
-        "revision_drawing_id"
+    _render_create_form(
+        db
     )
 
-    if revision_id:
+    # --------------------------------------------------------
+    # Register
+    # --------------------------------------------------------
 
-        drawing = next(
-            (
-                item
-                for item in drawings
-                if str(item.get("id"))
-                == str(revision_id)
-            ),
-            None,
-        )
-
-        if drawing:
-
-            _render_new_revision(
-                db,
-                drawing,
-            )
-
-            st.divider()
-
-    # ========================================================
-    # DELETE
-    # ========================================================
-
-    delete_id = st.session_state.get(
-        "delete_drawing_id"
+    st.markdown(
+        '<div class="cs-drawing-section">'
+        "Drawing Register"
+        "</div>",
+        unsafe_allow_html=True,
     )
 
-    if delete_id:
+    search = st.text_input(
+        "Search Drawings",
+        placeholder=(
+            "Search by drawing number, title, "
+            "project, document, author or revision..."
+        ),
+        key="drawing_search",
+    )
 
-        drawing = next(
-            (
-                item
-                for item in drawings
-                if str(item.get("id"))
-                == str(delete_id)
-            ),
-            None,
-        )
+    filter_columns = st.columns(3)
 
-        if drawing:
+    with filter_columns[0]:
 
-            _render_delete_confirmation(
-                db,
-                drawing,
-            )
-
-            st.divider()
-
-    # ========================================================
-    # TABS
-    # ========================================================
-
-    tab_repository, tab_register = st.tabs(
-        [
-            "Drawing Repository",
-            "Register Drawing",
+        project_options = [
+            "All"
         ]
+
+        project_map = {}
+
+        for project in projects:
+
+            label = _project_label(
+                project
+            )
+
+            project_options.append(
+                label
+            )
+
+            project_map[
+                label
+            ] = _text(
+                project.get(
+                    "project_id"
+                )
+            )
+
+        project_filter = st.selectbox(
+            "Project",
+            project_options,
+            key="drawing_project_filter",
+        )
+
+    with filter_columns[1]:
+
+        type_filter = st.selectbox(
+            "Drawing Type",
+            ["All"] + DRAWING_TYPES,
+            key="drawing_type_filter",
+        )
+
+    with filter_columns[2]:
+
+        status_filter = st.selectbox(
+            "Status",
+            ["All"] + DRAWING_STATUSES,
+            key="drawing_status_filter",
+        )
+
+    search_text = search.strip().lower()
+
+    selected_project_id = project_map.get(
+        project_filter,
+        "",
     )
 
-    # ========================================================
-    # REPOSITORY
-    # ========================================================
+    filtered = []
 
-    with tab_repository:
+    for drawing in drawings:
 
-        if not drawings:
-
-            st.info(
-                "No drawings have been registered yet."
+        drawing_project_id = _text(
+            drawing.get(
+                "project_id"
             )
+        )
 
-        else:
+        drawing_type = _text(
+            drawing.get(
+                "drawing_type"
+            ),
+            "Other",
+        )
 
-            search = st.text_input(
-                "Search Drawings",
-                placeholder=(
-                    "Drawing number, title, discipline "
-                    "or project..."
+        drawing_status = _text(
+            drawing.get(
+                "status"
+            ),
+            "Draft",
+        )
+
+        if (
+            selected_project_id
+            and drawing_project_id.lower()
+            != selected_project_id.lower()
+        ):
+            continue
+
+        if (
+            type_filter != "All"
+            and drawing_type != type_filter
+        ):
+            continue
+
+        if (
+            status_filter != "All"
+            and drawing_status != status_filter
+        ):
+            continue
+
+        searchable = " ".join(
+            [
+                _text(
+                    drawing.get(
+                        "drawing_number"
+                    )
                 ),
-            )
-
-            filter_col1, filter_col2, filter_col3 = st.columns(3)
-
-            with filter_col1:
-
-                project_filter = st.selectbox(
-                    "Project",
-                    ["All"]
-                    + [
-                        project.get("id")
-                        for project in projects
-                    ],
-                )
-
-            with filter_col2:
-
-                discipline_filter = st.selectbox(
-                    "Discipline",
-                    ["All"] + DISCIPLINES,
-                )
-
-            with filter_col3:
-
-                status_filter = st.selectbox(
-                    "Status",
-                    ["All"] + DRAWING_STATUSES,
-                )
-
-            search_term = (
-                search.strip().lower()
-            )
-
-            filtered = []
-
-            for drawing in drawings:
-
-                searchable = " ".join(
-                    [
-                        str(
-                            drawing.get(
-                                "drawing_number",
-                                "",
-                            )
-                        ),
-                        str(
-                            drawing.get(
-                                "title",
-                                "",
-                            )
-                        ),
-                        str(
-                            drawing.get(
-                                "discipline",
-                                "",
-                            )
-                        ),
-                        str(
-                            drawing.get(
-                                "drawing_type",
-                                "",
-                            )
-                        ),
-                        str(
-                            drawing.get(
-                                "project_id",
-                                "",
-                            )
-                        ),
-                        _project_name(
-                            db,
-                            drawing.get(
-                                "project_id",
-                                "",
-                            ),
-                        ),
-                    ]
-                ).lower()
-
-                if (
-                    search_term
-                    and search_term not in searchable
-                ):
-                    continue
-
-                if (
-                    project_filter != "All"
-                    and str(
-                        drawing.get(
-                            "project_id"
-                        )
+                _text(
+                    drawing.get(
+                        "title"
                     )
-                    != str(project_filter)
-                ):
-                    continue
-
-                if (
-                    discipline_filter != "All"
-                    and drawing.get(
-                        "discipline"
+                ),
+                _text(
+                    drawing.get(
+                        "project_id"
                     )
-                    != discipline_filter
-                ):
-                    continue
-
-                if (
-                    status_filter != "All"
-                    and drawing.get(
-                        "status"
+                ),
+                _text(
+                    drawing.get(
+                        "document_id"
                     )
-                    != status_filter
-                ):
-                    continue
+                ),
+                _text(
+                    drawing.get(
+                        "drawing_type"
+                    )
+                ),
+                _text(
+                    drawing.get(
+                        "author"
+                    )
+                ),
+                _text(
+                    drawing.get(
+                        "current_revision"
+                    )
+                ),
+            ]
+        ).lower()
 
-                filtered.append(
-                    drawing
-                )
+        if (
+            search_text
+            and search_text not in searchable
+        ):
+            continue
 
-            st.caption(
-                f"Showing {len(filtered)} "
-                f"of {len(drawings)} drawings"
-            )
+        filtered.append(
+            drawing
+        )
 
-            for drawing in filtered:
+    st.caption(
+        f"Showing {len(filtered)} "
+        f"of {len(drawings)} drawings"
+    )
 
-                _render_drawing_card(
-                    db,
-                    drawing,
-                )
+    # --------------------------------------------------------
+    # Empty state
+    # --------------------------------------------------------
 
-    # ========================================================
-    # REGISTER
-    # ========================================================
+    if not filtered:
 
-    with tab_register:
+        st.markdown(
+            """
+<div class="cs-drawing-empty">
 
-        _render_create_drawing(
-            db
+    <div style="
+        color:#FFFFFF;
+        font-size:17px;
+        font-weight:800;
+        margin-bottom:7px;
+    ">
+        No drawings found
+    </div>
+
+    <div>
+        Create a drawing or adjust your search
+        and filters.
+    </div>
+
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # Cards
+    # --------------------------------------------------------
+
+    for drawing in filtered:
+
+        _render_drawing_card(
+            db,
+            drawing,
         )
