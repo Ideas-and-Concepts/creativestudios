@@ -1,9 +1,9 @@
 """
 Creative Studios
-AEC Collaboration Platform
 AEC Workspace
+JSON database layer.
 
-JSON Database Layer
+This module intentionally has NO Streamlit dependency.
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ import copy
 import hashlib
 import json
 import os
-import secrets
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -20,16 +19,11 @@ from typing import Any
 
 
 # ============================================================
-# PATHS
+# DATABASE PATH
 # ============================================================
 
-MODULE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = MODULE_DIR.parent
-
-DATABASE_FILE = PROJECT_ROOT / "creativestudios_db.json"
-BACKUP_DIR = PROJECT_ROOT / "database_backups"
-
-DATABASE_VERSION = 1
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATABASE_FILE = BASE_DIR / "creativestudios_db.json"
 
 
 # ============================================================
@@ -37,59 +31,74 @@ DATABASE_VERSION = 1
 # ============================================================
 
 DEFAULT_DATABASE: dict[str, Any] = {
-    "database_version": DATABASE_VERSION,
+    "database_version": 1,
 
     "users": [],
 
     "projects": [],
-
     "clients": [],
-
     "companies": [],
-
     "contacts": [],
-
     "team": [],
 
     "documents": [],
-
     "drawings": [],
-
     "approvals": [],
 
     "boq": [],
-
     "rfis": [],
-
     "site_logs": [],
-
     "tasks": [],
 
     "meetings": [],
-
     "submittals": [],
-
     "issues": [],
-
     "change_orders": [],
 
     "contracts": [],
-
     "invoices": [],
-
     "payments": [],
 
     "notifications": [],
-
     "activity_log": [],
 }
 
 
 # ============================================================
-# JSON HELPERS
+# INTERNAL HELPERS
 # ============================================================
 
-def _json_default(value: Any) -> Any:
+def _new_database() -> dict[str, Any]:
+    return copy.deepcopy(DEFAULT_DATABASE)
+
+
+def _normalize(data: Any) -> dict[str, Any]:
+
+    if not isinstance(data, dict):
+        data = {}
+
+    result = copy.deepcopy(data)
+
+    result.setdefault(
+        "database_version",
+        1,
+    )
+
+    for key, default in DEFAULT_DATABASE.items():
+
+        if key == "database_version":
+            continue
+
+        if key not in result:
+            result[key] = copy.deepcopy(default)
+
+        elif not isinstance(result[key], list):
+            result[key] = []
+
+    return result
+
+
+def _json_default(value: Any) -> str:
 
     if isinstance(value, datetime):
         return value.isoformat()
@@ -101,109 +110,23 @@ def _json_default(value: Any) -> Any:
 
         try:
             return value.isoformat()
-
         except Exception:
             pass
 
     return str(value)
 
 
-def _fresh_database() -> dict[str, Any]:
-
-    return copy.deepcopy(
-        DEFAULT_DATABASE
-    )
-
-
-def normalize_database(
-    data: Any,
-) -> dict[str, Any]:
-
-    if not isinstance(data, dict):
-        data = _fresh_database()
-
-    result = copy.deepcopy(data)
-
-    result.setdefault(
-        "database_version",
-        DATABASE_VERSION,
-    )
-
-    for key, default in DEFAULT_DATABASE.items():
-
-        if key == "database_version":
-            continue
-
-        if key not in result:
-            result[key] = copy.deepcopy(default)
-
-        elif not isinstance(
-            result[key],
-            list,
-        ):
-            result[key] = []
-
-    return result
-
-
-# ============================================================
-# DATABASE FILE
-# ============================================================
-
-def database_exists() -> bool:
-
-    return (
-        DATABASE_FILE.exists()
-        and DATABASE_FILE.is_file()
-    )
-
-
-def backup_database() -> Path | None:
-
-    if not database_exists():
-        return None
-
-    try:
-
-        BACKUP_DIR.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        timestamp = datetime.now().strftime(
-            "%Y%m%d_%H%M%S"
-        )
-
-        backup_path = (
-            BACKUP_DIR
-            / f"creativestudios_db_{timestamp}.json"
-        )
-
-        backup_path.write_bytes(
-            DATABASE_FILE.read_bytes()
-        )
-
-        return backup_path
-
-    except OSError:
-
-        return None
-
-
 # ============================================================
 # LOAD
 # ============================================================
 
-def load_memory(
-    create_if_missing: bool = True,
-) -> dict[str, Any]:
+def load_memory() -> dict[str, Any]:
 
-    if not database_exists():
+    if not DATABASE_FILE.exists():
 
-        data = _fresh_database()
+        data = _new_database()
 
-        if create_if_missing:
-            save_memory(data)
+        save_memory(data)
 
         return data
 
@@ -214,7 +137,9 @@ def load_memory(
             encoding="utf-8",
         ) as file:
 
-            raw = json.load(file)
+            data = json.load(file)
+
+        return _normalize(data)
 
     except (
         OSError,
@@ -222,18 +147,11 @@ def load_memory(
         UnicodeDecodeError,
     ):
 
-        backup_database()
+        data = _new_database()
 
-        data = _fresh_database()
-
-        if create_if_missing:
-            save_memory(data)
+        save_memory(data)
 
         return data
-
-    data = normalize_database(raw)
-
-    return data
 
 
 # ============================================================
@@ -244,27 +162,26 @@ def save_memory(
     data: dict[str, Any],
 ) -> bool:
 
-    if not isinstance(data, dict):
-        return False
+    data = _normalize(data)
 
-    data = normalize_database(data)
-
-    temp_path: Path | None = None
+    temporary_file = None
 
     try:
 
-        PROJECT_ROOT.mkdir(
+        DATABASE_FILE.parent.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        fd, filename = tempfile.mkstemp(
-            prefix=".creativestudios_",
+        fd, temporary_name = tempfile.mkstemp(
+            prefix="creativestudios_",
             suffix=".tmp",
-            dir=str(PROJECT_ROOT),
+            dir=str(DATABASE_FILE.parent),
         )
 
-        temp_path = Path(filename)
+        temporary_file = Path(
+            temporary_name
+        )
 
         with os.fdopen(
             fd,
@@ -286,16 +203,15 @@ def save_memory(
 
             try:
                 os.fsync(file.fileno())
-
             except OSError:
                 pass
 
         os.replace(
-            temp_path,
+            temporary_file,
             DATABASE_FILE,
         )
 
-        temp_path = None
+        temporary_file = None
 
         return True
 
@@ -310,59 +226,36 @@ def save_memory(
     finally:
 
         if (
-            temp_path is not None
-            and temp_path.exists()
+            temporary_file is not None
+            and temporary_file.exists()
         ):
 
             try:
-                temp_path.unlink()
-
+                temporary_file.unlink()
             except OSError:
                 pass
 
 
 # ============================================================
-# ENSURE DATABASE
+# COMPATIBILITY FUNCTIONS
 # ============================================================
 
+def load_database() -> dict[str, Any]:
+    return load_memory()
+
+
+def save_database(
+    data: dict[str, Any],
+) -> bool:
+    return save_memory(data)
+
+
+def get_db() -> dict[str, Any]:
+    return load_memory()
+
+
 def ensure_database() -> dict[str, Any]:
-
-    data = load_memory()
-
-    changed = False
-
-    for key, default in DEFAULT_DATABASE.items():
-
-        if key == "database_version":
-            continue
-
-        if key not in data:
-
-            data[key] = copy.deepcopy(default)
-            changed = True
-
-        elif not isinstance(
-            data[key],
-            list,
-        ):
-
-            data[key] = []
-            changed = True
-
-    if data.get(
-        "database_version"
-    ) != DATABASE_VERSION:
-
-        data[
-            "database_version"
-        ] = DATABASE_VERSION
-
-        changed = True
-
-    if changed:
-        save_memory(data)
-
-    return data
+    return load_memory()
 
 
 # ============================================================
@@ -390,33 +283,6 @@ def get_collection(
 
     return collection
 
-
-def set_collection(
-    collection_name: str,
-    records: list,
-    data: dict[str, Any] | None = None,
-    save: bool = True,
-) -> dict[str, Any]:
-
-    if data is None:
-        data = load_memory()
-
-    data[
-        collection_name
-    ] = records if isinstance(
-        records,
-        list,
-    ) else []
-
-    if save:
-        save_memory(data)
-
-    return data
-
-
-# ============================================================
-# IDS
-# ============================================================
 
 def next_id(
     collection_name: str,
@@ -462,14 +328,13 @@ def next_id(
 
 
 # ============================================================
-# RECORD OPERATIONS
+# RECORD CRUD
 # ============================================================
 
 def add_record(
     collection_name: str,
     record: dict[str, Any],
     data: dict[str, Any] | None = None,
-    save: bool = True,
 ) -> dict[str, Any]:
 
     if data is None:
@@ -483,9 +348,7 @@ def add_record(
             "record must be a dictionary"
         )
 
-    new_record = copy.deepcopy(
-        record
-    )
+    new_record = copy.deepcopy(record)
 
     if new_record.get("id") is None:
 
@@ -507,8 +370,7 @@ def add_record(
         collection_name
     ] = collection
 
-    if save:
-        save_memory(data)
+    save_memory(data)
 
     return new_record
 
@@ -518,7 +380,6 @@ def update_record(
     record_id: Any,
     updates: dict[str, Any],
     data: dict[str, Any] | None = None,
-    save: bool = True,
 ) -> dict[str, Any] | None:
 
     if data is None:
@@ -545,10 +406,6 @@ def update_record(
 
             continue
 
-        original_id = record.get(
-            "id"
-        )
-
         updated = copy.deepcopy(
             record
         )
@@ -559,9 +416,9 @@ def update_record(
             )
         )
 
-        updated[
+        updated["id"] = record.get(
             "id"
-        ] = original_id
+        )
 
         collection[index] = updated
 
@@ -569,8 +426,7 @@ def update_record(
             collection_name
         ] = collection
 
-        if save:
-            save_memory(data)
+        save_memory(data)
 
         return updated
 
@@ -581,7 +437,6 @@ def delete_record(
     collection_name: str,
     record_id: Any,
     data: dict[str, Any] | None = None,
-    save: bool = True,
 ) -> bool:
 
     if data is None:
@@ -614,8 +469,7 @@ def delete_record(
             collection_name
         ] = collection
 
-        if save:
-            save_memory(data)
+        save_memory(data)
 
         return True
 
@@ -628,12 +482,10 @@ def find_by_id(
     data: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
 
-    records = get_collection(
+    for record in get_collection(
         collection_name,
         data,
-    )
-
-    for record in records:
+    ):
 
         if not isinstance(
             record,
@@ -657,12 +509,10 @@ def find_one(
     data: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
 
-    records = get_collection(
+    for record in get_collection(
         collection_name,
         data,
-    )
-
-    for record in records:
+    ):
 
         if not isinstance(
             record,
@@ -671,29 +521,18 @@ def find_one(
             continue
 
         if str(
-            record.get(field)
-        ) == str(value):
+            record.get(field, "")
+        ).lower() == str(
+            value
+        ).lower():
 
             return record
 
     return None
 
 
-def count_records(
-    collection_name: str,
-    data: dict[str, Any] | None = None,
-) -> int:
-
-    return len(
-        get_collection(
-            collection_name,
-            data,
-        )
-    )
-
-
 # ============================================================
-# PASSWORD / AUTH HELPERS
+# PASSWORDS
 # ============================================================
 
 def hash_password(
@@ -701,9 +540,7 @@ def hash_password(
 ) -> str:
 
     return hashlib.sha256(
-        password.encode(
-            "utf-8"
-        )
+        password.encode("utf-8")
     ).hexdigest()
 
 
@@ -712,11 +549,17 @@ def verify_password(
     password_hash: str,
 ) -> bool:
 
-    return secrets.compare_digest(
-        hash_password(password),
-        password_hash,
-    )
+    if not password_hash:
+        return False
 
+    return hash_password(
+        password
+    ) == password_hash
+
+
+# ============================================================
+# ADMIN USER
+# ============================================================
 
 def ensure_admin_user(
     data: dict[str, Any] | None = None,
@@ -732,12 +575,31 @@ def ensure_admin_user(
 
     for user in users:
 
-        if (
-            str(
-                user.get("username", "")
-            ).lower()
-            == "admin"
-        ):
+        if str(
+            user.get(
+                "username",
+                "",
+            )
+        ).lower() == "admin":
+
+            changed = False
+
+            if "active" not in user:
+                user["active"] = True
+                changed = True
+
+            if "role" not in user:
+                user["role"] = "Admin"
+                changed = True
+
+            if "full_name" not in user:
+                user[
+                    "full_name"
+                ] = "System Administrator"
+                changed = True
+
+            if changed:
+                save_memory(data)
 
             return user
 
@@ -771,64 +633,38 @@ def ensure_admin_user(
 
 
 # ============================================================
-# RESET
+# INITIALIZE
 # ============================================================
 
-def reset_database(
-    backup: bool = True,
-) -> dict[str, Any]:
+def initialize_database() -> dict[str, Any]:
 
-    if (
-        backup
-        and database_exists()
-    ):
-        backup_database()
+    data = load_memory()
 
-    data = _fresh_database()
-
-    save_memory(data)
+    ensure_admin_user(data)
 
     return data
 
 
 # ============================================================
-# COMPATIBILITY ALIASES
-# ============================================================
-
-def load_database():
-    return load_memory()
-
-
-def save_database(data):
-    return save_memory(data)
-
-
-def get_db():
-    return load_memory()
-
-
-# ============================================================
-# INITIALIZATION
+# MODULE TEST
 # ============================================================
 
 if __name__ == "__main__":
 
-    db = ensure_database()
-
-    ensure_admin_user(db)
+    database = initialize_database()
 
     print(
-        "Creative Studios database initialized."
+        "Creative Studios database OK"
     )
 
     print(
-        f"Database: {DATABASE_FILE}"
+        f"Database file: {DATABASE_FILE}"
     )
 
     print(
-        f"Projects: {count_records('projects', db)}"
+        f"Users: {len(database.get('users', []))}"
     )
 
     print(
-        f"Users: {count_records('users', db)}"
+        f"Projects: {len(database.get('projects', []))}"
     )
