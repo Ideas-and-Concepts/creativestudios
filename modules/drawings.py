@@ -140,9 +140,7 @@ def render_drawings_module(
                 else:
 
                     drawing = {
-                        "id": next_id(
-                            drawings
-                        ),
+                        "id": next_id("drawings", database),
                         "drawing_number": (
                             number.strip()
                         ),
@@ -153,11 +151,7 @@ def render_drawings_module(
                         "status": status,
                     }
 
-                    add_record(
-                        database,
-                        "drawings",
-                        drawing,
-                    )
+                    add_record("drawings", drawing, database)
 
                     st.session_state[
                         "show_drawing_form"
@@ -404,7 +398,6 @@ def render_drawings_module(
                 if save:
 
                     update_record(
-                        database,
                         "drawings",
                         drawing_id,
                         {
@@ -425,6 +418,7 @@ def render_drawings_module(
                             ),
                             "status": edit_status,
                         },
+                        database,
                     )
 
                     st.success(
@@ -439,9 +433,9 @@ def render_drawings_module(
             ):
 
                 delete_record(
-                    database,
                     "drawings",
                     drawing_id,
+                    database,
                 )
 
                 st.success(
