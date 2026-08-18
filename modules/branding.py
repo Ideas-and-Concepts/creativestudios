@@ -1,8 +1,5 @@
 """
 Creative Studios shared branding utilities.
-
-Used by individual Streamlit modules for consistent
-logo and page-header rendering.
 """
 
 from __future__ import annotations
@@ -13,10 +10,6 @@ from pathlib import Path
 import streamlit as st
 
 
-# ============================================================
-# BRAND ASSET
-# ============================================================
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 LOGO_PATH = (
@@ -26,11 +19,9 @@ LOGO_PATH = (
 )
 
 
-# ============================================================
-# LOGO
-# ============================================================
-
 def logo_exists() -> bool:
+    """Return True when the Creative Studios logo exists."""
+
     return (
         LOGO_PATH.exists()
         and LOGO_PATH.is_file()
@@ -40,10 +31,7 @@ def logo_exists() -> bool:
 def render_logo(
     width: int = 52,
 ) -> None:
-    """
-    Render the Creative Studios PNG using Streamlit's
-    native image renderer.
-    """
+    """Render the Creative Studios logo."""
 
     if logo_exists():
 
@@ -53,20 +41,13 @@ def render_logo(
         )
 
 
-# ============================================================
-# MODULE HEADER
-# ============================================================
-
 def render_module_header(
     title: str,
     subtitle: str = "",
     logo_width: int = 52,
 ) -> None:
     """
-    Shared Creative Studios module header.
-
-    Uses the real PNG from:
-        assets/Artboard 1.png
+    Render one standardized Creative Studios module header.
     """
 
     safe_title = html.escape(
@@ -122,3 +103,15 @@ def render_module_header(
             """,
             unsafe_allow_html=True,
         )
+
+
+def branding_status() -> dict[str, object]:
+    """
+    Return branding diagnostics for debugging.
+    """
+
+    return {
+        "logo_path": str(LOGO_PATH),
+        "logo_exists": logo_exists(),
+        "logo_is_file": LOGO_PATH.is_file(),
+    }
