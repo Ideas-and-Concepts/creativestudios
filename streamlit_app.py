@@ -22,9 +22,9 @@ Features
 - Login branding
 - Session-state navigation
 """
-from pathlib import Path
-
 from __future__ import annotations
+
+from pathlib import Path
 
 import base64
 import html
