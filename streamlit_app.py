@@ -25,7 +25,6 @@ Features
 
 from __future__ import annotations
 
-import base64
 import html
 import importlib
 from pathlib import Path
@@ -58,26 +57,23 @@ def logo_exists() -> bool:
     )
 
 
-def _logo_data_uri() -> str:
+def render_logo(
+    width: int,
+) -> None:
     """
-    Convert the Creative Studios PNG logo into a
-    browser-safe base64 data URI.
+    Render the Creative Studios logo using Streamlit's
+    native image renderer.
 
-    This allows the logo to be embedded directly
-    inside custom HTML without requiring a separate
-    static-file server.
+    The image is loaded directly from:
+        assets/Artboard 1.png
     """
 
     if not logo_exists():
-        return ""
+        return
 
-    encoded = base64.b64encode(
-        LOGO_PATH.read_bytes()
-    ).decode("ascii")
-
-    return (
-        "data:image/png;base64,"
-        + encoded
+    st.image(
+        str(LOGO_PATH),
+        width=width,
     )
 
 
@@ -273,6 +269,8 @@ span {
     box-shadow:
         0 20px 70px rgba(0, 0, 0, 0.55),
         0 0 40px rgba(37, 99, 235, 0.06);
+
+    text-align: center;
 }
 
 
@@ -280,44 +278,26 @@ span {
    LOGIN LOGO
    ========================================================== */
 
-.cs-logo-wrap {
-    width: 82px;
-    height: 82px;
+.cs-login-logo {
+    display: flex;
 
-    min-width: 82px;
-    max-width: 82px;
+    justify-content: center;
 
-    min-height: 82px;
-    max-height: 82px;
+    align-items: center;
 
     margin: 0 auto 18px auto;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 82px;
 
-    overflow: hidden;
-
-    border-radius: 18px;
-
-    flex-shrink: 0;
+    height: 82px;
 }
 
-.cs-logo-wrap img {
-    display: block;
-
+.cs-login-logo img {
     width: 82px !important;
+
     height: 82px !important;
 
-    min-width: 82px !important;
-    min-height: 82px !important;
-
-    max-width: 82px !important;
-    max-height: 82px !important;
-
     object-fit: contain;
-
-    flex-shrink: 0;
 }
 
 
@@ -382,14 +362,17 @@ span {
     overflow: visible;
 }
 
-.cs-sidebar-logo-wrap {
+.cs-sidebar-logo {
     width: 46px;
+
     height: 46px;
 
     min-width: 46px;
+
     max-width: 46px;
 
     min-height: 46px;
+
     max-height: 46px;
 
     display: flex;
@@ -405,21 +388,12 @@ span {
     flex-shrink: 0;
 }
 
-.cs-sidebar-logo-wrap img {
-    display: block;
-
+.cs-sidebar-logo img {
     width: 46px !important;
+
     height: 46px !important;
 
-    min-width: 46px !important;
-    min-height: 46px !important;
-
-    max-width: 46px !important;
-    max-height: 46px !important;
-
     object-fit: contain;
-
-    flex-shrink: 0;
 }
 
 .cs-sidebar-brand-text {
@@ -456,74 +430,6 @@ span {
     letter-spacing: 0.7px;
 
     white-space: nowrap;
-}
-
-
-/* ==========================================================
-   MODULE HEADER
-   ========================================================== */
-
-.cs-module-header {
-    display: flex;
-
-    align-items: center;
-
-    gap: 14px;
-
-    width: 100%;
-
-    margin-bottom: 25px;
-}
-
-.cs-module-logo-wrap {
-    width: 52px;
-    height: 52px;
-
-    min-width: 52px;
-    max-width: 52px;
-
-    min-height: 52px;
-    max-height: 52px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    overflow: hidden;
-
-    flex-shrink: 0;
-
-    border-radius: 13px;
-
-    background: #0B0F17;
-
-    border: 1px solid #172033;
-
-    box-shadow:
-        0 8px 25px rgba(0, 0, 0, 0.30);
-}
-
-.cs-module-logo-wrap img {
-    display: block;
-
-    width: 52px !important;
-    height: 52px !important;
-
-    min-width: 52px !important;
-    min-height: 52px !important;
-
-    max-width: 52px !important;
-    max-height: 52px !important;
-
-    object-fit: contain;
-
-    flex-shrink: 0;
-}
-
-.cs-module-header-text {
-    min-width: 0;
 }
 
 
@@ -610,6 +516,68 @@ span {
     font-size: 9px;
 
     font-weight: 850;
+}
+
+
+/* ==========================================================
+   MODULE HEADER
+   ========================================================== */
+
+.cs-module-header {
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    width: 100%;
+
+    margin-bottom: 25px;
+}
+
+.cs-module-logo {
+    width: 52px;
+
+    height: 52px;
+
+    min-width: 52px;
+
+    max-width: 52px;
+
+    min-height: 52px;
+
+    max-height: 52px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    overflow: hidden;
+
+    flex-shrink: 0;
+
+    border-radius: 13px;
+
+    background: #0B0F17;
+
+    border: 1px solid #172033;
+
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.30);
+}
+
+.cs-module-logo img {
+    width: 52px !important;
+
+    height: 52px !important;
+
+    object-fit: contain;
+}
+
+.cs-module-header-text {
+    min-width: 0;
 }
 
 
@@ -763,37 +731,13 @@ textarea,
 
 
 /* ==========================================================
-   RESPONSIVE MODULE HEADER
+   MOBILE
    ========================================================== */
 
 @media (max-width: 640px) {
 
     .cs-module-header {
-        gap: 11px;
-    }
-
-    .cs-module-logo-wrap {
-        width: 44px;
-        height: 44px;
-
-        min-width: 44px;
-        max-width: 44px;
-
-        min-height: 44px;
-        max-height: 44px;
-
-        border-radius: 11px;
-    }
-
-    .cs-module-logo-wrap img {
-        width: 44px !important;
-        height: 44px !important;
-
-        min-width: 44px !important;
-        min-height: 44px !important;
-
-        max-width: 44px !important;
-        max-height: 44px !important;
+        gap: 10px;
     }
 
     .cs-page-title {
@@ -818,41 +762,43 @@ textarea,
 
 def render_login_branding() -> None:
 
-    logo_uri = _logo_data_uri()
+    st.markdown(
+        '<div class="cs-login-card">',
+        unsafe_allow_html=True,
+    )
 
-    if logo_uri:
+    if logo_exists():
 
-        logo_html = f"""
-        <div class="cs-logo-wrap">
+        st.markdown(
+            '<div class="cs-login-logo">',
+            unsafe_allow_html=True,
+        )
 
-            <img
-                src="{logo_uri}"
-                alt="Creative Studios"
-            />
+        st.image(
+            str(LOGO_PATH),
+            width=82,
+        )
 
-        </div>
-        """
-
-    else:
-
-        logo_html = ""
+        st.markdown(
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
     st.markdown(
-        f"""
-        <div class="cs-login-card">
+        """
+        <div class="cs-brand-name">
+            Creative Studios
+        </div>
 
-            {logo_html}
-
-            <div class="cs-brand-name">
-                Creative Studios
-            </div>
-
-            <div class="cs-brand-subtitle">
-                AEC Workspace
-            </div>
-
+        <div class="cs-brand-subtitle">
+            AEC Workspace
         </div>
         """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -863,49 +809,44 @@ def render_login_branding() -> None:
 
 def render_sidebar_branding() -> None:
 
-    logo_uri = _logo_data_uri()
-
-    if logo_uri:
-
-        logo_html = f"""
-        <div class="cs-sidebar-logo-wrap">
-
-            <img
-                src="{logo_uri}"
-                alt="Creative Studios"
-            />
-
-        </div>
-        """
-
-    else:
-
-        logo_html = ""
-
     st.sidebar.markdown(
-        f"""
-        <div class="cs-sidebar-brand">
+        '<div class="cs-sidebar-brand">',
+        unsafe_allow_html=True,
+    )
 
-            <div class="cs-sidebar-brand-row">
+    sidebar_logo_col, sidebar_text_col = (
+        st.sidebar.columns(
+            [0.28, 0.72],
+            vertical_alignment="center",
+        )
+    )
 
-                {logo_html}
+    with sidebar_logo_col:
 
-                <div class="cs-sidebar-brand-text">
+        if logo_exists():
 
-                    <div class="cs-sidebar-name">
-                        Creative Studios
-                    </div>
+            st.image(
+                str(LOGO_PATH),
+                width=46,
+            )
 
-                    <div class="cs-sidebar-subtitle">
-                        AEC Workspace
-                    </div>
+    with sidebar_text_col:
 
-                </div>
-
+        st.markdown(
+            """
+            <div class="cs-sidebar-name">
+                Creative Studios
             </div>
 
-        </div>
-        """,
+            <div class="cs-sidebar-subtitle">
+                AEC Workspace
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.sidebar.markdown(
+        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -1273,47 +1214,34 @@ def render_module_header(
         subtitle
     )
 
-    logo_uri = _logo_data_uri()
+    logo_col, text_col = st.columns(
+        [0.08, 0.92],
+        vertical_alignment="center",
+    )
 
-    if logo_uri:
+    with logo_col:
 
-        logo_html = f"""
-        <div class="cs-module-logo-wrap">
+        if logo_exists():
 
-            <img
-                src="{logo_uri}"
-                alt="Creative Studios"
-            />
+            st.image(
+                str(LOGO_PATH),
+                width=52,
+            )
 
-        </div>
-        """
+    with text_col:
 
-    else:
-
-        logo_html = ""
-
-    st.markdown(
-        f"""
-        <div class="cs-module-header">
-
-            {logo_html}
-
-            <div class="cs-module-header-text">
-
-                <div class="cs-page-title">
-                    {safe_title}
-                </div>
-
-                <div class="cs-page-subtitle">
-                    {safe_subtitle}
-                </div>
-
+        st.markdown(
+            f"""
+            <div class="cs-page-title">
+                {safe_title}
             </div>
 
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            <div class="cs-page-subtitle">
+                {safe_subtitle}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ============================================================
