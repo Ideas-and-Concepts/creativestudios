@@ -1,19 +1,28 @@
 """
 Creative Studios
 AEC Collaboration Platform
+AEC Workspace
 
 JSON Database Layer
 -------------------
-Reliable JSON-backed storage for the Streamlit application.
+Single, reliable JSON-backed database contract.
 
-Public contract:
-
+Public API:
     load_memory()
     save_memory(db)
-    add_record(collection, record, db)
-    update_record(collection, record_id, updates, db)
-    delete_record(collection, record_id, db)
-    next_id(collection, db)
+    initialize_database()
+
+    add_record()
+    get_record()
+    get_records()
+    update_record()
+    delete_record()
+    next_id()
+
+Compatibility:
+    load_database()
+    save_database()
+    get_all()
 """
 
 from __future__ import annotations
@@ -28,7 +37,7 @@ from typing import Any
 
 
 # ============================================================
-# DATABASE LOCATION
+# DATABASE PATH
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,7 +46,7 @@ DB_FILE = BASE_DIR / "creativestudios_db.json"
 
 
 # ============================================================
-# SAFE DEFAULT DATABASE
+# DEFAULT DATABASE
 # ============================================================
 
 DEFAULT_DATABASE: dict[str, Any] = {
@@ -48,16 +57,19 @@ DEFAULT_DATABASE: dict[str, Any] = {
     "rfis": [],
     "tasks": [],
     "teams": [],
+    "approvals": [],
+    "boq": [],
+    "site_logs": [],
     "settings": {},
 }
 
 
 # ============================================================
-# SERIALIZATION
+# JSON SERIALIZATION
 # ============================================================
 
 def _json_default(value: Any) -> str:
-    """Convert common Python values to JSON-safe values."""
+    """Convert common Python objects into JSON-safe values."""
 
     if isinstance(value, datetime):
         return value.isoformat()
@@ -72,29 +84,29 @@ def _json_default(value: Any) -> str:
 
 
 # ============================================================
-# NORMALIZATION
+# DATABASE NORMALIZATION
 # ============================================================
 
 def _normalize_database(
     data: Any,
 ) -> dict[str, Any]:
     """
-    Ensure the loaded database always has the expected
-    collection structure.
+    Guarantee that the database always has the expected
+    collections and data types.
     """
 
     if not isinstance(data, dict):
         data = {}
 
-    normalized = copy.deepcopy(
+    database = copy.deepcopy(
         DEFAULT_DATABASE
     )
 
+    # Preserve existing/custom collections.
     for key, value in data.items():
-        normalized[key] = value
+        database[key] = value
 
-    # Collections must always be lists.
-    list_collections = [
+    collections = [
         "users",
         "projects",
         "documents",
@@ -102,39 +114,45 @@ def _normalize_database(
         "rfis",
         "tasks",
         "teams",
+        "approvals",
+        "boq",
+        "site_logs",
     ]
 
-    for collection in list_collections:
+    for collection in collections:
 
         if not isinstance(
-            normalized.get(collection),
+            database.get(collection),
             list,
         ):
-            normalized[collection] = []
+            database[collection] = []
 
     if not isinstance(
-        normalized.get("settings"),
+        database.get("settings"),
         dict,
     ):
-        normalized["settings"] = {}
+        database["settings"] = {}
 
-    return normalized
+    return database
 
 
 # ============================================================
-# LOAD
+# LOAD DATABASE
 # ============================================================
 
 def load_memory() -> dict[str, Any]:
     """
     Load the JSON database.
 
-    If the file does not exist, a safe default database is
-    returned and persisted.
+    Missing database:
+        Creates a clean database.
 
-    If the file is corrupted, a safe backup is created and
-    the application receives a clean database rather than
-    crashing during import/startup.
+    Corrupt database:
+        Attempts to preserve the corrupt file and creates
+        a clean database.
+
+    Other read errors:
+        Returns safe defaults instead of crashing the app.
     """
 
     try:
@@ -159,27 +177,36 @@ def load_memory() -> dict[str, Any]:
             encoding="utf-8",
         ) as file:
 
-            data = json.load(file)
+            raw_data = json.load(file)
 
-        database = _normalize_database(
-            data
+        return _normalize_database(
+            raw_data
         )
-
-        return database
 
     except json.JSONDecodeError:
 
-        # Preserve the damaged file before recovery.
+        # Preserve corrupt database.
         try:
-
-            backup = DB_FILE.with_suffix(
-                ".corrupt.json"
-            )
 
             if DB_FILE.exists():
 
+                backup_path = (
+                    DB_FILE.with_name(
+                        "creativestudios_db.corrupt.json"
+                    )
+                )
+
+                # Avoid overwriting an existing backup.
+                if backup_path.exists():
+
+                    backup_path = (
+                        DB_FILE.with_name(
+                            "creativestudios_db.corrupt.backup.json"
+                        )
+                    )
+
                 DB_FILE.replace(
-                    backup
+                    backup_path
                 )
 
         except Exception:
@@ -204,17 +231,14 @@ def load_memory() -> dict[str, Any]:
 
 
 # ============================================================
-# SAVE
+# SAVE DATABASE
 # ============================================================
 
 def save_memory(
     db: dict[str, Any],
 ) -> bool:
     """
-    Safely save the complete database.
-
-    Uses a temporary file and atomic replacement to reduce
-    the risk of corrupting the JSON database.
+    Safely save the database using an atomic file replacement.
     """
 
     database = _normalize_database(
@@ -249,9 +273,12 @@ def save_memory(
 
             temporary.flush()
 
-            os.fsync(
-                temporary.fileno()
-            )
+            try:
+                os.fsync(
+                    temporary.fileno()
+                )
+            except OSError:
+                pass
 
             temporary_path = Path(
                 temporary.name
@@ -280,7 +307,25 @@ def save_memory(
 
 
 # ============================================================
-# COLLECTION HELPERS
+# INITIALIZE
+# ============================================================
+
+def initialize_database() -> dict[str, Any]:
+    """
+    Load, normalize and persist the database.
+    """
+
+    database = load_memory()
+
+    save_memory(
+        database
+    )
+
+    return database
+
+
+# ============================================================
+# COLLECTION HELPER
 # ============================================================
 
 def _ensure_collection(
@@ -288,7 +333,7 @@ def _ensure_collection(
     collection: str,
 ) -> list[dict[str, Any]]:
     """
-    Return a valid list collection.
+    Return a valid collection.
     """
 
     if not isinstance(
@@ -297,6 +342,15 @@ def _ensure_collection(
     ):
         raise TypeError(
             "Database must be a dictionary."
+        )
+
+    if not isinstance(
+        collection,
+        str,
+    ) or not collection.strip():
+
+        raise ValueError(
+            "Collection name is required."
         )
 
     if collection not in db:
@@ -340,20 +394,17 @@ def next_id(
         ):
             continue
 
-        value = record.get(
-            "id"
-        )
-
         try:
 
-            numeric_value = int(
-                value
+            value = int(
+                record.get(
+                    "id",
+                    0,
+                )
             )
 
-            highest = max(
-                highest,
-                numeric_value,
-            )
+            if value > highest:
+                highest = value
 
         except (
             TypeError,
@@ -366,7 +417,7 @@ def next_id(
 
 
 # ============================================================
-# ADD
+# ADD RECORD
 # ============================================================
 
 def add_record(
@@ -375,9 +426,7 @@ def add_record(
     db: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Add a record and save the database.
-
-    Returns the inserted record.
+    Add a record to a collection.
     """
 
     if not isinstance(
@@ -397,10 +446,7 @@ def add_record(
         record
     )
 
-    if (
-        new_record.get("id")
-        is None
-    ):
+    if new_record.get("id") is None:
 
         new_record["id"] = next_id(
             collection,
@@ -413,18 +459,17 @@ def add_record(
 
     if not save_memory(db):
 
-        # Roll back if saving fails.
         records.pop()
 
         raise IOError(
-            "Unable to save the database."
+            "Unable to save database."
         )
 
     return new_record
 
 
 # ============================================================
-# FIND
+# GET ONE RECORD
 # ============================================================
 
 def get_record(
@@ -433,7 +478,7 @@ def get_record(
     db: dict[str, Any],
 ) -> dict[str, Any] | None:
     """
-    Find a record by ID.
+    Find one record by ID.
     """
 
     records = _ensure_collection(
@@ -459,7 +504,34 @@ def get_record(
 
 
 # ============================================================
-# UPDATE
+# GET ALL RECORDS
+# ============================================================
+
+def get_records(
+    collection: str,
+    db: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Return all dictionary records in a collection.
+    """
+
+    records = _ensure_collection(
+        db,
+        collection,
+    )
+
+    return [
+        record
+        for record in records
+        if isinstance(
+            record,
+            dict,
+        )
+    ]
+
+
+# ============================================================
+# UPDATE RECORD
 # ============================================================
 
 def update_record(
@@ -470,8 +542,6 @@ def update_record(
 ) -> dict[str, Any] | None:
     """
     Update an existing record.
-
-    Returns the updated record, or None if not found.
     """
 
     if not isinstance(
@@ -524,7 +594,7 @@ def update_record(
             records[index] = original
 
             raise IOError(
-                "Unable to save the database."
+                "Unable to save database."
             )
 
         return updated
@@ -533,7 +603,7 @@ def update_record(
 
 
 # ============================================================
-# DELETE
+# DELETE RECORD
 # ============================================================
 
 def delete_record(
@@ -543,8 +613,6 @@ def delete_record(
 ) -> bool:
     """
     Delete a record by ID.
-
-    Returns True if deleted.
     """
 
     records = _ensure_collection(
@@ -580,7 +648,7 @@ def delete_record(
             )
 
             raise IOError(
-                "Unable to save the database."
+                "Unable to save database."
             )
 
         return True
@@ -589,55 +657,11 @@ def delete_record(
 
 
 # ============================================================
-# FIND ALL
-# ============================================================
-
-def get_records(
-    collection: str,
-    db: dict[str, Any],
-) -> list[dict[str, Any]]:
-    """
-    Return all valid records in a collection.
-    """
-
-    return [
-        record
-        for record in _ensure_collection(
-            db,
-            collection,
-        )
-        if isinstance(
-            record,
-            dict,
-        )
-    ]
-
-
-# ============================================================
-# INITIALIZE DATABASE
-# ============================================================
-
-def initialize_database() -> dict[str, Any]:
-    """
-    Load and normalize the database.
-    """
-
-    db = load_memory()
-
-    # Persist missing/default collections.
-    save_memory(db)
-
-    return db
-
-
-# ============================================================
 # COMPATIBILITY ALIASES
 # ============================================================
 
 def load_database() -> dict[str, Any]:
-    """
-    Compatibility alias.
-    """
+    """Compatibility alias for load_memory()."""
 
     return load_memory()
 
@@ -645,20 +669,18 @@ def load_database() -> dict[str, Any]:
 def save_database(
     db: dict[str, Any],
 ) -> bool:
-    """
-    Compatibility alias.
-    """
+    """Compatibility alias for save_memory()."""
 
-    return save_memory(db)
+    return save_memory(
+        db
+    )
 
 
 def get_all(
     collection: str,
     db: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """
-    Compatibility alias.
-    """
+    """Compatibility alias for get_records()."""
 
     return get_records(
         collection,
