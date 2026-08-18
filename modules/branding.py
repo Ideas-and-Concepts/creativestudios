@@ -72,16 +72,15 @@ def render_logo(
 def inject_branding_css() -> None:
     """
     Inject the shared Creative Studios branding CSS.
-
-    This is the single CSS source of truth for the main
-    application and all Creative Studios modules.
     """
-
     st.markdown(
         """
         <style>
-
-        /* ==================================================
+        /* ... your CSS here ... */
+        </style>
+        """,
+        unsafe_allow_html=True,
+    ) ==================================================
            GLOBAL APPLICATION
            ================================================== */
 
