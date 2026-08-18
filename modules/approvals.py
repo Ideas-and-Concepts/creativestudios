@@ -1,56 +1,66 @@
 """
 Creative Studios
-Sign-Off & Approvals Module
+AEC Collaboration Platform
+Approvals Module
 
-Controls technical and project document approvals.
+Approval request management for the AEC workspace.
 
-Current supported document types:
-- Drawings
-- BOQ
-- RFI
-- Other Project Documents
+Uses the existing JSON database contract:
 
-Approval lifecycle:
-Pending Review
-Approved
-Rejected
-Returned for Revision
-Superseded
+    add_record()
+    update_record()
+    delete_record()
+    get_records()
+    get_record()
+    next_id()
+
+The module receives the already-loaded database dictionary
+from streamlit_app.py.
+
+No authentication, sidebar, branding, or database initialization
+is performed here.
 """
 
-from datetime import date
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Any
 
 import streamlit as st
 
-from .database import (
+from modules.database import (
     add_record,
     delete_record,
-    get_collection,
+    get_record,
+    get_records,
     update_record,
 )
 
 
+# ============================================================
+# CONSTANTS
+# ============================================================
+
+COLLECTION = "approvals"
+
 APPROVAL_STATUSES = [
-    "Pending Review",
+    "Pending",
+    "Under Review",
     "Approved",
     "Rejected",
-    "Returned for Revision",
-    "Superseded",
+    "Returned",
+    "Cancelled",
 ]
 
-DOCUMENT_TYPES = [
+APPROVAL_TYPES = [
+    "Document",
     "Drawing",
-    "BOQ",
-    "RFI",
-    "Specification",
-    "Report",
+    "Design",
+    "Material",
+    "Submittal",
+    "Variation",
+    "Method Statement",
     "Other",
-]
-
-APPROVAL_ACTIONS = [
-    "Approve",
-    "Reject",
-    "Return for Revision",
 ]
 
 
@@ -58,823 +68,1032 @@ APPROVAL_ACTIONS = [
 # HELPERS
 # ============================================================
 
-def _get_approvals(db):
-    return get_collection(db, "approvals")
+def _safe_text(value: Any) -> str:
+    """Return a clean display string."""
+
+    if value is None:
+        return ""
+
+    return str(value).strip()
 
 
-def _get_projects(db):
-    return get_collection(db, "projects")
+def _format_date(value: Any) -> str:
+    """Format a stored date for display."""
+
+    if not value:
+        return "Not set"
+
+    value = _safe_text(value)
+
+    try:
+        return datetime.fromisoformat(
+            value
+        ).strftime("%d %b %Y")
+    except ValueError:
+        return value
 
 
-def _get_drawings(db):
-    return get_collection(db, "drawings")
+def _now() -> str:
+    """Return an ISO timestamp."""
 
-
-def _get_project_name(db, project_id):
-
-    for project in _get_projects(db):
-
-        if str(project.get("id")) == str(project_id):
-            return project.get(
-                "name",
-                project_id,
-            )
-
-    return project_id
-
-
-def _current_user():
-
-    user = st.session_state.get("user")
-
-    if isinstance(user, dict):
-        return user.get(
-            "username",
-            "System",
-        )
-
-    return str(
-        user or "System"
+    return datetime.now().isoformat(
+        timespec="seconds"
     )
 
 
-def _approval_exists(
-    db,
-    project_id,
-    document_type,
-    document_id,
-):
+def _project_options(
+    db: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return valid project records."""
 
-    for approval in _get_approvals(db):
-
-        if (
-            str(
-                approval.get("project_id")
-            )
-            == str(project_id)
-            and str(
-                approval.get("document_type")
-            )
-            == str(document_type)
-            and str(
-                approval.get("document_id")
-            )
-            == str(document_id)
-            and approval.get("status")
-            == "Pending Review"
-        ):
-            return True
-
-    return False
-
-
-def _status_badge(status):
-
-    if status == "Approved":
-
-        st.success(
-            status,
-            icon="✓",
-        )
-
-    elif status == "Rejected":
-
-        st.error(
-            status,
-            icon="×",
-        )
-
-    elif status == "Returned for Revision":
-
-        st.warning(
-            status,
-            icon="↻",
-        )
-
-    elif status == "Pending Review":
-
-        st.info(
-            status,
-            icon="◌",
-        )
-
-    elif status == "Superseded":
-
-        st.caption(
-            status
-        )
-
-    else:
-
-        st.caption(
-            status
-        )
-
-
-def _document_label(db, approval):
-
-    document_type = approval.get(
-        "document_type",
-        "Document",
+    return get_records(
+        "projects",
+        db,
     )
 
-    document_number = approval.get(
-        "document_number",
-        approval.get(
-            "document_id",
-            "N/A",
-        ),
+
+def _document_options(
+    db: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return valid document records."""
+
+    return get_records(
+        "documents",
+        db,
     )
 
-    title = approval.get(
-        "document_title",
-        "",
+
+def _drawing_options(
+    db: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return valid drawing records."""
+
+    return get_records(
+        "drawings",
+        db,
     )
 
-    if title:
 
-        return (
-            f"{document_type}: "
-            f"{document_number} — {title}"
-        )
+def _user_options(
+    db: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return valid users."""
+
+    return get_records(
+        "users",
+        db,
+    )
+
+
+def _project_name(
+    project_id: Any,
+    db: dict[str, Any],
+) -> str:
+    """Resolve project name."""
+
+    if not project_id:
+        return "Unlinked"
+
+    project = get_record(
+        "projects",
+        project_id,
+        db,
+    )
+
+    if not project:
+        return f"Missing project #{project_id}"
 
     return (
-        f"{document_type}: "
-        f"{document_number}"
+        _safe_text(
+            project.get("name")
+        )
+        or _safe_text(
+            project.get("project_name")
+        )
+        or f"Project #{project_id}"
     )
 
 
-# ============================================================
-# APPROVAL CARD
-# ============================================================
+def _document_name(
+    document_id: Any,
+    db: dict[str, Any],
+) -> str:
+    """Resolve document name."""
 
-def _render_approval_card(
-    db,
-    approval,
-):
+    if not document_id:
+        return "None"
 
-    approval_id = approval.get(
-        "id",
-        "",
+    document = get_record(
+        "documents",
+        document_id,
+        db,
     )
 
-    project_id = approval.get(
-        "project_id",
-        "",
+    if not document:
+        return f"Missing document #{document_id}"
+
+    return (
+        _safe_text(
+            document.get("title")
+        )
+        or _safe_text(
+            document.get("name")
+        )
+        or f"Document #{document_id}"
     )
 
-    status = approval.get(
-        "status",
-        "Pending Review",
+
+def _drawing_name(
+    drawing_id: Any,
+    db: dict[str, Any],
+) -> str:
+    """Resolve drawing name."""
+
+    if not drawing_id:
+        return "None"
+
+    drawing = get_record(
+        "drawings",
+        drawing_id,
+        db,
     )
 
-    with st.container(border=True):
+    if not drawing:
+        return f"Missing drawing #{drawing_id}"
 
-        top_left, top_right = st.columns(
-            [4, 1]
+    return (
+        _safe_text(
+            drawing.get("title")
+        )
+        or _safe_text(
+            drawing.get("name")
+        )
+        or _safe_text(
+            drawing.get("drawing_number")
+        )
+        or f"Drawing #{drawing_id}"
+    )
+
+
+def _user_name(
+    user_id: Any,
+    db: dict[str, Any],
+) -> str:
+    """Resolve a user name."""
+
+    if not user_id:
+        return "Unassigned"
+
+    user = get_record(
+        "users",
+        user_id,
+        db,
+    )
+
+    if not user:
+        return f"Missing user #{user_id}"
+
+    return (
+        _safe_text(
+            user.get("full_name")
+        )
+        or _safe_text(
+            user.get("name")
+        )
+        or _safe_text(
+            user.get("username")
+        )
+        or f"User #{user_id}"
+    )
+
+
+def _status_message(
+    status: str,
+) -> str:
+    """Return a compact status description."""
+
+    messages = {
+        "Pending": "Awaiting review.",
+        "Under Review": "Currently being reviewed.",
+        "Approved": "Approval granted.",
+        "Rejected": "Approval rejected.",
+        "Returned": "Returned for correction.",
+        "Cancelled": "Approval request cancelled.",
+    }
+
+    return messages.get(
+        status,
+        "Approval status.",
+    )
+
+
+def _reset_form_state() -> None:
+    """Clear approval form session state."""
+
+    for key in (
+        "approval_edit_id",
+        "approval_view_id",
+    ):
+        st.session_state.pop(
+            key,
+            None,
         )
 
-        with top_left:
 
-            st.markdown(
-                f"### {_document_label(db, approval)}"
+# ============================================================
+# VALIDATION
+# ============================================================
+
+def _validate_approval(
+    title: str,
+    approval_type: str,
+    project_id: Any,
+    due_date: str,
+) -> list[str]:
+    """Validate an approval record."""
+
+    errors: list[str] = []
+
+    if not title.strip():
+        errors.append(
+            "Approval title is required."
+        )
+
+    if not approval_type.strip():
+        errors.append(
+            "Approval type is required."
+        )
+
+    if not project_id:
+        errors.append(
+            "A project must be selected."
+        )
+
+    if due_date:
+
+        try:
+
+            date.fromisoformat(
+                due_date
             )
 
-            st.caption(
-                f"Project: "
-                f"{_get_project_name(db, project_id)}"
-                f" • Approval ID: {approval_id}"
+        except ValueError:
+
+            errors.append(
+                "Due date is invalid."
             )
 
-        with top_right:
-
-            _status_badge(
-                status
-            )
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-
-            st.markdown(
-                "**Submitted By**"
-            )
-
-            st.write(
-                approval.get(
-                    "submitted_by",
-                    "Unknown",
-                )
-            )
-
-        with col2:
-
-            st.markdown(
-                "**Submitted Date**"
-            )
-
-            st.write(
-                approval.get(
-                    "submitted_date",
-                    "",
-                )
-            )
-
-        with col3:
-
-            st.markdown(
-                "**Reviewer**"
-            )
-
-            st.write(
-                approval.get(
-                    "reviewer",
-                    "Not assigned",
-                )
-            )
-
-        with col4:
-
-            st.markdown(
-                "**Decision Date**"
-            )
-
-            st.write(
-                approval.get(
-                    "decision_date",
-                    "Pending",
-                )
-            )
-
-        with st.expander(
-            "Approval Details"
-        ):
-
-            st.markdown(
-                f"**Document Type:** "
-                f"{approval.get('document_type', '')}"
-            )
-
-            st.markdown(
-                f"**Document ID:** "
-                f"{approval.get('document_id', '')}"
-            )
-
-            st.markdown(
-                f"**Revision:** "
-                f"{approval.get('revision', 'N/A')}"
-            )
-
-            st.markdown(
-                f"**Approval Level:** "
-                f"{approval.get('approval_level', 'Standard')}"
-            )
-
-            comments = approval.get(
-                "comments",
-                "",
-            )
-
-            if comments:
-
-                st.markdown(
-                    f"**Comments:** {comments}"
-                )
-
-        if status == "Pending Review":
-
-            review_col, delete_col = st.columns(
-                2
-            )
-
-            with review_col:
-
-                if st.button(
-                    "Review",
-                    key=f"review_{approval_id}",
-                    use_container_width=True,
-                ):
-
-                    st.session_state[
-                        "review_approval_id"
-                    ] = approval_id
-
-                    st.rerun()
-
-            with delete_col:
-
-                if st.button(
-                    "Cancel Request",
-                    key=f"cancel_{approval_id}",
-                    use_container_width=True,
-                ):
-
-                    st.session_state[
-                        "delete_approval_id"
-                    ] = approval_id
-
-                    st.rerun()
-
-        else:
-
-            if st.button(
-                "View Approval",
-                key=f"view_{approval_id}",
-                use_container_width=True,
-            ):
-
-                st.session_state[
-                    "view_approval_id"
-                ] = approval_id
-
-                st.rerun()
+    return errors
 
 
 # ============================================================
-# SUBMIT DRAWING FOR APPROVAL
+# CREATE
 # ============================================================
 
-def _render_submit_drawing(db):
+def _create_approval(
+    db: dict[str, Any],
+) -> None:
 
-    projects = _get_projects(db)
-    drawings = _get_drawings(db)
-
-    st.subheader(
-        "Submit Drawing for Approval"
+    st.markdown(
+        "### New Approval"
     )
+
+    projects = _project_options(db)
+    documents = _document_options(db)
+    drawings = _drawing_options(db)
+    users = _user_options(db)
 
     if not projects:
 
         st.warning(
-            "Create a project before submitting "
-            "documents for approval."
+            "Create a project before creating an approval."
         )
 
         return
 
-    if not drawings:
-
-        st.info(
-            "No drawings are available for approval."
-        )
-
-        return
-
-    project_options = {
-        _get_project_name(
-            db,
-            project.get("id"),
-        ):
-            project.get("id")
-        for project in projects
-    }
-
-    project_label = st.selectbox(
-        "Project",
-        list(project_options.keys()),
-        key="approval_project_select",
-    )
-
-    project_id = project_options[
-        project_label
+    project_labels = [
+        f"{p.get('id')} · "
+        f"{p.get('name', p.get('project_name', 'Unnamed Project'))}"
+        for p in projects
     ]
 
-    project_drawings = [
-        drawing
-        for drawing in drawings
-        if str(
-            drawing.get("project_id")
-        )
-        == str(project_id)
+    document_labels = [
+        "None"
+    ] + [
+        f"{d.get('id')} · "
+        f"{d.get('title', d.get('name', 'Untitled Document'))}"
+        for d in documents
     ]
 
-    if not project_drawings:
+    drawing_labels = [
+        "None"
+    ] + [
+        f"{d.get('id')} · "
+        f"{d.get('drawing_number', d.get('title', d.get('name', 'Untitled Drawing')))}"
+        for d in drawings
+    ]
 
-        st.info(
-            "This project does not have any drawings."
-        )
-
-        return
-
-    drawing_options = {
-        (
-            f"{drawing.get('drawing_number', '')} "
-            f"— {drawing.get('title', '')} "
-            f"(Rev {drawing.get('revision', '0')})"
-        ):
-            drawing
-        for drawing in project_drawings
-    }
+    user_labels = [
+        "Unassigned"
+    ] + [
+        f"{u.get('id')} · "
+        f"{u.get('full_name', u.get('username', 'Unknown User'))}"
+        for u in users
+    ]
 
     with st.form(
-        "submit_drawing_approval"
+        "approval_create_form",
+        clear_on_submit=True,
     ):
 
-        drawing_label = st.selectbox(
-            "Drawing",
-            list(drawing_options.keys()),
-        )
+        col1, col2 = st.columns(2)
 
-        drawing = drawing_options[
-            drawing_label
-        ]
+        with col1:
 
-        st.info(
-            f"Current drawing status: "
-            f"**{drawing.get('status', 'Draft')}**"
-        )
+            title = st.text_input(
+                "Approval Title",
+                placeholder="e.g. Structural Drawing Approval",
+            )
 
-        reviewer = st.text_input(
-            "Reviewer / Approver",
-            placeholder="e.g. Lead Architect",
-        )
+            approval_type = st.selectbox(
+                "Approval Type",
+                APPROVAL_TYPES,
+            )
 
-        approval_level = st.selectbox(
-            "Approval Level",
-            [
-                "Technical Review",
-                "Lead Consultant",
-                "Client Review",
-                "Final Approval",
-            ],
-        )
+            project_label = st.selectbox(
+                "Project",
+                project_labels,
+            )
 
-        comments = st.text_area(
-            "Submission Notes",
+            status = st.selectbox(
+                "Status",
+                APPROVAL_STATUSES,
+            )
+
+        with col2:
+
+            reviewer_label = st.selectbox(
+                "Reviewer / Approver",
+                user_labels,
+            )
+
+            due_date = st.date_input(
+                "Due Date",
+                value=None,
+            )
+
+            document_label = st.selectbox(
+                "Linked Document",
+                document_labels,
+            )
+
+            drawing_label = st.selectbox(
+                "Linked Drawing",
+                drawing_labels,
+            )
+
+        description = st.text_area(
+            "Description",
             placeholder=(
-                "Describe the purpose of this "
-                "submission or key changes."
+                "Describe what requires approval..."
             ),
-            height=120,
         )
 
         submitted = st.form_submit_button(
-            "Submit for Approval",
+            "Create Approval",
             use_container_width=True,
         )
 
-    if not submitted:
-        return
+        if submitted:
 
-    document_id = drawing.get(
-        "id"
-    )
+            project_id = project_label.split(
+                " · ",
+                1,
+            )[0]
 
-    if _approval_exists(
-        db,
-        project_id,
-        "Drawing",
-        document_id,
-    ):
+            reviewer_id = None
 
-        st.error(
-            "This drawing already has a pending "
-            "approval request."
-        )
+            if reviewer_label != "Unassigned":
 
-        return
+                reviewer_id = reviewer_label.split(
+                    " · ",
+                    1,
+                )[0]
 
-    approval_id = (
-        f"APR-{project_id}-"
-        f"{drawing.get('drawing_number')}-"
-        f"REV{drawing.get('revision', '0')}"
-    )
+            document_id = None
 
-    approval = {
-        "id": approval_id,
-        "project_id": project_id,
-        "document_type": "Drawing",
-        "document_id": document_id,
-        "document_number": drawing.get(
-            "drawing_number",
-            "",
-        ),
-        "document_title": drawing.get(
-            "title",
-            "",
-        ),
-        "revision": drawing.get(
-            "revision",
-            "0",
-        ),
-        "status": "Pending Review",
-        "approval_level": approval_level,
-        "submitted_by": _current_user(),
-        "submitted_date": str(date.today()),
-        "reviewer": reviewer.strip(),
-        "decision_date": "",
-        "decision_by": "",
-        "comments": comments.strip(),
-    }
+            if document_label != "None":
 
-    add_record(
-        db,
-        "approvals",
-        approval,
-    )
+                document_id = document_label.split(
+                    " · ",
+                    1,
+                )[0]
 
-    st.success(
-        f"{drawing.get('drawing_number')} "
-        f"submitted for approval."
-    )
+            drawing_id = None
 
-    st.rerun()
+            if drawing_label != "None":
+
+                drawing_id = drawing_label.split(
+                    " · ",
+                    1,
+                )[0]
+
+            due_value = ""
+
+            if due_date:
+
+                due_value = due_date.isoformat()
+
+            errors = _validate_approval(
+                title,
+                approval_type,
+                project_id,
+                due_value,
+            )
+
+            if errors:
+
+                for error in errors:
+                    st.error(error)
+
+                return
+
+            record = {
+                "title": title.strip(),
+                "approval_type": approval_type,
+                "project_id": project_id,
+                "document_id": document_id,
+                "drawing_id": drawing_id,
+                "assigned_to": reviewer_id,
+                "status": status,
+                "due_date": due_value,
+                "description": description.strip(),
+                "decision": "",
+                "decision_notes": "",
+                "created_at": _now(),
+                "updated_at": _now(),
+            }
+
+            try:
+
+                created = add_record(
+                    COLLECTION,
+                    record,
+                    db,
+                )
+
+                st.session_state[
+                    "approval_view_id"
+                ] = created.get("id")
+
+                st.success(
+                    "Approval created successfully."
+                )
+
+                st.rerun()
+
+            except Exception as exc:
+
+                st.error(
+                    "Unable to create approval."
+                )
+
+                st.code(
+                    f"{type(exc).__name__}: {exc}"
+                )
 
 
 # ============================================================
-# REVIEW APPROVAL
+# LIST
 # ============================================================
 
-def _render_review_approval(
-    db,
-    approval,
-):
+def _render_approval_list(
+    db: dict[str, Any],
+) -> None:
 
-    st.subheader(
-        "Approval Review"
+    approvals = get_records(
+        COLLECTION,
+        db,
     )
+
+    projects = _project_options(db)
 
     st.markdown(
-        f"### {_document_label(db, approval)}"
+        "### Approval Register"
     )
 
-    st.caption(
-        f"Project: "
-        f"{_get_project_name(db, approval.get('project_id'))}"
-    )
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-
-        st.markdown(
-            "**Revision**"
-        )
-
-        st.write(
-            approval.get(
-                "revision",
-                "N/A",
-            )
-        )
-
-    with col2:
-
-        st.markdown(
-            "**Approval Level**"
-        )
-
-        st.write(
-            approval.get(
-                "approval_level",
-                "Standard",
-            )
-        )
-
-    with col3:
-
-        st.markdown(
-            "**Submitted By**"
-        )
-
-        st.write(
-            approval.get(
-                "submitted_by",
-                "Unknown",
-            )
-        )
-
-    st.divider()
-
-    existing_comments = approval.get(
-        "comments",
-        "",
-    )
-
-    if existing_comments:
-
-        st.markdown(
-            "**Submission Notes**"
-        )
-
-        st.info(
-            existing_comments
-        )
-
-    with st.form(
-        f"review_form_{approval.get('id')}"
-    ):
-
-        decision = st.selectbox(
-            "Decision",
-            APPROVAL_ACTIONS,
-        )
-
-        reviewer = st.text_input(
-            "Reviewed By",
-            value=approval.get(
-                "reviewer",
-                "",
-            ),
-        )
-
-        review_comments = st.text_area(
-            "Review Comments",
-            placeholder=(
-                "Enter your review comments, "
-                "conditions or reasons for rejection."
-            ),
-            height=150,
-        )
-
-        submitted = st.form_submit_button(
-            "Record Decision",
-            use_container_width=True,
-        )
-
-    if not submitted:
-        return
-
-    if not reviewer.strip():
-
-        st.error(
-            "Reviewer name is required."
-        )
-
-        return
-
-    if not review_comments.strip():
-
-        st.error(
-            "Review comments are required."
-        )
-
-        return
-
-    if decision == "Approve":
-        new_status = "Approved"
-
-    elif decision == "Reject":
-        new_status = "Rejected"
-
-    else:
-        new_status = "Returned for Revision"
-
-    updates = {
-        "status": new_status,
-        "reviewer": reviewer.strip(),
-        "decision_date": str(date.today()),
-        "decision_by": _current_user(),
-        "comments": review_comments.strip(),
-    }
-
-    update_record(
-        db,
-        "approvals",
-        approval.get("id"),
-        updates,
-    )
-
-    # --------------------------------------------------------
-    # Synchronize drawing status.
-    # --------------------------------------------------------
-
-    if (
-        approval.get("document_type")
-        == "Drawing"
-    ):
-
-        drawing_id = approval.get(
-            "document_id"
-        )
-
-        if new_status == "Approved":
-
-            drawing_status = "Approved"
-
-        elif new_status == "Rejected":
-
-            drawing_status = "For Review"
-
-        else:
-
-            drawing_status = "For Review"
-
-        update_record(
-            db,
-            "drawings",
-            drawing_id,
-            {
-                "status": drawing_status
-            },
-        )
-
-    st.success(
-        f"Decision recorded: {new_status}"
-    )
-
-    st.session_state.pop(
-        "review_approval_id",
-        None,
-    )
-
-    st.rerun()
-
-
-# ============================================================
-# VIEW APPROVAL
-# ============================================================
-
-def _render_view_approval(
-    db,
-    approval,
-):
-
-    st.subheader(
-        "Approval Record"
-    )
-
-    _status_badge(
-        approval.get(
-            "status",
-            "Pending Review",
-        )
-    )
-
-    st.markdown(
-        f"### {_document_label(db, approval)}"
+    search = st.text_input(
+        "Search approvals",
+        placeholder=(
+            "Search title, type, project or status..."
+        ),
+        key="approval_search",
     )
 
     col1, col2 = st.columns(2)
 
     with col1:
 
-        st.markdown(
-            f"**Project:** "
-            f"{_get_project_name(db, approval.get('project_id'))}"
+        status_filter = st.selectbox(
+            "Status",
+            ["All"] + APPROVAL_STATUSES,
+            key="approval_status_filter",
+        )
+
+    with col2:
+
+        project_filter_options = [
+            "All"
+        ] + [
+            f"{p.get('id')} · "
+            f"{p.get('name', p.get('project_name', 'Unnamed Project'))}"
+            for p in projects
+        ]
+
+        project_filter = st.selectbox(
+            "Project",
+            project_filter_options,
+            key="approval_project_filter",
+        )
+
+    search_text = search.strip().lower()
+
+    filtered: list[dict[str, Any]] = []
+
+    for approval in approvals:
+
+        if status_filter != "All":
+
+            if approval.get("status") != status_filter:
+                continue
+
+        if project_filter != "All":
+
+            selected_project_id = (
+                project_filter.split(
+                    " · ",
+                    1,
+                )[0]
+            )
+
+            if str(
+                approval.get("project_id")
+            ) != str(
+                selected_project_id
+            ):
+                continue
+
+        searchable = " ".join(
+            [
+                _safe_text(
+                    approval.get("title")
+                ),
+                _safe_text(
+                    approval.get("approval_type")
+                ),
+                _project_name(
+                    approval.get("project_id"),
+                    db,
+                ),
+                _safe_text(
+                    approval.get("status")
+                ),
+            ]
+        ).lower()
+
+        if search_text and search_text not in searchable:
+            continue
+
+        filtered.append(
+            approval
+        )
+
+    st.caption(
+        f"{len(filtered)} approval(s)"
+    )
+
+    if not filtered:
+
+        st.info(
+            "No approvals match the current filters."
+        )
+
+        return
+
+    for approval in filtered:
+
+        approval_id = approval.get(
+            "id"
+        )
+
+        title = (
+            _safe_text(
+                approval.get("title")
+            )
+            or f"Approval #{approval_id}"
+        )
+
+        status = (
+            _safe_text(
+                approval.get("status")
+            )
+            or "Pending"
+        )
+
+        project = _project_name(
+            approval.get("project_id"),
+            db,
+        )
+
+        due = _format_date(
+            approval.get("due_date")
         )
 
         st.markdown(
-            f"**Document Type:** "
-            f"{approval.get('document_type', '')}"
+            f"""
+            <div class="cs-card" style="
+                margin-bottom:10px;
+            ">
+                <div style="
+                    color:#FFFFFF;
+                    font-size:17px;
+                    font-weight:850;
+                ">
+                    {title}
+                </div>
+
+                <div style="
+                    color:#64748B;
+                    font-size:11px;
+                    margin-top:5px;
+                ">
+                    #{approval_id}
+                    · {approval.get("approval_type", "Other")}
+                    · {project}
+                </div>
+
+                <div style="
+                    margin-top:10px;
+                    color:#94A3B8;
+                    font-size:12px;
+                ">
+                    Status:
+                    <strong style="color:#60A5FA;">
+                        {status}
+                    </strong>
+                    &nbsp; · &nbsp;
+                    Due:
+                    <strong style="color:#CBD5E1;">
+                        {due}
+                    </strong>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        st.markdown(
-            f"**Document ID:** "
-            f"{approval.get('document_id', '')}"
+        c1, c2, c3 = st.columns(
+            [1, 1, 1]
         )
 
+        with c1:
+
+            if st.button(
+                "View",
+                key=f"approval_view_{approval_id}",
+                use_container_width=True,
+            ):
+
+                st.session_state[
+                    "approval_view_id"
+                ] = approval_id
+
+                st.rerun()
+
+        with c2:
+
+            if st.button(
+                "Edit",
+                key=f"approval_edit_{approval_id}",
+                use_container_width=True,
+            ):
+
+                st.session_state[
+                    "approval_edit_id"
+                ] = approval_id
+
+                st.session_state.pop(
+                    "approval_view_id",
+                    None,
+                )
+
+                st.rerun()
+
+        with c3:
+
+            if st.button(
+                "Delete",
+                key=f"approval_delete_{approval_id}",
+                use_container_width=True,
+            ):
+
+                try:
+
+                    delete_record(
+                        COLLECTION,
+                        approval_id,
+                        db,
+                    )
+
+                    st.session_state.pop(
+                        "approval_view_id",
+                        None,
+                    )
+
+                    st.session_state.pop(
+                        "approval_edit_id",
+                        None,
+                    )
+
+                    st.success(
+                        "Approval deleted."
+                    )
+
+                    st.rerun()
+
+                except Exception as exc:
+
+                    st.error(
+                        "Unable to delete approval."
+                    )
+
+                    st.code(
+                        f"{type(exc).__name__}: {exc}"
+                    )
+
+
+# ============================================================
+# VIEW
+# ============================================================
+
+def _render_approval_view(
+    approval: dict[str, Any],
+    db: dict[str, Any],
+) -> None:
+
+    approval_id = approval.get(
+        "id"
+    )
+
+    st.markdown(
+        f"### Approval #{approval_id}"
+    )
+
+    title = (
+        _safe_text(
+            approval.get("title")
+        )
+        or f"Approval #{approval_id}"
+    )
+
+    status = (
+        _safe_text(
+            approval.get("status")
+        )
+        or "Pending"
+    )
+
+    st.markdown(
+        f"""
+        <div class="cs-card">
+
+            <div style="
+                color:#FFFFFF;
+                font-size:22px;
+                font-weight:900;
+            ">
+                {title}
+            </div>
+
+            <div style="
+                color:#64748B;
+                font-size:12px;
+                margin-top:6px;
+            ">
+                {_safe_text(approval.get("approval_type"))}
+                ·
+                {_project_name(
+                    approval.get("project_id"),
+                    db
+                )}
+            </div>
+
+            <div style="
+                color:#60A5FA;
+                font-size:13px;
+                font-weight:800;
+                margin-top:14px;
+            ">
+                {status}
+            </div>
+
+            <div style="
+                color:#94A3B8;
+                font-size:12px;
+                margin-top:5px;
+            ">
+                {_status_message(status)}
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.write("")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
         st.markdown(
-            f"**Revision:** "
-            f"{approval.get('revision', 'N/A')}"
+            "**Project**"
+        )
+
+        st.write(
+            _project_name(
+                approval.get("project_id"),
+                db,
+            )
         )
 
     with col2:
 
         st.markdown(
-            f"**Submitted By:** "
-            f"{approval.get('submitted_by', '')}"
+            "**Reviewer / Approver**"
         )
+
+        st.write(
+            _user_name(
+                approval.get("assigned_to"),
+                db,
+            )
+        )
+
+    with col3:
 
         st.markdown(
-            f"**Submitted Date:** "
-            f"{approval.get('submitted_date', '')}"
+            "**Due Date**"
         )
 
-        st.markdown(
-            f"**Reviewer:** "
-            f"{approval.get('reviewer', '')}"
+        st.write(
+            _format_date(
+                approval.get("due_date")
+            )
         )
 
-        st.markdown(
-            f"**Decision Date:** "
-            f"{approval.get('decision_date', 'Pending')}"
-        )
+    st.divider()
 
-    comments = approval.get(
-        "comments",
-        "",
+    st.markdown(
+        "**Linked Document**"
     )
 
-    if comments:
+    st.write(
+        _document_name(
+            approval.get("document_id"),
+            db,
+        )
+    )
 
-        st.divider()
+    st.markdown(
+        "**Linked Drawing**"
+    )
+
+    st.write(
+        _drawing_name(
+            approval.get("drawing_id"),
+            db,
+        )
+    )
+
+    st.markdown(
+        "**Description**"
+    )
+
+    description = _safe_text(
+        approval.get("description")
+    )
+
+    st.write(
+        description
+        or "No description provided."
+    )
+
+    st.divider()
+
+    st.markdown(
+        "### Decision"
+    )
+
+    st.write(
+        approval.get(
+            "decision"
+        )
+        or "No decision recorded."
+    )
+
+    if approval.get(
+        "decision_notes"
+    ):
 
         st.markdown(
-            "**Review Comments**"
+            "**Decision Notes**"
         )
 
-        st.info(
-            comments
+        st.write(
+            approval.get(
+                "decision_notes"
+            )
         )
+
+    if status not in (
+        "Approved",
+        "Rejected",
+        "Cancelled",
+    ):
+
+        st.markdown(
+            "### Record Decision"
+        )
+
+        with st.form(
+            f"approval_decision_{approval_id}"
+        ):
+
+            decision = st.selectbox(
+                "Decision",
+                [
+                    "Approved",
+                    "Rejected",
+                    "Returned",
+                ],
+            )
+
+            decision_notes = st.text_area(
+                "Decision Notes",
+            )
+
+            submitted = st.form_submit_button(
+                "Save Decision",
+                use_container_width=True,
+            )
+
+            if submitted:
+
+                try:
+
+                    updated = update_record(
+                        COLLECTION,
+                        approval_id,
+                        {
+                            "status": decision,
+                            "decision": decision,
+                            "decision_notes": (
+                                decision_notes.strip()
+                            ),
+                            "decided_at": _now(),
+                            "updated_at": _now(),
+                        },
+                        db,
+                    )
+
+                    if updated:
+
+                        st.success(
+                            "Approval decision recorded."
+                        )
+
+                        st.rerun()
+
+                except Exception as exc:
+
+                    st.error(
+                        "Unable to save the decision."
+                    )
+
+                    st.code(
+                        f"{type(exc).__name__}: {exc}"
+                    )
+
+    st.write("")
 
     if st.button(
-        "Close",
-        use_container_width=True,
+        "Back to Approvals",
+        key=f"approval_back_{approval_id}",
     ):
 
         st.session_state.pop(
-            "view_approval_id",
+            "approval_view_id",
             None,
         )
 
@@ -882,380 +1101,519 @@ def _render_view_approval(
 
 
 # ============================================================
-# DELETE APPROVAL
+# EDIT
 # ============================================================
 
-def _render_delete_confirmation(
-    db,
-    approval,
-):
+def _render_approval_edit(
+    approval: dict[str, Any],
+    db: dict[str, Any],
+) -> None:
 
-    st.warning(
-        f"Cancel approval request "
-        f"**{approval.get('id', '')}**?"
+    approval_id = approval.get(
+        "id"
     )
 
-    col1, col2 = st.columns(2)
+    st.markdown(
+        f"### Edit Approval #{approval_id}"
+    )
 
-    with col1:
+    projects = _project_options(db)
+    documents = _document_options(db)
+    drawings = _drawing_options(db)
+    users = _user_options(db)
 
-        if st.button(
-            "Cancel Approval Request",
-            type="primary",
-            use_container_width=True,
+    project_labels = [
+        f"{p.get('id')} · "
+        f"{p.get('name', p.get('project_name', 'Unnamed Project'))}"
+        for p in projects
+    ]
+
+    document_labels = [
+        "None"
+    ] + [
+        f"{d.get('id')} · "
+        f"{d.get('title', d.get('name', 'Untitled Document'))}"
+        for d in documents
+    ]
+
+    drawing_labels = [
+        "None"
+    ] + [
+        f"{d.get('id')} · "
+        f"{d.get('drawing_number', d.get('title', d.get('name', 'Untitled Drawing')))}"
+        for d in drawings
+    ]
+
+    user_labels = [
+        "Unassigned"
+    ] + [
+        f"{u.get('id')} · "
+        f"{u.get('full_name', u.get('username', 'Unknown User'))}"
+        for u in users
+    ]
+
+    current_project = str(
+        approval.get(
+            "project_id",
+            "",
+        )
+    )
+
+    project_index = 0
+
+    for index, label in enumerate(
+        project_labels
+    ):
+
+        if label.split(
+            " · ",
+            1,
+        )[0] == current_project:
+
+            project_index = index
+            break
+
+    current_document = str(
+        approval.get(
+            "document_id",
+            "",
+        )
+    )
+
+    document_index = 0
+
+    for index, label in enumerate(
+        document_labels
+    ):
+
+        if (
+            label != "None"
+            and label.split(
+                " · ",
+                1,
+            )[0] == current_document
         ):
 
-            delete_record(
-                db,
-                "approvals",
-                approval.get("id"),
-            )
+            document_index = index
+            break
 
-            st.session_state.pop(
-                "delete_approval_id",
-                None,
-            )
+    current_drawing = str(
+        approval.get(
+            "drawing_id",
+            "",
+        )
+    )
 
-            st.success(
-                "Approval request cancelled."
-            )
+    drawing_index = 0
 
-            st.rerun()
+    for index, label in enumerate(
+        drawing_labels
+    ):
 
-    with col2:
-
-        if st.button(
-            "Keep Request",
-            use_container_width=True,
+        if (
+            label != "None"
+            and label.split(
+                " · ",
+                1,
+            )[0] == current_drawing
         ):
 
-            st.session_state.pop(
-                "delete_approval_id",
-                None,
+            drawing_index = index
+            break
+
+    current_user = str(
+        approval.get(
+            "assigned_to",
+            "",
+        )
+    )
+
+    user_index = 0
+
+    for index, label in enumerate(
+        user_labels
+    ):
+
+        if (
+            label != "Unassigned"
+            and label.split(
+                " · ",
+                1,
+            )[0] == current_user
+        ):
+
+            user_index = index
+            break
+
+    current_due = None
+
+    if approval.get(
+        "due_date"
+    ):
+
+        try:
+
+            current_due = date.fromisoformat(
+                str(
+                    approval.get(
+                        "due_date"
+                    )
+                )
             )
 
-            st.rerun()
+        except ValueError:
+            current_due = None
+
+    with st.form(
+        f"approval_edit_form_{approval_id}"
+    ):
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            title = st.text_input(
+                "Approval Title",
+                value=_safe_text(
+                    approval.get("title")
+                ),
+            )
+
+            approval_type = st.selectbox(
+                "Approval Type",
+                APPROVAL_TYPES,
+                index=(
+                    APPROVAL_TYPES.index(
+                        approval.get(
+                            "approval_type"
+                        )
+                    )
+                    if approval.get(
+                        "approval_type"
+                    ) in APPROVAL_TYPES
+                    else 0
+                ),
+            )
+
+            project_label = st.selectbox(
+                "Project",
+                project_labels,
+                index=project_index,
+            )
+
+            status = st.selectbox(
+                "Status",
+                APPROVAL_STATUSES,
+                index=(
+                    APPROVAL_STATUSES.index(
+                        approval.get(
+                            "status"
+                        )
+                    )
+                    if approval.get(
+                        "status"
+                    ) in APPROVAL_STATUSES
+                    else 0
+                ),
+            )
+
+        with col2:
+
+            reviewer_label = st.selectbox(
+                "Reviewer / Approver",
+                user_labels,
+                index=user_index,
+            )
+
+            due_date = st.date_input(
+                "Due Date",
+                value=current_due,
+            )
+
+            document_label = st.selectbox(
+                "Linked Document",
+                document_labels,
+                index=document_index,
+            )
+
+            drawing_label = st.selectbox(
+                "Linked Drawing",
+                drawing_labels,
+                index=drawing_index,
+            )
+
+        description = st.text_area(
+            "Description",
+            value=_safe_text(
+                approval.get("description")
+            ),
+        )
+
+        submitted = st.form_submit_button(
+            "Save Changes",
+            use_container_width=True,
+        )
+
+        if submitted:
+
+            project_id = project_label.split(
+                " · ",
+                1,
+            )[0]
+
+            reviewer_id = None
+
+            if reviewer_label != "Unassigned":
+
+                reviewer_id = reviewer_label.split(
+                    " · ",
+                    1,
+                )[0]
+
+            document_id = None
+
+            if document_label != "None":
+
+                document_id = document_label.split(
+                    " · ",
+                    1,
+                )[0]
+
+            drawing_id = None
+
+            if drawing_label != "None":
+
+                drawing_id = drawing_label.split(
+                    " · ",
+                    1,
+                )[0]
+
+            due_value = ""
+
+            if due_date:
+
+                due_value = due_date.isoformat()
+
+            errors = _validate_approval(
+                title,
+                approval_type,
+                project_id,
+                due_value,
+            )
+
+            if errors:
+
+                for error in errors:
+                    st.error(error)
+
+                return
+
+            updates = {
+                "title": title.strip(),
+                "approval_type": approval_type,
+                "project_id": project_id,
+                "document_id": document_id,
+                "drawing_id": drawing_id,
+                "assigned_to": reviewer_id,
+                "status": status,
+                "due_date": due_value,
+                "description": description.strip(),
+                "updated_at": _now(),
+            }
+
+            try:
+
+                update_record(
+                    COLLECTION,
+                    approval_id,
+                    updates,
+                    db,
+                )
+
+                st.session_state.pop(
+                    "approval_edit_id",
+                    None,
+                )
+
+                st.session_state[
+                    "approval_view_id"
+                ] = approval_id
+
+                st.success(
+                    "Approval updated successfully."
+                )
+
+                st.rerun()
+
+            except Exception as exc:
+
+                st.error(
+                    "Unable to update approval."
+                )
+
+                st.code(
+                    f"{type(exc).__name__}: {exc}"
+                )
+
+    if st.button(
+        "Cancel",
+        key=f"approval_cancel_edit_{approval_id}",
+    ):
+
+        st.session_state.pop(
+            "approval_edit_id",
+            None,
+        )
+
+        st.rerun()
 
 
 # ============================================================
 # MAIN MODULE
 # ============================================================
 
-def render_approvals_module(db):
+def render_approvals_module(
+    db: dict[str, Any],
+) -> None:
+    """
+    Render the Approvals workspace.
 
-    approvals = _get_approvals(db)
+    Branding and the global module header intentionally remain
+    outside this module so the existing application's visual
+    system remains the single source of truth.
+    """
+
+    if not isinstance(
+        db,
+        dict,
+    ):
+
+        st.error(
+            "Invalid database object."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # Session state
+    # --------------------------------------------------------
+
+    st.session_state.setdefault(
+        "approval_view_id",
+        None,
+    )
+
+    st.session_state.setdefault(
+        "approval_edit_id",
+        None,
+    )
+
+    # --------------------------------------------------------
+    # Module header
+    #
+    # Keep your existing application-level SVG/module-header
+    # helper here. The module itself does not replace it.
+    # --------------------------------------------------------
 
     st.markdown(
-        """
-        <div class="module-header">
-            <div class="module-title">
-                Sign-Off & Approvals
-            </div>
-            <div class="module-subtitle">
-                Controlled review and approval workflow
-                for project documents.
-            </div>
-        </div>
-        """,
+        '<div class="cs-page-title">Approvals</div>',
         unsafe_allow_html=True,
     )
 
-    # ========================================================
-    # KPI DASHBOARD
-    # ========================================================
-
-    total = len(approvals)
-
-    pending = sum(
-        1
-        for approval in approvals
-        if approval.get("status")
-        == "Pending Review"
+    st.markdown(
+        '<div class="cs-page-subtitle">'
+        "Review, approve and track project submissions and decisions."
+        "</div>",
+        unsafe_allow_html=True,
     )
 
-    approved = sum(
-        1
-        for approval in approvals
-        if approval.get("status")
-        == "Approved"
+    # --------------------------------------------------------
+    # Selected record
+    # --------------------------------------------------------
+
+    edit_id = st.session_state.get(
+        "approval_edit_id"
     )
-
-    returned = sum(
-        1
-        for approval in approvals
-        if approval.get("status")
-        == "Returned for Revision"
-    )
-
-    rejected = sum(
-        1
-        for approval in approvals
-        if approval.get("status")
-        == "Rejected"
-    )
-
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    with col1:
-        st.metric(
-            "Total Requests",
-            total,
-        )
-
-    with col2:
-        st.metric(
-            "Pending",
-            pending,
-        )
-
-    with col3:
-        st.metric(
-            "Approved",
-            approved,
-        )
-
-    with col4:
-        st.metric(
-            "Returned",
-            returned,
-        )
-
-    with col5:
-        st.metric(
-            "Rejected",
-            rejected,
-        )
-
-    st.divider()
-
-    # ========================================================
-    # ACTIVE REVIEW
-    # ========================================================
-
-    review_id = st.session_state.get(
-        "review_approval_id"
-    )
-
-    if review_id:
-
-        approval = next(
-            (
-                item
-                for item in approvals
-                if str(item.get("id"))
-                == str(review_id)
-            ),
-            None,
-        )
-
-        if approval:
-
-            _render_review_approval(
-                db,
-                approval,
-            )
-
-            st.divider()
-
-    # ========================================================
-    # VIEW APPROVAL
-    # ========================================================
 
     view_id = st.session_state.get(
-        "view_approval_id"
+        "approval_view_id"
     )
+
+    if edit_id:
+
+        approval = get_record(
+            COLLECTION,
+            edit_id,
+            db,
+        )
+
+        if not approval:
+
+            st.warning(
+                "The selected approval no longer exists."
+            )
+
+            st.session_state.pop(
+                "approval_edit_id",
+                None,
+            )
+
+            return
+
+        _render_approval_edit(
+            approval,
+            db,
+        )
+
+        return
 
     if view_id:
 
-        approval = next(
-            (
-                item
-                for item in approvals
-                if str(item.get("id"))
-                == str(view_id)
-            ),
-            None,
+        approval = get_record(
+            COLLECTION,
+            view_id,
+            db,
         )
 
-        if approval:
+        if not approval:
 
-            _render_view_approval(
-                db,
-                approval,
+            st.warning(
+                "The selected approval no longer exists."
             )
 
-            st.divider()
+            st.session_state.pop(
+                "approval_view_id",
+                None,
+            )
 
-    # ========================================================
-    # DELETE APPROVAL
-    # ========================================================
+            return
 
-    delete_id = st.session_state.get(
-        "delete_approval_id"
-    )
-
-    if delete_id:
-
-        approval = next(
-            (
-                item
-                for item in approvals
-                if str(item.get("id"))
-                == str(delete_id)
-            ),
-            None,
+        _render_approval_view(
+            approval,
+            db,
         )
 
-        if approval:
+        return
 
-            _render_delete_confirmation(
-                db,
-                approval,
-            )
+    # --------------------------------------------------------
+    # Main tabs
+    # --------------------------------------------------------
 
-            st.divider()
-
-    # ========================================================
-    # TABS
-    # ========================================================
-
-    tab_requests, tab_submit = st.tabs(
+    tab_register, tab_create = st.tabs(
         [
             "Approval Register",
-            "Submit for Approval",
+            "New Approval",
         ]
     )
 
-    # ========================================================
-    # APPROVAL REGISTER
-    # ========================================================
+    with tab_register:
 
-    with tab_requests:
+        _render_approval_list(
+            db
+        )
 
-        if not approvals:
+    with tab_create:
 
-            st.info(
-                "No approval requests have been created."
-            )
-
-        else:
-
-            search = st.text_input(
-                "Search Approvals",
-                placeholder=(
-                    "Approval ID, document number, "
-                    "project or reviewer..."
-                ),
-            )
-
-            filter_col1, filter_col2 = st.columns(2)
-
-            with filter_col1:
-
-                status_filter = st.selectbox(
-                    "Status",
-                    ["All"]
-                    + APPROVAL_STATUSES,
-                )
-
-            with filter_col2:
-
-                document_filter = st.selectbox(
-                    "Document Type",
-                    ["All"]
-                    + DOCUMENT_TYPES,
-                )
-
-            search_term = (
-                search.strip().lower()
-            )
-
-            filtered = []
-
-            for approval in approvals:
-
-                searchable = " ".join(
-                    [
-                        str(
-                            approval.get(
-                                "id",
-                                "",
-                            )
-                        ),
-                        str(
-                            approval.get(
-                                "document_number",
-                                "",
-                            )
-                        ),
-                        str(
-                            approval.get(
-                                "document_title",
-                                "",
-                            )
-                        ),
-                        str(
-                            approval.get(
-                                "project_id",
-                                "",
-                            )
-                        ),
-                        str(
-                            approval.get(
-                                "reviewer",
-                                "",
-                            )
-                        ),
-                    ]
-                ).lower()
-
-                if (
-                    search_term
-                    and search_term
-                    not in searchable
-                ):
-                    continue
-
-                if (
-                    status_filter != "All"
-                    and approval.get(
-                        "status"
-                    )
-                    != status_filter
-                ):
-                    continue
-
-                if (
-                    document_filter != "All"
-                    and approval.get(
-                        "document_type"
-                    )
-                    != document_filter
-                ):
-                    continue
-
-                filtered.append(
-                    approval
-                )
-
-            st.caption(
-                f"Showing {len(filtered)} "
-                f"of {len(approvals)} approval records"
-            )
-
-            for approval in filtered:
-
-                _render_approval_card(
-                    db,
-                    approval,
-                )
-
-    # ========================================================
-    # SUBMIT FOR APPROVAL
-    # ========================================================
-
-    with tab_submit:
-
-        _render_submit_drawing(
+        _create_approval(
             db
         )
