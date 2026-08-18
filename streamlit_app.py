@@ -285,6 +285,38 @@ span {
     text-transform: uppercase;
 }
 
+/* ==========================================================
+   ACTIVE SIDEBAR MODULE
+   ========================================================== */
+
+.cs-active-module {
+    border-left: 3px solid #3B82F6;
+    border-radius: 8px;
+    margin-bottom: 3px;
+    padding-left: 4px;
+    background: rgba(37, 99, 235, 0.10);
+}
+
+/* The Streamlit button immediately following the marker */
+.cs-active-module + div[data-testid="stButton"] > button {
+    background: #172554 !important;
+    color: #FFFFFF !important;
+
+    border-color: #2563EB !important;
+
+    box-shadow:
+        inset 0 0 0 1px rgba(59, 130, 246, 0.20),
+        0 4px 14px rgba(37, 99, 235, 0.08) !important;
+}
+
+/* Active button hover */
+.cs-active-module + div[data-testid="stButton"] > button:hover {
+    background: #1E3A8A !important;
+    color: #FFFFFF !important;
+
+    border-color: #3B82F6 !important;
+}
+
 
 /* ==========================================================
    SIDEBAR BRANDING
