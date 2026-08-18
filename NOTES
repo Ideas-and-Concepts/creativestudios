@@ -95,3 +95,19 @@ streamlit_app.py
        ┌─────┼─────┬──────────┬─────────┐
        ▼     ▼     ▼          ▼         ▼
     Drawings BOQ  RFIs    Approvals  Site Logs
+
+
+streamlit_app.py
+       │
+       ▼
+modules/database.py
+       │
+       ▼
+creativestudios_db.json
+       │
+       ├── users
+       ├── projects
+       ├── clients
+       ├── documents
+       ├── drawings
+       └── other AEC collections
