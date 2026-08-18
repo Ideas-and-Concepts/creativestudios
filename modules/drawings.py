@@ -52,11 +52,22 @@ def render_drawings_module(
     ):
         drawings = []
 
+    # ========================================================
+    # SEARCH
+    # ========================================================
+
     search = st.text_input(
         "Search drawings",
-        placeholder="Search drawing number, title, project or discipline...",
+        placeholder=(
+            "Search drawing number, title, project "
+            "or discipline..."
+        ),
         key="drawings_search",
     )
+
+    # ========================================================
+    # NEW DRAWING
+    # ========================================================
 
     if st.button(
         "New Drawing",
@@ -66,6 +77,10 @@ def render_drawings_module(
         st.session_state[
             "show_drawing_form"
         ] = True
+
+    # ========================================================
+    # CREATE DRAWING
+    # ========================================================
 
     if st.session_state.get(
         "show_drawing_form",
@@ -128,7 +143,9 @@ def render_drawings_module(
                         "id": next_id(
                             drawings
                         ),
-                        "drawing_number": number.strip(),
+                        "drawing_number": (
+                            number.strip()
+                        ),
                         "title": title.strip(),
                         "project": project.strip(),
                         "discipline": discipline.strip(),
@@ -152,6 +169,10 @@ def render_drawings_module(
 
                     st.rerun()
 
+    # ========================================================
+    # FILTER
+    # ========================================================
+
     search_value = search.lower().strip()
 
     filtered = []
@@ -166,11 +187,23 @@ def render_drawings_module(
 
         searchable = " ".join(
             [
-                _text(drawing.get("drawing_number")),
-                _text(drawing.get("title")),
-                _text(drawing.get("project")),
-                _text(drawing.get("discipline")),
-                _text(drawing.get("status")),
+                _text(
+                    drawing.get(
+                        "drawing_number"
+                    )
+                ),
+                _text(
+                    drawing.get("title")
+                ),
+                _text(
+                    drawing.get("project")
+                ),
+                _text(
+                    drawing.get("discipline")
+                ),
+                _text(
+                    drawing.get("status")
+                ),
             ]
         ).lower()
 
@@ -181,12 +214,20 @@ def render_drawings_module(
 
             filtered.append(drawing)
 
+    # ========================================================
+    # SUMMARY
+    # ========================================================
+
     st.metric(
         "Drawings",
         len(drawings),
     )
 
     st.write("")
+
+    # ========================================================
+    # DRAWING LIST
+    # ========================================================
 
     if not filtered:
 
@@ -256,23 +297,19 @@ def render_drawings_module(
             )
         )
 
+        # ====================================================
+        # DRAWING CARD
+        # ====================================================
+
         st.markdown(
             f"""
             <div class="cs-card">
 
-                <div style="
-                    color:#FFFFFF;
-                    font-size:16px;
-                    font-weight:850;
-                ">
+                <div class="cs-card-title">
                     {number} · {title}
                 </div>
 
-                <div style="
-                    color:#64748B;
-                    font-size:12px;
-                    margin-top:6px;
-                ">
+                <div class="cs-card-subtitle">
                     {project}
                     &nbsp; • &nbsp;
                     {discipline}
@@ -286,6 +323,10 @@ def render_drawings_module(
             """,
             unsafe_allow_html=True,
         )
+
+        # ====================================================
+        # EDIT / DELETE
+        # ====================================================
 
         with st.expander(
             f"Edit Drawing #{drawing_id}"
@@ -367,11 +408,21 @@ def render_drawings_module(
                         "drawings",
                         drawing_id,
                         {
-                            "drawing_number": edit_number.strip(),
-                            "title": edit_title.strip(),
-                            "project": edit_project.strip(),
-                            "discipline": edit_discipline.strip(),
-                            "revision": edit_revision.strip(),
+                            "drawing_number": (
+                                edit_number.strip()
+                            ),
+                            "title": (
+                                edit_title.strip()
+                            ),
+                            "project": (
+                                edit_project.strip()
+                            ),
+                            "discipline": (
+                                edit_discipline.strip()
+                            ),
+                            "revision": (
+                                edit_revision.strip()
+                            ),
                             "status": edit_status,
                         },
                     )
