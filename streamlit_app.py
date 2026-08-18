@@ -47,7 +47,7 @@ st.set_page_config(
 # BRANDING
 # ============================================================
 
-branding.inject_branding_css()
+
 
 render_logo = branding.render_logo
 render_module_header = branding.render_module_header
