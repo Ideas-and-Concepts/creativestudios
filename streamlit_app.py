@@ -22,6 +22,7 @@ Features
 - Login branding
 - Session-state navigation
 """
+from pathlib import Path
 
 from __future__ import annotations
 
