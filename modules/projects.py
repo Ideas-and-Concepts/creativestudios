@@ -14,7 +14,6 @@ from modules.branding import render_module_header
 from modules.database import (
     add_record,
     delete_record,
-    get_records,
     next_id,
     update_record,
 )
@@ -312,34 +311,52 @@ def render_projects_module(
             )
         )
 
+        # ====================================================
+        # PROJECT CARD
+        # ====================================================
+
+        status_class = (
+            "cs-status-active"
+            if status.lower() == "active"
+            else "cs-status-default"
+        )
+
         st.markdown(
             f"""
-            <div class="cs-card">
+            <div class="cs-project-card">
 
-                <div style="
-                    color:#FFFFFF;
-                    font-size:17px;
-                    font-weight:850;
-                ">
-                    {name}
-                </div>
+                <div class="cs-project-header">
 
-                <div style="
-                    color:#64748B;
-                    font-size:12px;
-                    margin-top:6px;
-                ">
-                    Client: {client}
-                    &nbsp; • &nbsp;
-                    Location: {location}
-                    &nbsp; • &nbsp;
-                    Status: {status}
+                    <div>
+
+                        <div class="cs-project-name">
+                            {name}
+                        </div>
+
+                        <div class="cs-project-meta">
+                            Client: {client}
+                            &nbsp; • &nbsp;
+                            Location: {location}
+                        </div>
+
+                    </div>
+
+                    <div>
+                        <span class="cs-status {status_class}">
+                            {status}
+                        </span>
+                    </div>
+
                 </div>
 
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+        # ====================================================
+        # PROJECT MANAGEMENT
+        # ====================================================
 
         with st.expander(
             f"Manage Project #{project_id}"
