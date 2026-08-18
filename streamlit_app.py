@@ -4,6 +4,21 @@ AEC Collaboration Platform
 AEC Workspace
 
 Main Streamlit application.
+
+Features
+--------
+- JSON database persistence
+- Authentication
+- Project Directory
+- Documents
+- Drawings
+- RFIs
+- Tasks
+- Approvals
+- Settings
+- Native Streamlit branding
+- Shared branding CSS
+- Session-state navigation
 """
 
 from __future__ import annotations
@@ -26,22 +41,35 @@ from modules.database import (
 # PAGE CONFIG
 # ============================================================
 
+BASE_DIR = branding.BASE_DIR
+
+LOGO_PATH = branding.LOGO_PATH
+
+
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon="assets/creative_studios.png",
+    page_icon=str(LOGO_PATH),
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# BRANDING
+# SHARED BRANDING
 # ============================================================
 
 branding.inject_branding_css()
 
+
+# ============================================================
+# BRANDING HELPERS
+# ============================================================
+
 render_logo = branding.render_logo
-render_module_header = branding.render_module_header
+
+render_module_header = (
+    branding.render_module_header
+)
 
 
 # ============================================================
@@ -53,10 +81,10 @@ def _load_renderer(
     function_name: str,
 ):
     """
-    Load a module renderer.
+    Safely load a module renderer.
 
-    Import errors are displayed instead of being silently
-    swallowed. This makes deployment errors diagnosable.
+    Unlike the previous implementation, import errors are
+    displayed so a broken module cannot silently disappear.
     """
 
     try:
@@ -68,10 +96,12 @@ def _load_renderer(
     except Exception as exc:
 
         st.error(
-            f"Unable to import {module_name}"
+            f"Failed to import {module_name}"
         )
 
-        st.exception(exc)
+        st.exception(
+            exc
+        )
 
         return None
 
@@ -84,14 +114,18 @@ def _load_renderer(
     if not callable(renderer):
 
         st.error(
-            f"{module_name} does not provide "
-            f"{function_name}()."
+            f"{module_name} does not define "
+            f"callable {function_name}()."
         )
 
         return None
 
     return renderer
 
+
+# ============================================================
+# MODULE RENDERERS
+# ============================================================
 
 render_projects_module = _load_renderer(
     "modules.projects",
@@ -192,6 +226,7 @@ def authenticate_user(
         users,
         list,
     ):
+
         return None
 
     for user in users:
@@ -200,6 +235,7 @@ def authenticate_user(
             user,
             dict,
         ):
+
             continue
 
         stored_username = str(
@@ -254,15 +290,27 @@ def render_login(
         unsafe_allow_html=True,
     )
 
-    # Logo only.
+    # --------------------------------------------------------
+    # Logo only
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="cs-login-logo">',
+        unsafe_allow_html=True,
+    )
+
     render_logo(
         width=100,
     )
 
     st.markdown(
-        '<div class="cs-login-spacing"></div>',
+        '</div>',
         unsafe_allow_html=True,
     )
+
+    # --------------------------------------------------------
+    # Login form
+    # --------------------------------------------------------
 
     with st.form(
         "creative_studios_login",
@@ -296,7 +344,9 @@ def render_login(
             if user is not None:
 
                 st.session_state.authenticated = True
+
                 st.session_state.user = user
+
                 st.session_state.active_module = (
                     "Overview"
                 )
@@ -324,7 +374,7 @@ def render_login(
     )
 
     st.markdown(
-        "</div></div>",
+        '</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -334,6 +384,10 @@ def render_login(
 # ============================================================
 
 def render_sidebar_branding() -> None:
+    """
+    Render sidebar branding using native Streamlit image
+    rendering rather than HTML image wrappers.
+    """
 
     logo_col, text_col = st.sidebar.columns(
         [1, 3],
@@ -447,6 +501,10 @@ def render_sidebar() -> str:
 
                 st.rerun()
 
+    # --------------------------------------------------------
+    # Administration
+    # --------------------------------------------------------
+
     st.sidebar.markdown(
         """
         <div class="cs-section-label">
@@ -467,6 +525,10 @@ def render_sidebar() -> str:
         )
 
         st.rerun()
+
+    # --------------------------------------------------------
+    # User
+    # --------------------------------------------------------
 
     full_name = str(
         user.get(
@@ -541,7 +603,9 @@ def render_sidebar() -> str:
     ):
 
         st.session_state.authenticated = False
+
         st.session_state.user = None
+
         st.session_state.active_module = (
             "Overview"
         )
@@ -552,7 +616,7 @@ def render_sidebar() -> str:
 
 
 # ============================================================
-# OVERVIEW
+# SAFE NUMBER
 # ============================================================
 
 def _safe_float(
@@ -572,6 +636,10 @@ def _safe_float(
 
         return 0.0
 
+
+# ============================================================
+# OVERVIEW
+# ============================================================
 
 def render_overview(
     database: dict[str, Any],
@@ -641,7 +709,7 @@ def render_overview(
         == "completed"
     )
 
-    budget = 0.0
+    total_budget = 0.0
 
     for project in projects:
 
@@ -649,9 +717,10 @@ def render_overview(
             project,
             dict,
         ):
+
             continue
 
-        budget += _safe_float(
+        total_budget += _safe_float(
             project.get(
                 "estimated_budget",
                 project.get(
@@ -661,48 +730,68 @@ def render_overview(
             )
         )
 
+    # --------------------------------------------------------
+    # Header
+    # --------------------------------------------------------
+
     render_module_header(
         "AEC Workspace",
         "Central workspace for architectural, "
         "engineering and construction activities.",
     )
 
+    # --------------------------------------------------------
+    # KPI cards
+    # --------------------------------------------------------
+
     metrics = [
-        ("Projects", total),
-        ("Active", active),
-        ("Planning", planning),
-        ("Completed", completed),
+        (
+            "Projects",
+            str(total),
+        ),
+        (
+            "Active",
+            str(active),
+        ),
+        (
+            "Planning",
+            str(planning),
+        ),
+        (
+            "Completed",
+            str(completed),
+        ),
         (
             "Total Budget",
-            f"${budget:,.2f}",
+            f"${total_budget:,.2f}",
         ),
     ]
 
-    cols = st.columns(
+    columns = st.columns(
         5,
         gap="small",
     )
 
-    for col, (
+    for column, (
         label,
         value,
     ) in zip(
-        cols,
+        columns,
         metrics,
     ):
 
-        with col:
+        with column:
 
             st.markdown(
                 f"""
                 <div class="cs-kpi">
 
                     <div class="cs-kpi-label">
-                        {html.escape(str(label))}
+                        {html.escape(label)}
                     </div>
 
                     <div class="cs-kpi-value">
-                        {html.escape(str(value))}
+                        {html.escape(value)}
                     </div>
 
                 </div>
@@ -711,6 +800,10 @@ def render_overview(
             )
 
     st.write("")
+
+    # --------------------------------------------------------
+    # Workspace overview
+    # --------------------------------------------------------
 
     st.markdown(
         """
@@ -733,7 +826,7 @@ def render_overview(
 
 
 # ============================================================
-# MODULE EXECUTION
+# MODULE EXECUTOR
 # ============================================================
 
 def run_module(
@@ -848,6 +941,18 @@ def render_settings() -> None:
         or "Admin"
     ).strip()
 
+    safe_name = html.escape(
+        name
+    )
+
+    safe_username = html.escape(
+        username
+    )
+
+    safe_role = html.escape(
+        role
+    )
+
     st.markdown(
         f"""
         <div class="cs-card">
@@ -859,21 +964,21 @@ def render_settings() -> None:
             <div class="cs-setting-row">
                 Name:
                 <strong>
-                    {html.escape(name)}
+                    {safe_name}
                 </strong>
             </div>
 
             <div class="cs-setting-row">
                 Username:
                 <strong>
-                    @{html.escape(username)}
+                    @{safe_username}
                 </strong>
             </div>
 
             <div class="cs-setting-row">
                 Role:
                 <strong>
-                    {html.escape(role)}
+                    {safe_role}
                 </strong>
             </div>
 
@@ -1013,4 +1118,5 @@ def main() -> None:
 # ============================================================
 
 if __name__ == "__main__":
+
     main()
