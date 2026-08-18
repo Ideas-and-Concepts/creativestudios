@@ -1,5 +1,10 @@
 """
 Creative Studios shared branding utilities.
+
+Single canonical branding asset:
+    assets/creative_studios.png
+
+All Streamlit branding uses the native st.image() renderer.
 """
 
 from __future__ import annotations
@@ -10,12 +15,16 @@ from pathlib import Path
 import streamlit as st
 
 
+# ============================================================
+# BRAND ASSET
+# ============================================================
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 LOGO_PATH = (
     BASE_DIR
     / "assets"
-    / "Artboard 1.png"
+    / "creative_studios.png"
 )
 
 
@@ -31,14 +40,18 @@ def logo_exists() -> bool:
 def render_logo(
     width: int = 52,
 ) -> None:
-    """Render the Creative Studios logo."""
+    """
+    Render the canonical Creative Studios PNG
+    using Streamlit's native image renderer.
+    """
 
-    if logo_exists():
+    if not logo_exists():
+        return
 
-        st.image(
-            str(LOGO_PATH),
-            width=width,
-        )
+    st.image(
+        str(LOGO_PATH),
+        width=width,
+    )
 
 
 def render_module_header(
@@ -47,7 +60,10 @@ def render_module_header(
     logo_width: int = 52,
 ) -> None:
     """
-    Render one standardized Creative Studios module header.
+    Render the standardized Creative Studios
+    module header.
+
+    The logo is rendered natively with st.image().
     """
 
     safe_title = html.escape(
@@ -65,12 +81,9 @@ def render_module_header(
 
     with logo_col:
 
-        if logo_exists():
-
-            st.image(
-                str(LOGO_PATH),
-                width=logo_width,
-            )
+        render_logo(
+            width=logo_width,
+        )
 
     with content_col:
 
