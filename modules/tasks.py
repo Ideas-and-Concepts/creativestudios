@@ -133,9 +133,7 @@ def render_tasks_module(
                 else:
 
                     task = {
-                        "id": next_id(
-                            tasks
-                        ),
+                        "id": next_id("tasks", database),
                         "title": title.strip(),
                         "project": project.strip(),
                         "assignee": assignee.strip(),
@@ -144,11 +142,7 @@ def render_tasks_module(
                         "description": description.strip(),
                     }
 
-                    add_record(
-                        database,
-                        "tasks",
-                        task,
-                    )
+                    add_record("tasks", task, database)
 
                     st.session_state[
                         "show_task_form"
@@ -425,7 +419,6 @@ def render_tasks_module(
                 if save:
 
                     update_record(
-                        database,
                         "tasks",
                         task_id,
                         {
@@ -438,6 +431,7 @@ def render_tasks_module(
                                 edit_description.strip()
                             ),
                         },
+                        database,
                     )
 
                     st.success(
@@ -452,9 +446,9 @@ def render_tasks_module(
             ):
 
                 delete_record(
-                    database,
                     "tasks",
                     task_id,
+                    database,
                 )
 
                 st.success(
