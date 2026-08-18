@@ -21,7 +21,7 @@ Features
 - Sidebar branding
 - Login branding
 - Active sidebar navigation
-- Session-state navigation
+- Responsive KPI dashboard
 """
 
 from __future__ import annotations
@@ -60,9 +60,11 @@ CREATIVE_STUDIOS_LOGO = (
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon=str(CREATIVE_STUDIOS_LOGO)
-    if CREATIVE_STUDIOS_LOGO.exists()
-    else None,
+    page_icon=(
+        str(CREATIVE_STUDIOS_LOGO)
+        if CREATIVE_STUDIOS_LOGO.exists()
+        else None
+    ),
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -96,8 +98,8 @@ def _load_renderer(
     """
     Safely load a module renderer.
 
-    One unfinished or unavailable module should not
-    prevent the entire application from starting.
+    One unavailable module should not prevent the
+    entire application from starting.
     """
 
     try:
@@ -250,8 +252,10 @@ span {
 .cs-sidebar-logo-wrap {
     width: 46px;
     height: 46px;
+
     min-width: 46px;
     max-width: 46px;
+
     min-height: 46px;
     max-height: 46px;
 
@@ -287,6 +291,7 @@ span {
 
 .cs-sidebar-name {
     color: #FFFFFF;
+
     font-size: 15px;
     font-weight: 850;
     line-height: 1.15;
@@ -298,7 +303,9 @@ span {
 
 .cs-sidebar-subtitle {
     color: #64748B;
+
     font-size: 9px;
+
     margin-top: 4px;
 
     text-transform: uppercase;
@@ -327,56 +334,6 @@ span {
 
 
 /* ==========================================================
-   ACTIVE SIDEBAR MODULE
-   ========================================================== */
-
-[data-testid="stSidebar"]
-div[data-testid="stButton"] > button {
-
-    position: relative;
-
-    background: transparent !important;
-
-    color: #CBD5E1 !important;
-
-    border: 1px solid transparent !important;
-
-    border-radius: 9px !important;
-
-    text-align: left !important;
-
-    transition:
-        background 0.15s ease,
-        border-color 0.15s ease;
-}
-
-[data-testid="stSidebar"]
-div[data-testid="stButton"] > button:hover {
-
-    background: #111827 !important;
-
-    color: #FFFFFF !important;
-
-    border-color: #1E293B !important;
-}
-
-
-/*
-   The selected module is given a blue accent through
-   Streamlit's button container state.
-
-   The navigation behavior itself remains unchanged.
-*/
-
-[data-testid="stSidebar"]
-div[data-testid="stButton"]
-> button[kind="secondary"] {
-
-    color: #E2E8F0 !important;
-}
-
-
-/* ==========================================================
    USER CARD
    ========================================================== */
 
@@ -396,11 +353,9 @@ div[data-testid="stButton"]
     color: #60A5FA;
 
     font-size: 9px;
-
     font-weight: 850;
 
     letter-spacing: 1px;
-
     text-transform: uppercase;
 }
 
@@ -408,7 +363,6 @@ div[data-testid="stButton"]
     color: #FFFFFF;
 
     font-size: 14px;
-
     font-weight: 800;
 
     margin-top: 5px;
@@ -436,7 +390,6 @@ div[data-testid="stButton"]
     border-radius: 999px;
 
     font-size: 9px;
-
     font-weight: 850;
 }
 
@@ -469,7 +422,6 @@ div[data-testid="stButton"]
     display: flex;
 
     align-items: center;
-
     justify-content: center;
 
     margin-bottom: 24px;
@@ -516,7 +468,7 @@ div[data-testid="stButton"]
 
 
 /* ==========================================================
-   CARDS
+   REUSABLE CARDS
    ========================================================== */
 
 .cs-card {
@@ -564,6 +516,8 @@ div[data-testid="stButton"]
     padding: 18px;
 
     min-height: 110px;
+
+    height: 100%;
 }
 
 .cs-kpi-label {
@@ -574,6 +528,8 @@ div[data-testid="stButton"]
     text-transform: uppercase;
 
     letter-spacing: 0.8px;
+
+    white-space: nowrap;
 }
 
 .cs-kpi-value {
@@ -584,6 +540,46 @@ div[data-testid="stButton"]
     font-weight: 900;
 
     margin-top: 7px;
+
+    line-height: 1.15;
+
+    overflow-wrap: anywhere;
+}
+
+
+/* ==========================================================
+   BUDGET KPI
+   ========================================================== */
+
+.cs-kpi-budget .cs-kpi-value {
+    font-size: 22px;
+}
+
+
+/* ==========================================================
+   RESPONSIVE KPI LAYOUT
+   ========================================================== */
+
+@media (max-width: 1200px) {
+
+    .cs-kpi-value {
+        font-size: 23px;
+    }
+
+    .cs-kpi-budget .cs-kpi-value {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 900px) {
+
+    .cs-kpi-value {
+        font-size: 21px;
+    }
+
+    .cs-kpi-budget .cs-kpi-value {
+        font-size: 19px;
+    }
 }
 
 
@@ -695,6 +691,47 @@ def get_database() -> dict[str, Any]:
         )
 
     return st.session_state.database
+
+
+# ============================================================
+# SAFE BUDGET FORMATTING
+# ============================================================
+
+def format_budget(
+    value: Any,
+) -> str:
+    """
+    Safely format a numeric budget value.
+
+    Invalid, missing, None, NaN and infinite values
+    are returned as UGX 0.00.
+    """
+
+    try:
+
+        numeric_value = float(
+            value or 0
+        )
+
+        if (
+            numeric_value != numeric_value
+            or numeric_value in (
+                float("inf"),
+                float("-inf"),
+            )
+        ):
+            numeric_value = 0.0
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+
+        numeric_value = 0.0
+
+    return (
+        f"UGX {numeric_value:,.2f}"
+    )
 
 
 # ============================================================
@@ -1073,7 +1110,8 @@ def render_sidebar() -> str:
             user.get(
                 "full_name",
                 "",
-            ) or "System Administrator"
+            )
+            or "System Administrator"
         ).strip()
     )
 
@@ -1082,7 +1120,8 @@ def render_sidebar() -> str:
             user.get(
                 "username",
                 "",
-            ) or "admin"
+            )
+            or "admin"
         ).strip()
     )
 
@@ -1091,7 +1130,8 @@ def render_sidebar() -> str:
             user.get(
                 "role",
                 "",
-            ) or "Admin"
+            )
+            or "Admin"
         ).strip()
     )
 
@@ -1156,6 +1196,10 @@ def render_overview(
     ):
         projects = []
 
+    # ========================================================
+    # PROJECT COUNTS
+    # ========================================================
+
     total = len(projects)
 
     active = sum(
@@ -1170,7 +1214,7 @@ def render_overview(
                 "status",
                 "",
             )
-        ).lower()
+        ).strip().lower()
         == "active"
     )
 
@@ -1186,7 +1230,7 @@ def render_overview(
                 "status",
                 "",
             )
-        ).lower()
+        ).strip().lower()
         == "planning"
     )
 
@@ -1202,11 +1246,15 @@ def render_overview(
                 "status",
                 "",
             )
-        ).lower()
+        ).strip().lower()
         == "completed"
     )
 
-    budget = 0.0
+    # ========================================================
+    # TOTAL BUDGET
+    # ========================================================
+
+    total_budget = 0.0
 
     for project in projects:
 
@@ -1216,27 +1264,44 @@ def render_overview(
         ):
             continue
 
+        raw_budget = project.get(
+            "estimated_budget",
+            project.get(
+                "budget",
+                0,
+            ),
+        )
+
         try:
 
-            budget += float(
-                project.get(
-                    "estimated_budget",
-                    project.get(
-                        "budget",
-                        0,
-                    ),
-                )
-                or 0
+            budget_value = float(
+                raw_budget or 0
             )
+
+            if (
+                budget_value != budget_value
+                or budget_value in (
+                    float("inf"),
+                    float("-inf"),
+                )
+            ):
+                budget_value = 0.0
+
+            total_budget += budget_value
 
         except (
             TypeError,
             ValueError,
         ):
-            pass
+
+            continue
+
+    formatted_budget = format_budget(
+        total_budget
+    )
 
     # ========================================================
-    # SHARED HEADER
+    # MODULE HEADER
     # ========================================================
 
     render_module_header(
@@ -1246,21 +1311,48 @@ def render_overview(
     )
 
     # ========================================================
-    # KPI CARDS
+    # RESPONSIVE KPI GRID
     # ========================================================
 
-    cols = st.columns(4)
-
     metrics = [
-        ("Projects", total),
-        ("Active", active),
-        ("Planning", planning),
-        ("Completed", completed),
+        (
+            "Projects",
+            str(total),
+            False,
+        ),
+        (
+            "Active",
+            str(active),
+            False,
+        ),
+        (
+            "Planning",
+            str(planning),
+            False,
+        ),
+        (
+            "Completed",
+            str(completed),
+            False,
+        ),
+        (
+            "Total Budget",
+            formatted_budget,
+            True,
+        ),
     ]
+
+    # Streamlit automatically wraps these columns
+    # responsively according to available width.
+    cols = st.columns(
+        len(metrics),
+        gap="small",
+    )
 
     for col, (
         label,
         value,
+        is_budget,
     ) in zip(
         cols,
         metrics,
@@ -1268,16 +1360,22 @@ def render_overview(
 
         with col:
 
+            budget_class = (
+                " cs-kpi-budget"
+                if is_budget
+                else ""
+            )
+
             st.markdown(
                 f"""
-                <div class="cs-kpi">
+                <div class="cs-kpi{budget_class}">
 
                     <div class="cs-kpi-label">
-                        {html.escape(str(label))}
+                        {html.escape(label)}
                     </div>
 
                     <div class="cs-kpi-value">
-                        {html.escape(str(value))}
+                        {html.escape(value)}
                     </div>
 
                 </div>
@@ -1405,7 +1503,8 @@ def render_settings() -> None:
             user.get(
                 "full_name",
                 "",
-            ) or "System Administrator"
+            )
+            or "System Administrator"
         ).strip()
     )
 
@@ -1414,7 +1513,8 @@ def render_settings() -> None:
             user.get(
                 "username",
                 "",
-            ) or "admin"
+            )
+            or "admin"
         ).strip()
     )
 
@@ -1423,7 +1523,8 @@ def render_settings() -> None:
             user.get(
                 "role",
                 "",
-            ) or "Admin"
+            )
+            or "Admin"
         ).strip()
     )
 
