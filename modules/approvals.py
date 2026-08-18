@@ -31,106 +31,40 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
-def render_approvals_module(
-    database: dict[str, Any],
-) -> None:
-
+def render_approvals_module(database: dict[str, Any]) -> None:
     render_module_header(
         "Approvals",
         "Review and manage project approval workflows.",
     )
 
-    approvals = database.get(
-        "approvals",
-        [],
-    )
-
-    if not isinstance(
-        approvals,
-        list,
-    ):
+    approvals = database.get("approvals", [])
+    if not isinstance(approvals, list):
         approvals = []
-
-    # ========================================================
-    # SEARCH
-    # ========================================================
 
     search = st.text_input(
         "Search approvals",
-        placeholder=(
-            "Search item, project, requester "
-            "or approver..."
-        ),
+        placeholder="Search item, project, requester or approver...",
         key="approvals_search",
     )
 
-    # ========================================================
-    # NEW APPROVAL
-    # ========================================================
+    if st.button("New Approval", key="new_approval"):
+        st.session_state["show_approval_form"] = True
 
-    if st.button(
-        "New Approval",
-        key="new_approval",
-    ):
+    if st.session_state.get("show_approval_form", False):
+        with st.form("approval_form", clear_on_submit=True):
+            item = st.text_input("Approval Item")
+            project = st.text_input("Project")
+            requester = st.text_input("Requested By")
+            approver = st.text_input("Approver")
+            comments = st.text_area("Comments")
+            status = st.selectbox("Status", APPROVAL_STATUSES)
 
-        st.session_state[
-            "show_approval_form"
-        ] = True
-
-    # ========================================================
-    # CREATE APPROVAL
-    # ========================================================
-
-    if st.session_state.get(
-        "show_approval_form",
-        False,
-    ):
-
-        with st.form(
-            "approval_form",
-            clear_on_submit=True,
-        ):
-
-            item = st.text_input(
-                "Approval Item"
-            )
-
-            project = st.text_input(
-                "Project"
-            )
-
-            requester = st.text_input(
-                "Requested By"
-            )
-
-            approver = st.text_input(
-                "Approver"
-            )
-
-            comments = st.text_area(
-                "Comments"
-            )
-
-            status = st.selectbox(
-                "Status",
-                APPROVAL_STATUSES,
-            )
-
-            submitted = st.form_submit_button(
-                "Create Approval",
-                use_container_width=True,
-            )
+            submitted = st.form_submit_button("Create Approval", use_container_width=True)
 
             if submitted:
-
                 if not item.strip():
-
-                    st.error(
-                        "Approval item is required."
-                    )
-
+                    st.error("Approval item is required.")
                 else:
-
                     approval = {
                         "id": next_id("approvals", database),
                         "item": item.strip(),
@@ -140,318 +74,103 @@ def render_approvals_module(
                         "comments": comments.strip(),
                         "status": status,
                     }
-
-                    add_record("approvals", approval, database)
-
-                    st.session_state[
-                        "show_approval_form"
-                    ] = False
-
-                    st.success(
-                        "Approval created."
-                    )
-
+                    add_record("approvals", approval, database)  # ✅ correct order
+                    st.session_state["show_approval_form"] = False
+                    st.success("Approval created.")
                     st.rerun()
 
-    # ========================================================
-    # FILTER
-    # ========================================================
-
     search_value = search.lower().strip()
-
     filtered = []
 
     for approval in approvals:
-
-        if not isinstance(
-            approval,
-            dict,
-        ):
+        if not isinstance(approval, dict):
             continue
+        searchable = " ".join([
+            _text(approval.get("item")),
+            _text(approval.get("project")),
+            _text(approval.get("requester")),
+            _text(approval.get("approver")),
+            _text(approval.get("status")),
+        ]).lower()
 
-        searchable = " ".join(
-            [
-                _text(
-                    approval.get("item")
-                ),
-                _text(
-                    approval.get("project")
-                ),
-                _text(
-                    approval.get("requester")
-                ),
-                _text(
-                    approval.get("approver")
-                ),
-                _text(
-                    approval.get("status")
-                ),
-            ]
-        ).lower()
-
-        if (
-            not search_value
-            or search_value in searchable
-        ):
-
+        if not search_value or search_value in searchable:
             filtered.append(approval)
 
-    # ========================================================
-    # SUMMARY
-    # ========================================================
-
     cols = st.columns(4)
-
     metrics = [
-        (
-            "Total",
-            len(approvals),
-        ),
-        (
-            "Pending",
-            sum(
-                1
-                for approval in approvals
-                if _text(
-                    approval.get("status")
-                ).lower()
-                == "pending"
-            ),
-        ),
-        (
-            "Approved",
-            sum(
-                1
-                for approval in approvals
-                if _text(
-                    approval.get("status")
-                ).lower()
-                == "approved"
-            ),
-        ),
-        (
-            "Rejected",
-            sum(
-                1
-                for approval in approvals
-                if _text(
-                    approval.get("status")
-                ).lower()
-                == "rejected"
-            ),
-        ),
+        ("Total", len(approvals)),
+        ("Pending", sum(1 for a in approvals if _text(a.get("status")).lower() == "pending")),
+        ("Approved", sum(1 for a in approvals if _text(a.get("status")).lower() == "approved")),
+        ("Rejected", sum(1 for a in approvals if _text(a.get("status")).lower() == "rejected")),
     ]
 
-    for col, (label, value) in zip(
-        cols,
-        metrics,
-    ):
-
+    for col, (label, value) in zip(cols, metrics):
         with col:
-
-            st.metric(
-                label,
-                value,
-            )
+            st.metric(label, value)
 
     st.write("")
 
-    # ========================================================
-    # APPROVAL LIST
-    # ========================================================
-
     if not filtered:
-
-        st.info(
-            "No approvals found."
-        )
-
+        st.info("No approvals found.")
         return
 
     for approval in filtered:
+        approval_id = approval.get("id")
+        item = html.escape(_text(approval.get("item", "Untitled Approval")))
+        project = html.escape(_text(approval.get("project", "")))
+        requester = html.escape(_text(approval.get("requester", "")))
+        approver = html.escape(_text(approval.get("approver", "")))
+        status = html.escape(_text(approval.get("status", "Pending")))
 
-        approval_id = approval.get(
-            "id"
-        )
-
-        item = html.escape(
-            _text(
-                approval.get(
-                    "item",
-                    "Untitled Approval",
-                )
-            )
-        )
-
-        project = html.escape(
-            _text(
-                approval.get("project")
-            )
-        )
-
-        requester = html.escape(
-            _text(
-                approval.get("requester")
-            )
-        )
-
-        approver = html.escape(
-            _text(
-                approval.get("approver")
-            )
-        )
-
-        status = html.escape(
-            _text(
-                approval.get(
-                    "status",
-                    "Pending",
-                )
-            )
-        )
-
-        # ====================================================
-        # APPROVAL CARD
-        # ====================================================
-
+        # ✅ KEY: unsafe_allow_html=True
         st.markdown(
             f"""
             <div class="cs-card">
-
-                <div class="cs-card-title">
-                    {item}
-                </div>
-
+                <div class="cs-card-title">{item}</div>
                 <div class="cs-card-subtitle">
-                    {project}
-                    &nbsp; • &nbsp;
-                    Requested by: {requester}
-                    &nbsp; • &nbsp;
-                    Approver: {approver}
-                    &nbsp; • &nbsp;
+                    {project} &nbsp; • &nbsp;
+                    Requested by: {requester} &nbsp; • &nbsp;
+                    Approver: {approver} &nbsp; • &nbsp;
                     {status}
                 </div>
-
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        # ====================================================
-        # EDIT / DELETE
-        # ====================================================
+        with st.expander(f"Manage Approval #{approval_id}"):
+            with st.form(f"edit_approval_{approval_id}"):
+                edit_item = st.text_input("Approval Item", value=_text(approval.get("item")))
+                edit_project = st.text_input("Project", value=_text(approval.get("project")))
+                edit_requester = st.text_input("Requested By", value=_text(approval.get("requester")))
+                edit_approver = st.text_input("Approver", value=_text(approval.get("approver")))
 
-        with st.expander(
-            f"Manage Approval #{approval_id}"
-        ):
+                current_status = _text(approval.get("status", "Pending"))
+                status_index = APPROVAL_STATUSES.index(current_status) if current_status in APPROVAL_STATUSES else 0
+                edit_status = st.selectbox("Status", APPROVAL_STATUSES, index=status_index)
 
-            with st.form(
-                f"edit_approval_{approval_id}"
-            ):
+                edit_comments = st.text_area("Comments", value=_text(approval.get("comments")))
 
-                edit_item = st.text_input(
-                    "Approval Item",
-                    value=_text(
-                        approval.get("item")
-                    ),
-                )
-
-                edit_project = st.text_input(
-                    "Project",
-                    value=_text(
-                        approval.get("project")
-                    ),
-                )
-
-                edit_requester = st.text_input(
-                    "Requested By",
-                    value=_text(
-                        approval.get("requester")
-                    ),
-                )
-
-                edit_approver = st.text_input(
-                    "Approver",
-                    value=_text(
-                        approval.get("approver")
-                    ),
-                )
-
-                current_status = _text(
-                    approval.get(
-                        "status",
-                        "Pending",
-                    )
-                )
-
-                edit_status = st.selectbox(
-                    "Status",
-                    APPROVAL_STATUSES,
-                    index=(
-                        APPROVAL_STATUSES.index(
-                            current_status
-                        )
-                        if current_status
-                        in APPROVAL_STATUSES
-                        else 0
-                    ),
-                )
-
-                edit_comments = st.text_area(
-                    "Comments",
-                    value=_text(
-                        approval.get(
-                            "comments"
-                        )
-                    ),
-                )
-
-                save = st.form_submit_button(
-                    "Save Changes",
-                    use_container_width=True,
-                )
+                save = st.form_submit_button("Save Changes", use_container_width=True)
 
                 if save:
-
                     update_record(
                         "approvals",
                         approval_id,
                         {
                             "item": edit_item.strip(),
                             "project": edit_project.strip(),
-                            "requester": (
-                                edit_requester.strip()
-                            ),
-                            "approver": (
-                                edit_approver.strip()
-                            ),
+                            "requester": edit_requester.strip(),
+                            "approver": edit_approver.strip(),
                             "status": edit_status,
-                            "comments": (
-                                edit_comments.strip()
-                            ),
+                            "comments": edit_comments.strip(),
                         },
                         database,
                     )
-
-                    st.success(
-                        "Approval updated."
-                    )
-
+                    st.success("Approval updated.")
                     st.rerun()
 
-            if st.button(
-                "Delete Approval",
-                key=f"delete_approval_{approval_id}",
-            ):
-
-                delete_record(
-                    "approvals",
-                    approval_id,
-                    database,
-                )
-
-                st.success(
-                    "Approval deleted."
-                )
-
+            if st.button("Delete Approval", key=f"delete_approval_{approval_id}"):
+                delete_record("approvals", approval_id, database)
+                st.success("Approval deleted.")
                 st.rerun()
