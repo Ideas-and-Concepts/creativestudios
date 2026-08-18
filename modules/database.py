@@ -1,38 +1,36 @@
 """
 Creative Studios
 AEC Collaboration Platform
-AEC Workspace
 
 JSON Database Layer
-===================
+-------------------
 
-Reliable JSON-backed storage for the Creative Studios
-Streamlit application.
+Single, reliable database contract for the Streamlit application.
 
-Public contract
----------------
+Public functions:
 
     load_memory()
     save_memory(db)
     initialize_database()
 
     add_record(collection, record, db)
+    get_record(collection, record_id, db)
+    get_records(collection, db)
     update_record(collection, record_id, updates, db)
     delete_record(collection, record_id, db)
 
-    get_record(collection, record_id, db)
-    get_records(collection, db)
-    get_all(collection, db)
-
     next_id(collection, db)
 
-    authenticate_user(username, password, db)
+Compatibility aliases:
+
+    load_database()
+    save_database()
+    get_all()
 """
 
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import os
 import tempfile
@@ -66,15 +64,20 @@ DEFAULT_DATABASE: dict[str, Any] = {
 }
 
 
+LIST_COLLECTIONS = (
+    "users",
+    "projects",
+    "documents",
+    "drawings",
+    "rfis",
+    "tasks",
+    "teams",
+)
+
+
 # ============================================================
-# INTERNAL HELPERS
+# SERIALIZATION
 # ============================================================
-
-def _copy_defaults() -> dict[str, Any]:
-    """Return a completely independent default database."""
-
-    return copy.deepcopy(DEFAULT_DATABASE)
-
 
 def _json_default(value: Any) -> str:
     """Convert common Python values into JSON-safe values."""
@@ -91,41 +94,53 @@ def _json_default(value: Any) -> str:
     return str(value)
 
 
-def _password_hash(password: str) -> str:
+# ============================================================
+# NORMALIZATION
+# ============================================================
+
+def _normalize_database(data: Any) -> dict[str, Any]:
     """
-    Create a deterministic SHA-256 password hash.
-
-    This keeps the JSON database compatible with simple
-    deployments while avoiding storing the password in
-    plaintext.
+    Normalize any loaded database into the expected structure.
     """
 
-    return hashlib.sha256(
-        password.encode("utf-8")
-    ).hexdigest()
+    if not isinstance(data, dict):
+        data = {}
 
+    normalized = copy.deepcopy(DEFAULT_DATABASE)
+
+    for key, value in data.items():
+        normalized[key] = value
+
+    for collection in LIST_COLLECTIONS:
+        if not isinstance(normalized.get(collection), list):
+            normalized[collection] = []
+
+    if not isinstance(normalized.get("settings"), dict):
+        normalized["settings"] = {}
+
+    return normalized
+
+
+# ============================================================
+# COLLECTION
+# ============================================================
 
 def _ensure_collection(
     db: dict[str, Any],
     collection: str,
 ) -> list[dict[str, Any]]:
-    """Return a valid list collection."""
+    """
+    Ensure a collection exists and is a list.
+    """
 
     if not isinstance(db, dict):
         raise TypeError(
             "Database must be a dictionary."
         )
 
-    if not isinstance(collection, str):
-        raise TypeError(
-            "Collection name must be a string."
-        )
-
-    collection = collection.strip()
-
-    if not collection:
+    if not isinstance(collection, str) or not collection.strip():
         raise ValueError(
-            "Collection name cannot be empty."
+            "Collection name must be a non-empty string."
         )
 
     if collection not in db:
@@ -138,87 +153,35 @@ def _ensure_collection(
 
 
 # ============================================================
-# NORMALIZATION
-# ============================================================
-
-def _normalize_database(
-    data: Any,
-) -> dict[str, Any]:
-    """
-    Normalize arbitrary JSON data into the expected
-    Creative Studios database structure.
-    """
-
-    if not isinstance(data, dict):
-        data = {}
-
-    normalized = _copy_defaults()
-
-    for key, value in data.items():
-        normalized[key] = value
-
-    list_collections = [
-        "users",
-        "projects",
-        "documents",
-        "drawings",
-        "rfis",
-        "tasks",
-        "teams",
-    ]
-
-    for collection in list_collections:
-
-        if not isinstance(
-            normalized.get(collection),
-            list,
-        ):
-            normalized[collection] = []
-
-    if not isinstance(
-        normalized.get("settings"),
-        dict,
-    ):
-        normalized["settings"] = {}
-
-    return normalized
-
-
-# ============================================================
-# LOAD DATABASE
+# LOAD
 # ============================================================
 
 def load_memory() -> dict[str, Any]:
     """
-    Load the JSON database.
+    Load the JSON database safely.
 
     Missing database:
-        Creates a safe database.
+        Creates a new database.
 
-    Corrupt database:
+    Corrupted database:
         Creates a backup and restores safe defaults.
 
     Unexpected read errors:
-        Returns safe defaults rather than crashing the app.
+        Returns safe defaults instead of crashing startup.
     """
 
     try:
-
         DB_FILE.parent.mkdir(
             parents=True,
             exist_ok=True,
         )
 
         if not DB_FILE.exists():
+            database = copy.deepcopy(
+                DEFAULT_DATABASE
+            )
 
-            database = _copy_defaults()
-
-            # Do not let first-run persistence prevent
-            # the application from starting.
-            try:
-                save_memory(database)
-            except Exception:
-                pass
+            save_memory(database)
 
             return database
 
@@ -226,38 +189,29 @@ def load_memory() -> dict[str, Any]:
             "r",
             encoding="utf-8",
         ) as file:
-
             data = json.load(file)
 
         return _normalize_database(data)
 
     except json.JSONDecodeError:
-
-        # Preserve corrupted database if possible.
+        # Preserve corrupted file if possible.
         try:
-
-            backup_path = DB_FILE.with_name(
+            backup = DB_FILE.with_name(
                 "creativestudios_db.corrupt.json"
             )
 
             if DB_FILE.exists():
+                if backup.exists():
+                    backup.unlink()
 
-                # Remove an older corruption backup first.
-                if backup_path.exists():
-
-                    try:
-                        backup_path.unlink()
-                    except Exception:
-                        pass
-
-                DB_FILE.replace(
-                    backup_path
-                )
+                DB_FILE.replace(backup)
 
         except Exception:
             pass
 
-        database = _copy_defaults()
+        database = copy.deepcopy(
+            DEFAULT_DATABASE
+        )
 
         try:
             save_memory(database)
@@ -267,12 +221,13 @@ def load_memory() -> dict[str, Any]:
         return database
 
     except Exception:
-
-        return _copy_defaults()
+        return copy.deepcopy(
+            DEFAULT_DATABASE
+        )
 
 
 # ============================================================
-# SAVE DATABASE
+# SAVE
 # ============================================================
 
 def save_memory(
@@ -280,26 +235,18 @@ def save_memory(
 ) -> bool:
     """
     Atomically save the complete database.
-
-    Returns:
-        True  = successful
-        False = failed
     """
 
-    if not isinstance(db, dict):
-        return False
-
     database = _normalize_database(db)
+
+    DB_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     temporary_path: Path | None = None
 
     try:
-
-        DB_FILE.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
         with tempfile.NamedTemporaryFile(
             mode="w",
             encoding="utf-8",
@@ -319,12 +266,9 @@ def save_memory(
 
             temporary.flush()
 
-            try:
-                os.fsync(
-                    temporary.fileno()
-                )
-            except Exception:
-                pass
+            os.fsync(
+                temporary.fileno()
+            )
 
             temporary_path = Path(
                 temporary.name
@@ -343,7 +287,6 @@ def save_memory(
             temporary_path is not None
             and temporary_path.exists()
         ):
-
             try:
                 temporary_path.unlink()
             except Exception:
@@ -353,61 +296,20 @@ def save_memory(
 
 
 # ============================================================
-# INITIALIZATION
+# INITIALIZE
 # ============================================================
 
 def initialize_database() -> dict[str, Any]:
     """
     Load and normalize the database.
-
-    Also ensures that a default administrator account exists.
     """
 
     db = load_memory()
 
-    users = _ensure_collection(
-        db,
-        "users",
-    )
+    # Ensure all standard collections exist.
+    _normalize_database(db)
 
-    # --------------------------------------------------------
-    # Default administrator
-    # --------------------------------------------------------
-
-    admin_exists = False
-
-    for user in users:
-
-        if not isinstance(user, dict):
-            continue
-
-        if str(
-            user.get("username", "")
-        ).strip().lower() == "admin":
-
-            admin_exists = True
-            break
-
-    if not admin_exists:
-
-        users.append(
-            {
-                "id": next_id(
-                    "users",
-                    db,
-                ),
-                "username": "admin",
-                "password_hash": _password_hash(
-                    "admin"
-                ),
-                "full_name": "System Administrator",
-                "email": "",
-                "role": "Admin",
-                "active": True,
-                "created_at": datetime.now().isoformat(),
-            }
-        )
-
+    # Persist the normalized structure.
     save_memory(db)
 
     return db
@@ -421,7 +323,9 @@ def next_id(
     collection: str,
     db: dict[str, Any],
 ) -> int:
-    """Return the next numeric ID."""
+    """
+    Return the next available numeric ID.
+    """
 
     records = _ensure_collection(
         db,
@@ -438,11 +342,10 @@ def next_id(
         value = record.get("id")
 
         try:
+            numeric_value = int(value)
 
-            number = int(value)
-
-            if number > highest:
-                highest = number
+            if numeric_value > highest:
+                highest = numeric_value
 
         except (
             TypeError,
@@ -454,7 +357,7 @@ def next_id(
 
 
 # ============================================================
-# ADD RECORD
+# ADD
 # ============================================================
 
 def add_record(
@@ -463,13 +366,7 @@ def add_record(
     db: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Add a record.
-
-    Returns the inserted record.
-
-    Raises:
-        TypeError
-        IOError
+    Add a new record.
     """
 
     if not isinstance(record, dict):
@@ -482,20 +379,15 @@ def add_record(
         collection,
     )
 
-    new_record = copy.deepcopy(
-        record
-    )
+    new_record = copy.deepcopy(record)
 
     if new_record.get("id") is None:
-
         new_record["id"] = next_id(
             collection,
             db,
         )
 
-    records.append(
-        new_record
-    )
+    records.append(new_record)
 
     if not save_memory(db):
 
@@ -509,7 +401,7 @@ def add_record(
 
 
 # ============================================================
-# GET ONE RECORD
+# GET ONE
 # ============================================================
 
 def get_record(
@@ -517,7 +409,9 @@ def get_record(
     record_id: Any,
     db: dict[str, Any],
 ) -> dict[str, Any] | None:
-    """Find one record by ID."""
+    """
+    Find one record by ID.
+    """
 
     records = _ensure_collection(
         db,
@@ -529,24 +423,23 @@ def get_record(
         if not isinstance(record, dict):
             continue
 
-        if str(
-            record.get("id")
-        ) == str(record_id):
-
+        if str(record.get("id")) == str(record_id):
             return record
 
     return None
 
 
 # ============================================================
-# GET ALL RECORDS
+# GET ALL
 # ============================================================
 
 def get_records(
     collection: str,
     db: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Return all valid dictionary records."""
+    """
+    Return all dictionary records in a collection.
+    """
 
     records = _ensure_collection(
         db,
@@ -561,7 +454,7 @@ def get_records(
 
 
 # ============================================================
-# UPDATE RECORD
+# UPDATE
 # ============================================================
 
 def update_record(
@@ -571,11 +464,7 @@ def update_record(
     db: dict[str, Any],
 ) -> dict[str, Any] | None:
     """
-    Update an existing record.
-
-    Returns the updated record.
-
-    Returns None when the record does not exist.
+    Update a record by ID.
     """
 
     if not isinstance(updates, dict):
@@ -593,30 +482,19 @@ def update_record(
         if not isinstance(record, dict):
             continue
 
-        if str(
-            record.get("id")
-        ) != str(record_id):
+        if str(record.get("id")) != str(record_id):
             continue
 
-        original = copy.deepcopy(
-            record
-        )
+        original = copy.deepcopy(record)
 
-        updated = copy.deepcopy(
-            record
-        )
+        updated = copy.deepcopy(record)
 
         updated.update(
-            copy.deepcopy(
-                updates
-            )
+            copy.deepcopy(updates)
         )
 
-        # Never allow the update payload to change
-        # the identity of the record.
-        updated["id"] = record.get(
-            "id"
-        )
+        # Prevent accidental ID changes.
+        updated["id"] = record.get("id")
 
         records[index] = updated
 
@@ -634,7 +512,7 @@ def update_record(
 
 
 # ============================================================
-# DELETE RECORD
+# DELETE
 # ============================================================
 
 def delete_record(
@@ -643,9 +521,7 @@ def delete_record(
     db: dict[str, Any],
 ) -> bool:
     """
-    Delete a record.
-
-    Returns True when deleted.
+    Delete a record by ID.
     """
 
     records = _ensure_collection(
@@ -658,9 +534,7 @@ def delete_record(
         if not isinstance(record, dict):
             continue
 
-        if str(
-            record.get("id")
-        ) != str(record_id):
+        if str(record.get("id")) != str(record_id):
             continue
 
         deleted = records.pop(index)
@@ -682,132 +556,16 @@ def delete_record(
 
 
 # ============================================================
-# AUTHENTICATION
-# ============================================================
-
-def authenticate_user(
-    username: str,
-    password: str,
-    db: dict[str, Any],
-) -> dict[str, Any] | None:
-    """
-    Authenticate a user against the JSON database.
-
-    Supported password formats:
-
-        password_hash
-        password
-
-    The legacy plaintext format is supported for compatibility,
-    while new/default accounts use password_hash.
-    """
-
-    username = str(
-        username or ""
-    ).strip()
-
-    password = str(
-        password or ""
-    )
-
-    if not username or not password:
-        return None
-
-    users = _ensure_collection(
-        db,
-        "users",
-    )
-
-    password_hash = _password_hash(
-        password
-    )
-
-    for user in users:
-
-        if not isinstance(user, dict):
-            continue
-
-        stored_username = str(
-            user.get(
-                "username",
-                "",
-            )
-        ).strip()
-
-        if stored_username.lower() != username.lower():
-            continue
-
-        active = user.get(
-            "active",
-            True,
-        )
-
-        if active is False:
-            return None
-
-        stored_hash = user.get(
-            "password_hash"
-        )
-
-        stored_password = user.get(
-            "password"
-        )
-
-        valid = False
-
-        if stored_hash:
-
-            valid = (
-                str(stored_hash)
-                == password_hash
-            )
-
-        elif stored_password is not None:
-
-            valid = (
-                str(stored_password)
-                == password
-            )
-
-        if not valid:
-            return None
-
-        # Return a copy so UI code cannot accidentally mutate
-        # the database record.
-        authenticated_user = copy.deepcopy(
-            user
-        )
-
-        authenticated_user.pop(
-            "password",
-            None,
-        )
-
-        authenticated_user.pop(
-            "password_hash",
-            None,
-        )
-
-        return authenticated_user
-
-    return None
-
-
-# ============================================================
 # COMPATIBILITY ALIASES
 # ============================================================
 
 def load_database() -> dict[str, Any]:
-    """Compatibility alias for load_memory()."""
-
     return load_memory()
 
 
 def save_database(
     db: dict[str, Any],
 ) -> bool:
-    """Compatibility alias for save_memory()."""
-
     return save_memory(db)
 
 
@@ -815,32 +573,7 @@ def get_all(
     collection: str,
     db: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Compatibility alias for get_records()."""
-
     return get_records(
         collection,
         db,
     )
-
-
-# ============================================================
-# PUBLIC EXPORTS
-# ============================================================
-
-__all__ = [
-    "DB_FILE",
-    "DEFAULT_DATABASE",
-    "load_memory",
-    "save_memory",
-    "initialize_database",
-    "add_record",
-    "update_record",
-    "delete_record",
-    "get_record",
-    "get_records",
-    "get_all",
-    "next_id",
-    "authenticate_user",
-    "load_database",
-    "save_database",
-]
