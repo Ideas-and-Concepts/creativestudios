@@ -24,6 +24,7 @@ from modules import (
     tasks,
 )
 
+from modules.branding import inject_branding_css
 from modules.database import load_memory
 
 
@@ -42,7 +43,7 @@ st.set_page_config(
 )
 
 # Inject CSS as early as possible
-
+inject_branding_css()
 
 
 # ============================================================
