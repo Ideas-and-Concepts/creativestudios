@@ -21,8 +21,8 @@ from modules import (
     drawings,
     projects,
     rfis,
-    tasks,
     site_logs,
+    tasks,
 )
 
 from modules.database import load_memory
@@ -43,12 +43,11 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# CSS INJECTION
+# CSS INJECTION (fallback‑safe)
 # ------------------------------------------------------------
 if hasattr(branding, "inject_branding_css"):
     branding.inject_branding_css()
 else:
-    # Fallback minimal CSS
     st.markdown(
         """
         <style>
@@ -97,9 +96,7 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """
-    Load or initialize the application database.
-    """
+    """Load or initialize the application database."""
     if st.session_state.database is None:
         st.session_state.database = load_memory()
     return st.session_state.database
@@ -110,10 +107,15 @@ def get_database() -> dict[str, Any]:
 # ============================================================
 
 def _hash_password(password: str) -> str:
+    """Create a SHA-256 hash of a password."""
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
 def _password_matches(stored: str, provided: str) -> bool:
+    """
+    Compare a stored password (or hash) with a user-provided password.
+    Supports plaintext and SHA-256 hashes.
+    """
     if not stored:
         return False
     if stored == provided:
@@ -124,6 +126,7 @@ def _password_matches(stored: str, provided: str) -> bool:
 
 
 def authenticate_user(username: str, password: str, database: dict[str, Any]):
+    """Authenticate a user."""
     username = str(username or "").strip()
     password = str(password or "").strip()
 
@@ -151,28 +154,31 @@ def authenticate_user(username: str, password: str, database: dict[str, Any]):
 
 
 # ============================================================
-# LOGIN
+# LOGIN (simplified, centered logo only)
 # ============================================================
 
 def render_login(database: dict[str, Any]) -> None:
     """Render a clean, centered login screen."""
 
-    # Create a centered layout: left spacer, main column, right spacer
+    # Center column layout
     col_left, col_center, col_right = st.columns([1, 2, 1])
 
     with col_center:
-        # Center the logo
-        st.image(
-            str(LOGO_PATH),
-            width=150,  # Adjust width as needed
-            use_column_width=False,
-        )
+        # Centered logo
+        st.image(str(LOGO_PATH), width=150)
 
         # Login form
         with st.form("creative_studios_login", clear_on_submit=False):
             username = st.text_input("Username", placeholder="Enter username")
-            password = st.text_input("Password", type="password", placeholder="Enter password")
-            submitted = st.form_submit_button("Login", use_container_width=True)
+            password = st.text_input(
+                "Password",
+                type="password",
+                placeholder="Enter password",
+            )
+            submitted = st.form_submit_button(
+                "Login",
+                use_container_width=True,
+            )
 
         if submitted:
             user = authenticate_user(username, password, database)
@@ -184,29 +190,47 @@ def render_login(database: dict[str, Any]) -> None:
             else:
                 st.error("Invalid username or password.")
 
-    st.markdown('<div class="cs-login-footer">Creative Studios • AEC Collaboration Platform</div>', unsafe_allow_html=True)
-    st.markdown('</div></div>', unsafe_allow_html=True)
+
+# ============================================================
+# SIDEBAR BRANDING
+# ============================================================
+
+def render_sidebar_branding() -> None:
+    """Render the sidebar logo and workspace identity."""
+    logo_col, text_col = st.sidebar.columns([1, 3])
+
+    with logo_col:
+        render_logo(width=44)
+
+    with text_col:
+        st.markdown(
+            """
+            <div class="cs-sidebar-name">Creative Studios</div>
+            <div class="cs-sidebar-subtitle">AEC Workspace</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-divider"></div>',
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
 # SIDEBAR
 # ============================================================
 
-def render_sidebar_branding() -> None:
-    logo_col, text_col = st.sidebar.columns([1, 3])
-    with logo_col:
-        render_logo(width=44)
-    with text_col:
-        st.markdown('<div class="cs-sidebar-name">Creative Studios</div><div class="cs-sidebar-subtitle">AEC Workspace</div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="cs-sidebar-divider"></div>', unsafe_allow_html=True)
-
-
 def render_sidebar() -> str:
+    """Render the application navigation."""
     user = st.session_state.get("user") or {}
 
     render_sidebar_branding()
 
-    st.sidebar.markdown('<div class="cs-section-label">Module Navigation</div>', unsafe_allow_html=True)
+    st.sidebar.markdown(
+        '<div class="cs-section-label">Module Navigation</div>',
+        unsafe_allow_html=True,
+    )
 
     navigation = [
         ("Overview", "Overview"),
@@ -225,22 +249,44 @@ def render_sidebar() -> str:
 
     for module_key, label in navigation:
         if module_key == current_module:
-            st.sidebar.markdown(f'<div class="cs-active-module"><span class="cs-active-indicator">●</span>{html.escape(label)}</div>', unsafe_allow_html=True)
+            st.sidebar.markdown(
+                f"""
+                <div class="cs-active-module">
+                    <span class="cs-active-indicator">●</span>
+                    {html.escape(label)}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         else:
-            if st.sidebar.button(label, key=f"nav_{module_key}", use_container_width=True):
+            if st.sidebar.button(
+                label,
+                key=f"nav_{module_key}",
+                use_container_width=True,
+            ):
                 st.session_state.active_module = module_key
                 st.rerun()
 
-    st.sidebar.markdown('<div class="cs-section-label">Administration</div>', unsafe_allow_html=True)
+    # Administration section
+    st.sidebar.markdown(
+        '<div class="cs-section-label">Administration</div>',
+        unsafe_allow_html=True,
+    )
 
     if current_module == "Settings":
-        st.sidebar.markdown('<div class="cs-active-module"><span class="cs-active-indicator">●</span>Settings</div>', unsafe_allow_html=True)
+        st.sidebar.markdown(
+            '<div class="cs-active-module"><span class="cs-active-indicator">●</span>Settings</div>',
+            unsafe_allow_html=True,
+        )
     else:
         if st.sidebar.button("Settings", key="nav_settings", use_container_width=True):
             st.session_state.active_module = "Settings"
             st.rerun()
 
-    full_name = str(user.get("full_name", user.get("name", "")) or "System Administrator").strip()
+    # User card
+    full_name = str(
+        user.get("full_name", user.get("name", "")) or "System Administrator"
+    ).strip()
     username = str(user.get("username", "") or "admin").strip()
     role = str(user.get("role", "") or "Admin").strip()
 
@@ -287,6 +333,7 @@ def _safe_float(value: Any) -> float:
 # ============================================================
 
 def render_overview(database: dict[str, Any]) -> None:
+    """Render the AEC Workspace overview."""
     projects_data = database.get("projects", [])
     if not isinstance(projects_data, list):
         projects_data = []
@@ -307,9 +354,14 @@ def render_overview(database: dict[str, Any]) -> None:
             planning_projects += 1
         elif status == "completed":
             completed_projects += 1
-        total_budget += _safe_float(project.get("estimated_budget", project.get("budget", 0)))
+        total_budget += _safe_float(
+            project.get("estimated_budget", project.get("budget", 0))
+        )
 
-    render_module_header("AEC Workspace", "Central workspace for architectural, engineering and construction activities.")
+    render_module_header(
+        "AEC Workspace",
+        "Central workspace for architectural, engineering and construction activities.",
+    )
 
     metrics = [
         ("Projects", str(total_projects)),
@@ -338,7 +390,10 @@ def render_overview(database: dict[str, Any]) -> None:
         """
         <div class="cs-card">
             <div class="cs-card-title">Workspace Overview</div>
-            <div class="cs-card-subtitle">Use the navigation panel to manage projects, documents, drawings, RFIs, tasks and approvals.</div>
+            <div class="cs-card-subtitle">
+                Use the navigation panel to manage projects, documents,
+                drawings, RFIs, tasks and approvals.
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -372,7 +427,9 @@ def render_settings() -> None:
 
     user = st.session_state.get("user") or {}
 
-    full_name = str(user.get("full_name", user.get("name", "")) or "System Administrator").strip()
+    full_name = str(
+        user.get("full_name", user.get("name", "")) or "System Administrator"
+    ).strip()
     username = str(user.get("username", "") or "admin").strip()
     role = str(user.get("role", "") or "Admin").strip()
 
@@ -394,6 +451,7 @@ def render_settings() -> None:
 # ============================================================
 
 def render_active_module(module_name: str, database: dict[str, Any]) -> None:
+    """Route the selected module."""
     if module_name == "Overview":
         render_overview(database)
     elif module_name == "Projects":
@@ -411,11 +469,17 @@ def render_active_module(module_name: str, database: dict[str, Any]) -> None:
     elif module_name == "Settings":
         render_settings()
     elif module_name == "BOQ":
-        render_placeholder("Bill of Quantities", "Manage quantities, costs and project estimates.")
+        render_placeholder(
+            "Bill of Quantities",
+            "Manage quantities, costs and project estimates.",
+        )
     elif module_name == "Site Logs":
         site_logs.render_site_logs_module(database)
     elif module_name == "Team":
-        render_placeholder("Team", "Manage project team members and responsibilities.")
+        render_placeholder(
+            "Team",
+            "Manage project team members and responsibilities.",
+        )
     else:
         st.session_state.active_module = "Overview"
         render_overview(database)
@@ -426,6 +490,7 @@ def render_active_module(module_name: str, database: dict[str, Any]) -> None:
 # ============================================================
 
 def main() -> None:
+    """Run Creative Studios."""
     initialize_session_state()
 
     try:
