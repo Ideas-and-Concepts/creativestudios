@@ -5,6 +5,8 @@ AEC Collaboration Platform
 Main Streamlit application.
 """
 
+from modules import site_logs
+
 from __future__ import annotations
 
 import hashlib
