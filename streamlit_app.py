@@ -1,24 +1,23 @@
 import streamlit as st
-from modules import (
-    database,
-    architecture,
-    engineering,
-    boq,
-    team,
-    mep,
-    spaces,
-    documents,
-    drawings,
-    approvals,
-    rfis,
-    site_logs,
-    tasks,
-    branding,
-    projects,
-    search_dashboard,
-    portfolio_dashboard,
-    analytics_dashboard,
-)
+
+from modules import database
+from modules import architecture
+from modules import engineering
+from modules import boq
+from modules import team
+from modules import mep
+from modules import spaces
+from modules import documents
+from modules import drawings
+from modules import approvals
+from modules import rfis
+from modules import site_logs
+from modules import tasks
+from modules import branding
+from modules import projects
+from modules import search_dashboard
+from modules import portfolio_dashboard
+from modules import analytics_dashboard
 
 def main():
     st.set_page_config(page_title="Creative Studios", layout="wide")
