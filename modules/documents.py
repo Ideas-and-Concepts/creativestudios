@@ -10,56 +10,111 @@ from typing import Any
 
 import streamlit as st
 
+from modules.database import save_memory
 
-def _documents(
+
+def _normalize_documents(
     database: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    value = database.setdefault(
-        "documents",
-        [],
-    )
+    """Normalize legacy and current document records."""
+
+    value = database.get("documents", [])
 
     if not isinstance(value, list):
-        database["documents"] = []
-        return database["documents"]
+        value = []
 
-    return value
+    normalized = []
+
+    for index, item in enumerate(
+        value,
+        start=1,
+    ):
+
+        if isinstance(item, dict):
+
+            record = dict(item)
+
+            if not record.get("id"):
+                record["id"] = index
+
+            normalized.append(record)
+
+        elif isinstance(item, str):
+
+            normalized.append(
+                {
+                    "id": index,
+                    "title": item,
+                    "name": item,
+                    "document_number": "",
+                    "category": "General",
+                    "project": "",
+                    "status": "Draft",
+                    "description": "",
+                    "created_at": "",
+                }
+            )
+
+    database["documents"] = normalized
+
+    return normalized
 
 
-def _next_id(records: list[dict[str, Any]]) -> int:
+def _next_id(
+    records: list[dict[str, Any]],
+) -> int:
+
     ids = []
 
     for record in records:
         try:
-            ids.append(int(record.get("id", 0)))
-        except (TypeError, ValueError):
+            ids.append(
+                int(record.get("id", 0))
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
             continue
 
     return max(ids, default=0) + 1
 
 
+def _save(
+    database: dict[str, Any],
+) -> None:
+    save_memory(database)
+
+
 def render_documents_module(
     database: dict[str, Any],
 ) -> None:
-    """Render document management."""
+    """Render editable document management."""
 
     st.title("Documents")
     st.caption(
-        "Manage project documentation and records."
+        "Create, edit and manage project documentation and records."
     )
 
-    documents = _documents(database)
+    documents = _normalize_documents(
+        database
+    )
 
     tab_library, tab_create = st.tabs(
-        ["Document Library", "Add Document"]
+        [
+            "Document Library",
+            "Add Document",
+        ]
     )
 
     with tab_library:
 
         if not documents:
+
             st.info(
                 "No documents have been registered yet."
             )
+
         else:
 
             search = st.text_input(
@@ -67,7 +122,9 @@ def render_documents_module(
                 key="document_search",
             )
 
-            search_value = search.strip().lower()
+            search_value = (
+                search.strip().lower()
+            )
 
             filtered = []
 
@@ -75,7 +132,11 @@ def render_documents_module(
 
                 searchable = " ".join(
                     str(
-                        document.get(field, "")
+                        document.get(
+                            field,
+                            "",
+                        )
+                        or ""
                     )
                     for field in (
                         "name",
@@ -83,16 +144,34 @@ def render_documents_module(
                         "document_number",
                         "category",
                         "project",
+                        "status",
+                        "description",
                     )
                 ).lower()
 
                 if (
                     not search_value
-                    or search_value in searchable
+                    or search_value
+                    in searchable
                 ):
-                    filtered.append(document)
+                    filtered.append(
+                        document
+                    )
 
-            for document in filtered:
+            if not filtered:
+
+                st.info(
+                    "No documents match your search."
+                )
+
+            for index, document in enumerate(
+                filtered
+            ):
+
+                document_id = document.get(
+                    "id",
+                    index + 1,
+                )
 
                 title = document.get(
                     "title",
@@ -102,31 +181,182 @@ def render_documents_module(
                     ),
                 )
 
-                with st.container(border=True):
+                with st.expander(
+                    str(title),
+                    expanded=False,
+                ):
 
-                    st.subheader(str(title))
+                    with st.form(
+                        f"edit_document_{document_id}"
+                    ):
 
-                    columns = st.columns(4)
+                        edited_title = st.text_input(
+                            "Document Title",
+                            value=str(
+                                title or ""
+                            ),
+                        )
 
-                    columns[0].write(
-                        f"**Document Number**  \n"
-                        f"{document.get('document_number', '-')}"
-                    )
+                        edited_number = st.text_input(
+                            "Document Number",
+                            value=str(
+                                document.get(
+                                    "document_number",
+                                    "",
+                                )
+                                or ""
+                            ),
+                        )
 
-                    columns[1].write(
-                        f"**Category**  \n"
-                        f"{document.get('category', '-')}"
-                    )
+                        categories = [
+                            "General",
+                            "Contract",
+                            "Specification",
+                            "Report",
+                            "Correspondence",
+                            "Technical",
+                            "Other",
+                        ]
 
-                    columns[2].write(
-                        f"**Project**  \n"
-                        f"{document.get('project', '-')}"
-                    )
+                        current_category = str(
+                            document.get(
+                                "category",
+                                "General",
+                            )
+                        )
 
-                    columns[3].write(
-                        f"**Status**  \n"
-                        f"{document.get('status', '-')}"
-                    )
+                        category_index = (
+                            categories.index(
+                                current_category
+                            )
+                            if current_category
+                            in categories
+                            else 0
+                        )
+
+                        edited_category = st.selectbox(
+                            "Category",
+                            categories,
+                            index=category_index,
+                        )
+
+                        edited_project = st.text_input(
+                            "Project",
+                            value=str(
+                                document.get(
+                                    "project",
+                                    "",
+                                )
+                                or ""
+                            ),
+                        )
+
+                        statuses = [
+                            "Draft",
+                            "Issued",
+                            "Approved",
+                            "Archived",
+                        ]
+
+                        current_status = str(
+                            document.get(
+                                "status",
+                                "Draft",
+                            )
+                        )
+
+                        status_index = (
+                            statuses.index(
+                                current_status
+                            )
+                            if current_status
+                            in statuses
+                            else 0
+                        )
+
+                        edited_status = st.selectbox(
+                            "Status",
+                            statuses,
+                            index=status_index,
+                        )
+
+                        edited_description = st.text_area(
+                            "Description",
+                            value=str(
+                                document.get(
+                                    "description",
+                                    "",
+                                )
+                                or ""
+                            ),
+                        )
+
+                        submitted = st.form_submit_button(
+                            "Save Changes",
+                            use_container_width=True,
+                        )
+
+                    if submitted:
+
+                        if not edited_title.strip():
+                            st.error(
+                                "Document title is required."
+                            )
+                        else:
+
+                            document["title"] = (
+                                edited_title.strip()
+                            )
+
+                            document["name"] = (
+                                edited_title.strip()
+                            )
+
+                            document[
+                                "document_number"
+                            ] = edited_number.strip()
+
+                            document[
+                                "category"
+                            ] = edited_category
+
+                            document[
+                                "project"
+                            ] = edited_project.strip()
+
+                            document[
+                                "status"
+                            ] = edited_status
+
+                            document[
+                                "description"
+                            ] = edited_description.strip()
+
+                            _save(database)
+
+                            st.success(
+                                "Document updated successfully."
+                            )
+
+                            st.rerun()
+
+                    if st.button(
+                        "Delete Document",
+                        key=f"delete_document_{document_id}",
+                        use_container_width=True,
+                    ):
+
+                        documents.remove(
+                            document
+                        )
+
+                        _save(database)
+
+                        st.success(
+                            "Document deleted successfully."
+                        )
+
+                        st.rerun()
 
     with tab_create:
 
@@ -136,11 +366,11 @@ def render_documents_module(
         ):
 
             title = st.text_input(
-                "Document Title",
+                "Document Title"
             )
 
             document_number = st.text_input(
-                "Document Number",
+                "Document Number"
             )
 
             category = st.selectbox(
@@ -157,7 +387,7 @@ def render_documents_module(
             )
 
             project = st.text_input(
-                "Project",
+                "Project"
             )
 
             status = st.selectbox(
@@ -171,7 +401,7 @@ def render_documents_module(
             )
 
             description = st.text_area(
-                "Description",
+                "Description"
             )
 
             submitted = st.form_submit_button(
@@ -189,7 +419,9 @@ def render_documents_module(
 
             documents.append(
                 {
-                    "id": _next_id(documents),
+                    "id": _next_id(
+                        documents
+                    ),
                     "title": title.strip(),
                     "name": title.strip(),
                     "document_number": (
@@ -198,12 +430,16 @@ def render_documents_module(
                     "category": category,
                     "project": project.strip(),
                     "status": status,
-                    "description": description.strip(),
+                    "description": (
+                        description.strip()
+                    ),
                     "created_at": datetime.now().isoformat(
                         timespec="seconds"
                     ),
                 }
             )
+
+            _save(database)
 
             st.success(
                 "Document added successfully."
