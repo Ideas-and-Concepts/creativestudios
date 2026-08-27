@@ -3,6 +3,21 @@ Creative Studios
 Dashboard Module
 
 Main AEC collaboration dashboard.
+
+The Dashboard:
+    - Displays project statistics
+    - Displays document statistics
+    - Displays Architecture statistics
+    - Displays Engineering statistics
+    - Displays MEP statistics
+    - Displays BOQ statistics
+    - Displays drawing activity
+    - Displays design status
+    - Provides a simple system overview
+
+The Dashboard does NOT render the application logo.
+The application logo belongs to the main sidebar in
+streamlit_app.py.
 """
 
 from __future__ import annotations
@@ -13,19 +28,24 @@ import streamlit as st
 
 
 # ============================================================
-# HELPERS
+# SAFE DATABASE HELPERS
 # ============================================================
 
-def _records(
+def _get_records(
     database: dict[str, Any],
     key: str,
 ) -> list[Any]:
-    """Safely return a database collection."""
+    """
+    Safely return a database collection.
 
-    value = database.get(
-        key,
-        [],
-    )
+    Missing collections, invalid values and legacy database
+    structures are handled without crashing the Dashboard.
+    """
+
+    if not isinstance(database, dict):
+        return []
+
+    value = database.get(key, [])
 
     if isinstance(value, list):
         return value
@@ -37,10 +57,10 @@ def _count(
     database: dict[str, Any],
     key: str,
 ) -> int:
-    """Count records in a database collection."""
+    """Return the number of records in a collection."""
 
     return len(
-        _records(
+        _get_records(
             database,
             key,
         )
@@ -53,11 +73,15 @@ def _count_matching(
     field: str,
     value: str,
 ) -> int:
-    """Count dictionary records matching a field."""
+    """Count dictionary records matching a field/value."""
 
     total = 0
 
-    for record in _records(
+    target = str(
+        value
+    ).strip().lower()
+
+    for record in _get_records(
         database,
         key,
     ):
@@ -72,7 +96,45 @@ def _count_matching(
             )
         ).strip().lower()
 
-        if current == value.strip().lower():
+        if current == target:
+            total += 1
+
+    return total
+
+
+def _count_contains(
+    database: dict[str, Any],
+    key: str,
+    field: str,
+    value: str,
+) -> int:
+    """Count dictionary records where a field contains text."""
+
+    total = 0
+
+    target = str(
+        value
+    ).strip().lower()
+
+    if not target:
+        return 0
+
+    for record in _get_records(
+        database,
+        key,
+    ):
+
+        if not isinstance(record, dict):
+            continue
+
+        current = str(
+            record.get(
+                field,
+                "",
+            )
+        ).strip().lower()
+
+        if target in current:
             total += 1
 
     return total
@@ -83,7 +145,7 @@ def _count_matching(
 # ============================================================
 
 def inject_dashboard_css() -> None:
-    """Apply dashboard styling."""
+    """Apply Dashboard-specific styling."""
 
     st.markdown(
         """
@@ -102,8 +164,15 @@ def inject_dashboard_css() -> None:
             margin-bottom: 1.5rem;
         }
 
+        .cs-dashboard-section {
+            font-size: 21px;
+            font-weight: 700;
+            margin-top: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
         .cs-dashboard-card {
-            border: 1px solid rgba(128,128,128,0.20);
+            border: 1px solid rgba(128, 128, 128, 0.20);
             border-radius: 12px;
             padding: 1rem;
             min-height: 105px;
@@ -126,6 +195,24 @@ def inject_dashboard_css() -> None:
             margin-top: 0.25rem;
         }
 
+        .cs-dashboard-activity {
+            border: 1px solid rgba(128, 128, 128, 0.20);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            margin-bottom: 0.6rem;
+        }
+
+        .cs-dashboard-activity-title {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .cs-dashboard-activity-area {
+            font-size: 12px;
+            opacity: 0.60;
+            margin-top: 0.2rem;
+        }
+
         </style>
         """,
         unsafe_allow_html=True,
@@ -133,18 +220,11 @@ def inject_dashboard_css() -> None:
 
 
 # ============================================================
-# DASHBOARD
+# HEADER
 # ============================================================
 
-def render_dashboard(
-    database: dict[str, Any],
-) -> None:
-    """Render the Creative Studios Dashboard."""
-
-    if not isinstance(database, dict):
-        database = {}
-
-    inject_dashboard_css()
+def render_header() -> None:
+    """Render the Dashboard heading."""
 
     st.markdown(
         """
@@ -159,9 +239,15 @@ def render_dashboard(
         unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------
-    # Primary metrics
-    # --------------------------------------------------------
+
+# ============================================================
+# PRIMARY METRICS
+# ============================================================
+
+def render_primary_metrics(
+    database: dict[str, Any],
+) -> None:
+    """Render the primary application metrics."""
 
     projects = _count(
         database,
@@ -237,17 +323,36 @@ def render_dashboard(
                 unsafe_allow_html=True,
             )
 
-    # --------------------------------------------------------
-    # Construction workspaces
-    # --------------------------------------------------------
+
+# ============================================================
+# CONSTRUCTION WORKSPACES
+# ============================================================
+
+def render_construction_workspaces(
+    database: dict[str, Any],
+) -> None:
+    """Render construction discipline statistics."""
 
     st.divider()
 
-    st.subheader(
-        "Construction Workspaces"
+    st.markdown(
+        """
+        <div class="cs-dashboard-section">
+            Construction Workspaces
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    workspace_columns = st.columns(4)
+    architecture = _count(
+        database,
+        "architecture",
+    )
+
+    engineering = _count(
+        database,
+        "engineering",
+    )
 
     mep = _count(
         database,
@@ -259,44 +364,32 @@ def render_dashboard(
         "boq",
     )
 
-    architecture_drawings = _count_matching(
-        database,
-        "architecture",
-        "type",
-        "Architectural Drawing",
-    )
+    columns = st.columns(4)
 
-    engineering_drawings = _count_matching(
-        database,
-        "engineering",
-        "type",
-        "Engineering Drawing",
-    )
-
-    workspace_metrics = [
+    values = [
         (
-            workspace_columns[0],
+            columns[0],
             "Architecture",
             architecture,
         ),
         (
-            workspace_columns[1],
+            columns[1],
             "Engineering",
             engineering,
         ),
         (
-            workspace_columns[2],
+            columns[2],
             "MEP",
             mep,
         ),
         (
-            workspace_columns[3],
+            columns[3],
             "BOQ",
             boq,
         ),
     ]
 
-    for column, title, value in workspace_metrics:
+    for column, title, value in values:
 
         with column:
 
@@ -305,40 +398,139 @@ def render_dashboard(
                 value,
             )
 
-    # --------------------------------------------------------
-    # Drawing summary
-    # --------------------------------------------------------
+
+# ============================================================
+# DRAWING ACTIVITY
+# ============================================================
+
+def render_drawing_activity(
+    database: dict[str, Any],
+) -> None:
+    """Render Architecture and Engineering drawing statistics."""
 
     st.subheader(
         "Drawing & Design Activity"
     )
 
-    drawing_columns = st.columns(3)
+    architecture_drawings = 0
 
-    drawing_columns[0].metric(
+    engineering_drawings = 0
+
+    # Architecture records
+    for record in _get_records(
+        database,
+        "architecture",
+    ):
+
+        if not isinstance(record, dict):
+            continue
+
+        record_type = str(
+            record.get(
+                "type",
+                "",
+            )
+        ).lower()
+
+        category = str(
+            record.get(
+                "category",
+                "",
+            )
+        ).lower()
+
+        title = str(
+            record.get(
+                "title",
+                "",
+            )
+        ).lower()
+
+        if (
+            "drawing" in record_type
+            or "drawing" in category
+            or "drawing" in title
+        ):
+            architecture_drawings += 1
+
+    # Engineering records
+    for record in _get_records(
+        database,
+        "engineering",
+    ):
+
+        if not isinstance(record, dict):
+            continue
+
+        record_type = str(
+            record.get(
+                "type",
+                "",
+            )
+        ).lower()
+
+        category = str(
+            record.get(
+                "category",
+                "",
+            )
+        ).lower()
+
+        title = str(
+            record.get(
+                "title",
+                "",
+            )
+        ).lower()
+
+        if (
+            "drawing" in record_type
+            or "drawing" in category
+            or "drawing" in title
+        ):
+            engineering_drawings += 1
+
+    total_design = (
+        _count(
+            database,
+            "architecture",
+        )
+        + _count(
+            database,
+            "engineering",
+        )
+    )
+
+    columns = st.columns(3)
+
+    columns[0].metric(
         "Architectural Drawings",
         architecture_drawings,
     )
 
-    drawing_columns[1].metric(
+    columns[1].metric(
         "Engineering Drawings",
         engineering_drawings,
     )
 
-    drawing_columns[2].metric(
+    columns[2].metric(
         "Total Design Records",
-        architecture + engineering,
+        total_design,
     )
 
-    # --------------------------------------------------------
-    # Status summary
-    # --------------------------------------------------------
+
+# ============================================================
+# STATUS SUMMARY
+# ============================================================
+
+def render_status_summary(
+    database: dict[str, Any],
+) -> None:
+    """Render Architecture and Engineering status information."""
 
     st.subheader(
         "Current Status"
     )
-
-    status_columns = st.columns(4)
 
     architecture_review = _count_matching(
         database,
@@ -368,30 +560,32 @@ def render_dashboard(
         "Issued",
     )
 
-    status_data = [
+    columns = st.columns(4)
+
+    status_values = [
         (
-            status_columns[0],
+            columns[0],
             "Architecture Review",
             architecture_review,
         ),
         (
-            status_columns[1],
+            columns[1],
             "Architecture Issued",
             architecture_issued,
         ),
         (
-            status_columns[2],
+            columns[2],
             "Engineering Review",
             engineering_review,
         ),
         (
-            status_columns[3],
+            columns[3],
             "Engineering Issued",
             engineering_issued,
         ),
     ]
 
-    for column, title, value in status_data:
+    for column, title, value in status_values:
 
         with column:
 
@@ -400,12 +594,198 @@ def render_dashboard(
                 value,
             )
 
-    # --------------------------------------------------------
-    # System status
-    # --------------------------------------------------------
+
+# ============================================================
+# RECENT ACTIVITY
+# ============================================================
+
+def render_recent_activity(
+    database: dict[str, Any],
+) -> None:
+    """Render recent project and design activity."""
+
+    st.subheader(
+        "Recent Activity"
+    )
+
+    activity: list[tuple[str, str]] = []
+
+    # Projects
+    projects = _get_records(
+        database,
+        "projects",
+    )
+
+    for record in projects[-5:]:
+
+        if isinstance(record, dict):
+
+            title = (
+                record.get("name")
+                or record.get("title")
+                or record.get("project")
+            )
+
+            if title:
+
+                activity.append(
+                    (
+                        "Project",
+                        str(title),
+                    )
+                )
+
+    # Architecture
+    architecture = _get_records(
+        database,
+        "architecture",
+    )
+
+    for record in architecture[-5:]:
+
+        if isinstance(record, dict):
+
+            title = (
+                record.get("title")
+                or record.get("name")
+            )
+
+            if title:
+
+                activity.append(
+                    (
+                        "Architecture",
+                        str(title),
+                    )
+                )
+
+    # Engineering
+    engineering = _get_records(
+        database,
+        "engineering",
+    )
+
+    for record in engineering[-5:]:
+
+        if isinstance(record, dict):
+
+            title = (
+                record.get("title")
+                or record.get("name")
+            )
+
+            if title:
+
+                activity.append(
+                    (
+                        "Engineering",
+                        str(title),
+                    )
+                )
+
+    if not activity:
+
+        st.info(
+            "No project or design activity has been recorded yet."
+        )
+
+        return
+
+    for area, title in reversed(
+        activity[-10:]
+    ):
+
+        st.markdown(
+            f"""
+            <div class="cs-dashboard-activity">
+
+                <div class="cs-dashboard-activity-title">
+                    {title}
+                </div>
+
+                <div class="cs-dashboard-activity-area">
+                    {area}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+# ============================================================
+# SYSTEM STATUS
+# ============================================================
+
+def render_system_status(
+    database: dict[str, Any],
+) -> None:
+    """Render overall system status."""
 
     st.divider()
 
-    st.success(
-        "Creative Studios is ready for AEC project collaboration."
+    total_records = sum(
+        [
+            _count(database, "projects"),
+            _count(database, "documents"),
+            _count(database, "architecture"),
+            _count(database, "engineering"),
+            _count(database, "mep"),
+            _count(database, "boq"),
+        ]
+    )
+
+    if total_records > 0:
+
+        st.success(
+            "Creative Studios is operational and project data is available."
+        )
+
+    else:
+
+        st.info(
+            "Creative Studios is ready. Start by creating a project or design record."
+        )
+
+
+# ============================================================
+# MAIN RENDERER
+# ============================================================
+
+def render_dashboard(
+    database: dict[str, Any],
+) -> None:
+    """
+    Render the complete Creative Studios Dashboard.
+
+    This is the renderer expected by streamlit_app.py.
+    """
+
+    if not isinstance(database, dict):
+        database = {}
+
+    render_header()
+
+    render_primary_metrics(
+        database
+    )
+
+    render_construction_workspaces(
+        database
+    )
+
+    render_drawing_activity(
+        database
+    )
+
+    render_status_summary(
+        database
+    )
+
+    render_recent_activity(
+        database
+    )
+
+    render_system_status(
+        database
     )
