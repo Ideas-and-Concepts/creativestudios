@@ -5,44 +5,23 @@ AEC Collaboration Platform
 Main Streamlit application.
 
 Authentication has been removed.
-The application opens directly into the workspace.
+Modules are loaded lazily to prevent one broken module
+from preventing the entire application from starting.
 """
 
 from __future__ import annotations
 
-import os
+import importlib
 from pathlib import Path
 from typing import Any
 
 import streamlit as st
-
-from modules import (
-    dashboard,
-    projects,
-    documents,
-    architecture,
-    engineering,
-    drawings,
-    mep,
-)
 
 from modules.database import load_memory
 
 
 # ============================================================
 # PAGE CONFIGURATION
-# ============================================================
-
-st.set_page_config(
-    page_title="Creative Studios",
-    page_icon="assets/creative_studios.png",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-
-# ============================================================
-# PATHS
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -53,151 +32,231 @@ LOGO_PATH = (
     / "creative_studios.png"
 )
 
+st.set_page_config(
+    page_title="Creative Studios",
+    page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else None,
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
 
 # ============================================================
-# BRANDING CSS
+# THEME
 # ============================================================
 
-def inject_branding_css() -> None:
-    """Inject Creative Studios application styling."""
+def initialize_theme() -> None:
+    """Initialize the application theme."""
+
+    if "theme" not in st.session_state:
+        st.session_state.theme = "Dark"
+
+
+def render_theme_selector() -> None:
+    """Render the dark/light mode selector."""
+
+    current_theme = st.session_state.get(
+        "theme",
+        "Dark",
+    )
+
+    theme = st.sidebar.selectbox(
+        "Theme",
+        ["Dark", "Light"],
+        index=0 if current_theme == "Dark" else 1,
+        key="theme_selector",
+    )
+
+    if theme != current_theme:
+        st.session_state.theme = theme
+        st.rerun()
+
+
+def inject_theme_css() -> None:
+    """Inject theme-aware Creative Studios styling."""
+
+    theme = st.session_state.get(
+        "theme",
+        "Dark",
+    )
+
+    if theme == "Light":
+
+        background = "#F8FAFC"
+        surface = "#FFFFFF"
+        text = "#0F172A"
+        muted = "#64748B"
+        border = "#E2E8F0"
+
+    else:
+
+        background = "#05070B"
+        surface = "#0B1018"
+        text = "#F8FAFC"
+        muted = "#94A3B8"
+        border = "#1E293B"
 
     st.markdown(
-        """
+        f"""
         <style>
 
-        /* -------------------------------------------------- */
-        /* GLOBAL */
-        /* -------------------------------------------------- */
+        /* ================================================== */
+        /* APPLICATION */
+        /* ================================================== */
 
-        .block-container {
+        [data-testid="stAppViewContainer"] {{
+            background: {background};
+            color: {text};
+        }}
+
+        [data-testid="stHeader"] {{
+            background: transparent;
+        }}
+
+        .block-container {{
             padding-top: 1.5rem;
             padding-bottom: 2rem;
-        }
+        }}
 
-        /* -------------------------------------------------- */
+        /* ================================================== */
         /* SIDEBAR */
-        /* -------------------------------------------------- */
+        /* ================================================== */
 
-        [data-testid="stSidebar"] {
-            padding-top: 1rem;
-        }
+        [data-testid="stSidebar"] {{
+            background: {surface};
+            border-right: 1px solid {border};
+        }}
 
-        .cs-sidebar-brand {
+        [data-testid="stSidebar"] * {{
+            color: {text};
+        }}
+
+        .cs-sidebar-brand {{
             text-align: center;
             padding: 0.5rem 0 1rem 0;
-        }
+        }}
 
-        .cs-sidebar-brand img {
-            width: 72px;
-            max-width: 72px;
+        .cs-sidebar-brand img {{
+            width: 64px;
+            max-width: 64px;
             height: auto;
             display: block;
             margin: 0 auto 8px auto;
-        }
+        }}
 
-        .cs-sidebar-title {
-            font-size: 18px;
+        .cs-sidebar-title {{
+            color: {text};
+            font-size: 17px;
             font-weight: 700;
             line-height: 1.2;
-        }
+        }}
 
-        .cs-sidebar-subtitle {
+        .cs-sidebar-subtitle {{
+            color: {muted};
             font-size: 12px;
-            opacity: 0.65;
-            margin-top: 3px;
-        }
+            margin-top: 4px;
+        }}
 
-        .cs-divider {
+        .cs-divider {{
             height: 1px;
-            background: rgba(128, 128, 128, 0.25);
+            background: {border};
             margin: 0.5rem 0 1rem 0;
-        }
+        }}
 
-        /* -------------------------------------------------- */
-        /* MODULE HEADER */
-        /* -------------------------------------------------- */
-
-        .cs-module-header {
-            margin-bottom: 1.5rem;
-        }
-
-        .cs-module-title {
-            font-size: 30px;
-            font-weight: 750;
-            line-height: 1.15;
-        }
-
-        .cs-module-description {
-            margin-top: 5px;
-            font-size: 14px;
-            opacity: 0.65;
-        }
-
-        /* -------------------------------------------------- */
-        /* CARDS */
-        /* -------------------------------------------------- */
-
-        .cs-card {
-            border: 1px solid rgba(128, 128, 128, 0.20);
-            border-radius: 12px;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-        }
-
-        .cs-card-title {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .cs-card-subtitle {
-            margin-top: 5px;
-            font-size: 14px;
-            opacity: 0.70;
-            line-height: 1.5;
-        }
-
-        /* -------------------------------------------------- */
-        /* KPI */
-        /* -------------------------------------------------- */
-
-        .cs-kpi {
-            border: 1px solid rgba(128, 128, 128, 0.20);
-            border-radius: 12px;
-            padding: 1rem;
-            min-height: 95px;
-        }
-
-        .cs-kpi-label {
-            font-size: 13px;
-            opacity: 0.65;
-        }
-
-        .cs-kpi-value {
-            font-size: 27px;
-            font-weight: 750;
-            margin-top: 6px;
-        }
-
-        /* -------------------------------------------------- */
-        /* NAVIGATION */
-        /* -------------------------------------------------- */
-
-        .cs-section-label {
+        .cs-section-label {{
+            color: {muted};
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            opacity: 0.55;
-            margin: 1rem 0 0.5rem 0;
-        }
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }}
 
-        /* -------------------------------------------------- */
+        /* ================================================== */
+        /* MAIN HEADERS */
+        /* ================================================== */
+
+        .cs-module-header {{
+            margin-bottom: 1.5rem;
+        }}
+
+        .cs-module-title {{
+            color: {text};
+            font-size: 30px;
+            font-weight: 750;
+            line-height: 1.15;
+        }}
+
+        .cs-module-description {{
+            color: {muted};
+            font-size: 14px;
+            margin-top: 6px;
+        }}
+
+        /* ================================================== */
+        /* CARDS */
+        /* ================================================== */
+
+        .cs-card {{
+            background: {surface};
+            border: 1px solid {border};
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }}
+
+        .cs-card-title {{
+            color: {text};
+            font-size: 18px;
+            font-weight: 700;
+        }}
+
+        .cs-card-subtitle {{
+            color: {muted};
+            font-size: 14px;
+            line-height: 1.5;
+            margin-top: 5px;
+        }}
+
+        /* ================================================== */
+        /* KPI */
+        /* ================================================== */
+
+        .cs-kpi {{
+            background: {surface};
+            border: 1px solid {border};
+            border-radius: 12px;
+            padding: 1rem;
+            min-height: 95px;
+        }}
+
+        .cs-kpi-label {{
+            color: {muted};
+            font-size: 13px;
+        }}
+
+        .cs-kpi-value {{
+            color: {text};
+            font-size: 27px;
+            font-weight: 750;
+            margin-top: 6px;
+        }}
+
+        /* ================================================== */
         /* BUTTONS */
-        /* -------------------------------------------------- */
+        /* ================================================== */
 
-        div.stButton > button {
+        div.stButton > button {{
             border-radius: 8px;
-        }
+        }}
+
+        /* ================================================== */
+        /* FORMS */
+        /* ================================================== */
+
+        div[data-testid="stForm"] {{
+            border-color: {border};
+        }}
 
         </style>
         """,
@@ -206,22 +265,69 @@ def inject_branding_css() -> None:
 
 
 # ============================================================
-# LOGO
+# SESSION STATE
+# ============================================================
+
+def initialize_session_state() -> None:
+    """Initialize application session state."""
+
+    defaults: dict[str, Any] = {
+        "active_module": "Dashboard",
+        "database": None,
+        "theme": "Dark",
+    }
+
+    for key, value in defaults.items():
+
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+# ============================================================
+# DATABASE
+# ============================================================
+
+def get_database() -> dict[str, Any]:
+    """
+    Load the application database.
+
+    The database is loaded once per Streamlit session.
+    """
+
+    database = st.session_state.get(
+        "database"
+    )
+
+    if not isinstance(
+        database,
+        dict,
+    ):
+
+        database = load_memory()
+
+        if not isinstance(
+            database,
+            dict,
+        ):
+            database = {}
+
+        st.session_state.database = database
+
+    return database
+
+
+# ============================================================
+# SIDEBAR BRANDING
 # ============================================================
 
 def render_sidebar_logo() -> None:
-    """Render a small Creative Studios logo in the sidebar."""
+    """Render the small Creative Studios logo."""
 
     if LOGO_PATH.exists():
 
-        st.sidebar.markdown(
-            '<div class="cs-sidebar-brand">',
-            unsafe_allow_html=True,
-        )
-
         st.sidebar.image(
             str(LOGO_PATH),
-            width=72,
+            width=64,
         )
 
         st.sidebar.markdown(
@@ -237,23 +343,16 @@ def render_sidebar_logo() -> None:
             unsafe_allow_html=True,
         )
 
-        st.sidebar.markdown(
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
     else:
 
         st.sidebar.markdown(
             """
-            <div class="cs-sidebar-brand">
-                <div class="cs-sidebar-title">
-                    Creative Studios
-                </div>
+            <div class="cs-sidebar-title">
+                Creative Studios
+            </div>
 
-                <div class="cs-sidebar-subtitle">
-                    AEC Collaboration Platform
-                </div>
+            <div class="cs-sidebar-subtitle">
+                AEC Collaboration Platform
             </div>
             """,
             unsafe_allow_html=True,
@@ -261,57 +360,11 @@ def render_sidebar_logo() -> None:
 
 
 # ============================================================
-# SESSION STATE
-# ============================================================
-
-def initialize_session_state() -> None:
-    """Initialize application session state."""
-
-    defaults = {
-        "active_module": "Dashboard",
-        "database": None,
-    }
-
-    for key, value in defaults.items():
-
-        if key not in st.session_state:
-            st.session_state[key] = value
-
-
-# ============================================================
-# DATABASE
-# ============================================================
-
-def get_database() -> dict[str, Any]:
-    """Load the application database once per session."""
-
-    database = st.session_state.get(
-        "database"
-    )
-
-    if not isinstance(
-        database,
-        dict,
-    ):
-        database = load_memory()
-
-        if not isinstance(
-            database,
-            dict,
-        ):
-            database = {}
-
-        st.session_state.database = database
-
-    return database
-
-
-# ============================================================
 # SIDEBAR NAVIGATION
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render application navigation."""
+    """Render the main application navigation."""
 
     render_sidebar_logo()
 
@@ -347,12 +400,108 @@ def render_sidebar() -> str:
         "Go to",
         navigation,
         index=navigation.index(current),
+        key="module_navigation",
         label_visibility="collapsed",
     )
 
     st.session_state.active_module = choice
 
+    st.sidebar.markdown(
+        '<div class="cs-divider"></div>',
+        unsafe_allow_html=True,
+    )
+
+    render_theme_selector()
+
     return choice
+
+
+# ============================================================
+# LAZY MODULE IMPORT
+# ============================================================
+
+MODULE_IMPORTS = {
+    "Dashboard": (
+        "modules.dashboard",
+        "render_dashboard",
+    ),
+    "Projects": (
+        "modules.projects",
+        "render_projects_module",
+    ),
+    "Documents": (
+        "modules.documents",
+        "render_documents_module",
+    ),
+    "Architecture": (
+        "modules.architecture",
+        "render_architecture_module",
+    ),
+    "Engineering": (
+        "modules.engineering",
+        "render_engineering_module",
+    ),
+    "Drawings": (
+        "modules.drawings",
+        "render_drawings_module",
+    ),
+    "MEP": (
+        "modules.mep",
+        "render_mep_module",
+    ),
+}
+
+
+def load_module_renderer(
+    module_name: str,
+):
+    """
+    Import a module only when it is requested.
+
+    This prevents import errors in one module from crashing
+    the entire Creative Studios application.
+    """
+
+    configuration = MODULE_IMPORTS.get(
+        module_name
+    )
+
+    if configuration is None:
+
+        raise ImportError(
+            f"No renderer is registered for "
+            f"'{module_name}'."
+        )
+
+    module_path, function_name = configuration
+
+    try:
+
+        module = importlib.import_module(
+            module_path
+        )
+
+    except Exception as exc:
+
+        raise RuntimeError(
+            f"Unable to import {module_path}: "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
+
+    renderer = getattr(
+        module,
+        function_name,
+        None,
+    )
+
+    if not callable(renderer):
+
+        raise AttributeError(
+            f"{module_path} does not expose "
+            f"a callable '{function_name}' function."
+        )
+
+    return renderer
 
 
 # ============================================================
@@ -363,59 +512,42 @@ def render_module(
     choice: str,
     database: dict[str, Any],
 ) -> None:
-    """Render the selected application module."""
+    """Render the selected module."""
 
-    if choice == "Dashboard":
+    try:
 
-        dashboard.render_dashboard(
+        renderer = load_module_renderer(
+            choice
+        )
+
+    except Exception as exc:
+
+        st.error(
+            f"Unable to load {choice}."
+        )
+
+        st.exception(exc)
+
+        st.info(
+            "The rest of Creative Studios is still available. "
+            "This module can be repaired independently."
+        )
+
+        return
+
+    try:
+
+        renderer(
             database
         )
 
-    elif choice == "Projects":
+    except Exception as exc:
 
-        projects.render_projects_module(
-            database
+        st.error(
+            f"Unable to render {choice}."
         )
 
-    elif choice == "Documents":
-
-        documents.render_documents_module(
-            database
-        )
-
-    elif choice == "Architecture":
-
-        architecture.render_architecture_module(
-            database
-        )
-
-    elif choice == "Engineering":
-
-        engineering.render_engineering_module(
-            database
-        )
-
-    elif choice == "Drawings":
-
-        drawings.render_drawings_module(
-            database
-        )
-
-    elif choice == "MEP":
-
-        mep.render_mep_module(
-            database
-        )
-
-    else:
-
-        st.session_state.active_module = (
-            "Dashboard"
-        )
-
-        dashboard.render_dashboard(
-            database
-        )
+        st.exception(exc)
 
 
 # ============================================================
@@ -426,8 +558,8 @@ def main() -> None:
     """Run Creative Studios."""
 
     initialize_session_state()
-
-    inject_branding_css()
+    initialize_theme()
+    inject_theme_css()
 
     try:
 
@@ -436,27 +568,19 @@ def main() -> None:
     except Exception as exc:
 
         st.error(
-            f"Unable to load workspace data: {exc}"
+            "Unable to load workspace data."
         )
+
+        st.exception(exc)
 
         st.stop()
 
     choice = render_sidebar()
 
-    try:
-
-        render_module(
-            choice,
-            database,
-        )
-
-    except Exception as exc:
-
-        st.error(
-            f"Unable to render {choice}."
-        )
-
-        st.exception(exc)
+    render_module(
+        choice,
+        database,
+    )
 
 
 # ============================================================
