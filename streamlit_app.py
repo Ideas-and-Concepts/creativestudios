@@ -26,30 +26,33 @@ from modules.database import load_memory
 
 BASE_DIR = Path(__file__).resolve().parent
 
-LOGO_PATH = BASE_DIR / "assets" / "creative_studios.png"
+LOGO_PATH = (
+    BASE_DIR
+    / "assets"
+    / "creative_studios.png"
+)
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else None,
+    page_icon=(
+        str(LOGO_PATH)
+        if LOGO_PATH.exists()
+        else None
+    ),
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# GLOBAL CSS
+# CSS
 # ============================================================
 
 def inject_css() -> None:
-    """Apply the Creative Studios interface styling."""
 
     st.markdown(
         """
         <style>
-
-        /* ====================================================
-           APPLICATION
-           ==================================================== */
 
         .block-container {
             padding-top: 1.5rem;
@@ -64,11 +67,6 @@ def inject_css() -> None:
             background: transparent;
         }
 
-
-        /* ====================================================
-           SIDEBAR
-           ==================================================== */
-
         [data-testid="stSidebar"] {
             background: #FFFFFF;
             border-right: 1px solid #E2E8F0;
@@ -78,25 +76,12 @@ def inject_css() -> None:
             padding-top: 1rem;
         }
 
-
-        /* ====================================================
-           SIDEBAR BRANDING CONTAINER
-           ==================================================== */
-
         .cs-sidebar-brand {
             width: 100%;
             text-align: center;
             margin: 0;
             padding: 0 0 1rem 0;
         }
-
-
-        /* ====================================================
-           STREAMLIT IMAGE CONTAINER
-           
-           st.sidebar.image() creates its own wrapper.
-           These selectors force that wrapper to center.
-           ==================================================== */
 
         [data-testid="stSidebar"]
         [data-testid="stImage"] {
@@ -117,44 +102,24 @@ def inject_css() -> None:
             object-fit: contain !important;
         }
 
-
-        /* ====================================================
-           BRAND TITLE
-           ==================================================== */
-
         .cs-sidebar-title {
             width: 100%;
-            display: block;
             text-align: center !important;
             font-size: 17px;
             font-weight: 700;
             line-height: 1.2;
             margin: 7px 0 0 0;
-            padding: 0;
             color: #0F172A;
         }
 
-
-        /* ====================================================
-           BRAND SUBTITLE
-           ==================================================== */
-
         .cs-sidebar-subtitle {
             width: 100%;
-            display: block;
             text-align: center !important;
             font-size: 12px;
-            font-weight: 400;
             line-height: 1.4;
             margin: 4px 0 0 0;
-            padding: 0;
             color: #64748B;
         }
-
-
-        /* ====================================================
-           SIDEBAR DIVIDER
-           ==================================================== */
 
         .cs-divider {
             width: 100%;
@@ -163,25 +128,14 @@ def inject_css() -> None:
             margin: 0.75rem 0 1rem 0;
         }
 
-
-        /* ====================================================
-           NAVIGATION LABEL
-           ==================================================== */
-
         .cs-section-label {
             color: #64748B;
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            margin-top: 0.5rem;
             margin-bottom: 0.5rem;
         }
-
-
-        /* ====================================================
-           SIDEBAR RADIO NAVIGATION
-           ==================================================== */
 
         [data-testid="stSidebar"]
         div[role="radiogroup"] {
@@ -196,39 +150,17 @@ def inject_css() -> None:
             border-radius: 8px;
             padding: 0.5rem 0.65rem;
             cursor: pointer;
-            transition:
-                background-color 0.15s ease,
-                transform 0.1s ease;
         }
 
         [data-testid="stSidebar"]
         div[role="radiogroup"] label:hover {
             background: #F1F5F9;
-            transform: translateX(2px);
         }
-
-
-        /* ====================================================
-           BUTTONS
-           ==================================================== */
 
         div.stButton > button {
             min-height: 42px;
             border-radius: 8px;
             font-weight: 600;
-            transition:
-                transform 0.1s ease,
-                box-shadow 0.15s ease;
-        }
-
-        div.stButton > button:hover {
-            transform: translateY(-1px);
-            box-shadow:
-                0 3px 10px rgba(15, 23, 42, 0.10);
-        }
-
-        div.stButton > button:active {
-            transform: translateY(0);
         }
 
         div[data-testid="stFormSubmitButton"] button {
@@ -237,54 +169,6 @@ def inject_css() -> None:
             font-weight: 600;
         }
 
-
-        /* ====================================================
-           MAIN MODULE TITLE
-           ==================================================== */
-
-        .cs-module-title {
-            font-size: 30px;
-            font-weight: 750;
-            line-height: 1.15;
-            margin-bottom: 0.25rem;
-        }
-
-        .cs-module-description {
-            color: #64748B;
-            font-size: 14px;
-            margin-bottom: 1.25rem;
-        }
-
-
-        /* ====================================================
-           CARDS
-           ==================================================== */
-
-        .cs-card {
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
-            border-radius: 12px;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-        }
-
-        .cs-card-title {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .cs-card-subtitle {
-            color: #64748B;
-            font-size: 14px;
-            line-height: 1.5;
-            margin-top: 5px;
-        }
-
-
-        /* ====================================================
-           METRICS
-           ==================================================== */
-
         [data-testid="stMetric"] {
             background: #FFFFFF;
             border: 1px solid #E2E8F0;
@@ -292,33 +176,9 @@ def inject_css() -> None:
             padding: 0.75rem;
         }
 
-
-        /* ====================================================
-           EXPANDERS
-           ==================================================== */
-
         [data-testid="stExpander"] {
             border-radius: 10px;
             border: 1px solid #E2E8F0;
-        }
-
-
-        /* ====================================================
-           INPUTS
-           ==================================================== */
-
-        input,
-        textarea {
-            border-radius: 7px !important;
-        }
-
-
-        /* ====================================================
-           TABS
-           ==================================================== */
-
-        button[data-baseweb="tab"] {
-            font-weight: 600;
         }
 
         </style>
@@ -332,7 +192,6 @@ def inject_css() -> None:
 # ============================================================
 
 def initialize_session_state() -> None:
-    """Initialize application session state."""
 
     defaults: dict[str, Any] = {
         "active_module": "Dashboard",
@@ -350,15 +209,22 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """Load the application database once per session."""
 
-    database = st.session_state.get("database")
+    database = st.session_state.get(
+        "database"
+    )
 
-    if not isinstance(database, dict):
+    if not isinstance(
+        database,
+        dict,
+    ):
 
         database = load_memory()
 
-        if not isinstance(database, dict):
+        if not isinstance(
+            database,
+            dict,
+        ):
             database = {}
 
         st.session_state.database = database
@@ -371,24 +237,11 @@ def get_database() -> dict[str, Any]:
 # ============================================================
 
 def render_sidebar_logo() -> None:
-    """
-    Render the Creative Studios sidebar branding.
-
-    The logo uses Streamlit's native image renderer for
-    maximum compatibility with Streamlit Cloud.
-
-    The text underneath is rendered separately but centered
-    using the sidebar branding CSS.
-    """
 
     st.sidebar.markdown(
         '<div class="cs-sidebar-brand">',
         unsafe_allow_html=True,
     )
-
-    # --------------------------------------------------------
-    # Logo
-    # --------------------------------------------------------
 
     if LOGO_PATH.exists():
 
@@ -397,49 +250,18 @@ def render_sidebar_logo() -> None:
             width=72,
         )
 
-    else:
-
-        st.sidebar.markdown(
-            """
-            <div
-                style="
-                    width:72px;
-                    height:72px;
-                    margin:0 auto;
-                "
-            ></div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-    # --------------------------------------------------------
-    # Brand title
-    # --------------------------------------------------------
-
     st.sidebar.markdown(
         """
         <div class="cs-sidebar-title">
             Creative Studios
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
-
-    # --------------------------------------------------------
-    # Brand subtitle
-    # --------------------------------------------------------
-
-    st.sidebar.markdown(
-        """
         <div class="cs-sidebar-subtitle">
             AEC Collaboration Platform
         </div>
         """,
         unsafe_allow_html=True,
     )
-
 
     st.sidebar.markdown(
         "</div>",
@@ -464,7 +286,6 @@ NAVIGATION = [
 
 
 def render_sidebar() -> str:
-    """Render the main application navigation."""
 
     render_sidebar_logo()
 
@@ -560,9 +381,6 @@ def load_module_renderer(
     [dict[str, Any]],
     None,
 ]:
-    """
-    Dynamically import and validate the selected module.
-    """
 
     if module_name not in MODULE_IMPORTS:
 
@@ -597,21 +415,20 @@ def load_module_renderer(
 
         raise AttributeError(
             f"{module_path} does not contain "
-            f"a callable {function_name} function."
+            f"a callable {function_name}."
         )
 
     return renderer
 
 
 # ============================================================
-# MODULE ROUTER
+# ROUTER
 # ============================================================
 
 def render_module(
     choice: str,
     database: dict[str, Any],
 ) -> None:
-    """Render the selected module."""
 
     try:
 
@@ -643,7 +460,6 @@ def render_module(
 # ============================================================
 
 def main() -> None:
-    """Run Creative Studios."""
 
     initialize_session_state()
 
