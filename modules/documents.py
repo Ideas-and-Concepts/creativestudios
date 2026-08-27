@@ -1,6 +1,5 @@
 import streamlit as st
 from .database import save_memory
-def render_documents_module(database): ...
 
 # ============================================================
 # DOCUMENTS MODULE
