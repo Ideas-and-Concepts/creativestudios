@@ -1,82 +1,47 @@
 import streamlit as st
+from modules import (
+    documents,
+    architecture,
+    engineering,
+    drawings,
+    mep,
+    projects
+)
+from modules.database import load_memory
 
-from modules import database
-from modules import architecture
-from modules import engineering
-from modules import boq
-from modules import team
-from modules import mep
-from modules import spaces
-from modules import documents
-from modules import drawings
-from modules import approvals
-from modules import rfis
-from modules import site_logs
-from modules import tasks
-from modules import branding
-from modules import projects
-from modules import search_dashboard
-from modules import portfolio_dashboard
-from modules import analytics_dashboard
+# ============================================================
+# MAIN APP
+# ============================================================
 
 def main():
-    st.set_page_config(page_title="Creative Studios", layout="wide")
-    st.title("Creative Studios Workspace")
-    st.caption("Integrated AEC lifecycle management: Architecture, Engineering, Construction, MEP, Spaces, Documents, Drawings, Approvals, Portfolio KPIs, and Analytics.")
+    st.sidebar.title("Creative Studios")
+    navigation = [
+        "Projects",
+        "Documents",
+        "Architecture",
+        "Engineering",
+        "Drawings",
+        "MEP"
+    ]
+
+    choice = st.sidebar.radio("Go to", navigation)
 
     # Load database
-    database_state = database.load_memory()
+    database = load_memory()
 
-    # Sidebar navigation
-    navigation = [
-        "Overview", "Projects", "Architecture", "Engineering", "Construction",
-        "BOQ", "Team", "MEP", "Spaces", "Documents", "Drawings",
-        "RFIs", "Tasks", "Approvals", "Site Logs", "Branding",
-        "Search", "Portfolio", "Analytics"
-    ]
-    module_name = st.sidebar.radio("Navigate", navigation)
-
-    # Router
-    if module_name == "Overview":
-        st.header("Overview")
-        st.write("Creative Studios integrates Architecture, Engineering, Construction, and MEP phases.")
-    elif module_name == "Projects":
-        projects.render_projects_module(database_state)
-    elif module_name == "Architecture":
-        architecture.render_architecture_module(database_state)
-    elif module_name == "Engineering":
-        engineering.render_engineering_module(database_state)
-    elif module_name == "Construction":
-        st.header("Construction Phase")
-        st.write("Includes BOQ, Team, RFIs, Site Logs, Approvals, Tasks.")
-    elif module_name == "BOQ":
-        boq.render_boq_module(database_state)
-    elif module_name == "Team":
-        team.render_team_module(database_state)
-    elif module_name == "MEP":
-        mep.render_mep_module(database_state)
-    elif module_name == "Spaces":
-        spaces.render_spaces_module(database_state)
-    elif module_name == "Documents":
-        documents.render_documents_module(database_state)
-    elif module_name == "Drawings":
-        drawings.render_drawings_module(database_state)
-    elif module_name == "RFIs":
-        rfis.render_rfis_module(database_state)
-    elif module_name == "Tasks":
-        tasks.render_tasks_module(database_state)
-    elif module_name == "Approvals":
-        approvals.render_approvals_module(database_state)
-    elif module_name == "Site Logs":
-        site_logs.render_site_logs_module(database_state)
-    elif module_name == "Branding":
-        branding.render_branding_module(database_state)
-    elif module_name == "Search":
-        search_dashboard.render_search_dashboard(database_state)
-    elif module_name == "Portfolio":
-        portfolio_dashboard.render_portfolio_dashboard(database_state)
-    elif module_name == "Analytics":
-        analytics_dashboard.render_analytics_dashboard(database_state)
+    # Route to selected module
+    if choice == "Projects":
+        projects.render_projects_module(database)
+    elif choice == "Documents":
+        documents.render_documents_module(database)
+    elif choice == "Architecture":
+        architecture.render_architecture_module(database)
+    elif choice == "Engineering":
+        engineering.render_engineering_module(database)
+    elif choice == "Drawings":
+        drawings.render_drawings_module(database)
+    elif choice == "MEP":
+        mep.render_mep_module(database)
 
 if __name__ == "__main__":
     main()
