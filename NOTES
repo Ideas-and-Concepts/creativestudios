@@ -279,3 +279,41 @@ PROJECT
    ├── DOCUMENTS
    │
    └── SITE ACTIVITIES
+
+
+
+
+Architecture
+├── Architectural Work Register
+├── Design / Construction Stages
+├── Site Observations
+├── Design Changes
+├── Construction Documentation
+├── As-Built Documentation
+└── Architectural Coordination
+
+Engineering
+├── Structural
+├── Civil
+├── Geotechnical
+├── Mechanical
+├── Electrical
+├── Plumbing
+├── Infrastructure
+└── Construction Engineering
+
+Drawings
+├── Architectural Drawings
+│   ├── Site Plans
+│   ├── Floor Plans
+│   ├── Elevations
+│   ├── Sections
+│   └── Details
+│
+└── Structural Drawings
+    ├── Foundation Plans
+    ├── Column Layouts
+    ├── Beam Layouts
+    ├── Slab Plans
+    ├── Reinforcement Details
+    └── Structural Details
