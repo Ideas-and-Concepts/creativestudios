@@ -12,8 +12,8 @@ from modules import (
 from modules.database import load_memory
 
 def render_sidebar_logo():
-    # Correct path: logo is in project root (creative_studios.png)
-    logo_path = os.path.join(os.path.dirname(__file__), "creative_studios.png")
+    # Correct path: logo is inside assets/creative_studios.png
+    logo_path = os.path.join(os.path.dirname(__file__), "assets", "creative_studios.png")
 
     try:
         if os.path.exists(logo_path):
