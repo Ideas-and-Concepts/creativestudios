@@ -25,6 +25,7 @@ Engineering drawings are handled by Engineering.
 
 from __future__ import annotations
 
+import base64
 import importlib
 from pathlib import Path
 from typing import Any, Callable
@@ -67,6 +68,16 @@ def find_logo() -> Path | None:
 
 
 LOGO_PATH = find_logo()
+
+
+def _get_logo_base64() -> str:
+    """Return the logo as a base64-encoded string."""
+    if LOGO_PATH is None:
+        return ""
+    try:
+        return base64.b64encode(LOGO_PATH.read_bytes()).decode("utf-8")
+    except Exception:
+        return ""
 
 
 # ============================================================
@@ -283,8 +294,7 @@ def render_sidebar_brand() -> None:
     """
     Render the centered sidebar logo and branding.
 
-    The logo uses Streamlit's native image component.
-    No HTML <img> element is used.
+    The logo is centered using flexbox HTML.
     """
 
     # --------------------------------------------------------
@@ -292,18 +302,38 @@ def render_sidebar_brand() -> None:
     # --------------------------------------------------------
 
     if LOGO_PATH is not None:
-        left, center, right = st.sidebar.columns([1, 1, 1])
-        with center:
-            st.image(str(LOGO_PATH), width=56)
+        logo_base64 = _get_logo_base64()
+        logo_html = f"""
+        <div style="
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        ">
+            <img src="data:image/png;base64,{logo_base64}" 
+                 width="56" 
+                 alt="Creative Studios Logo"
+                 style="display: block;">
+        </div>
+        """
+        st.sidebar.markdown(logo_html, unsafe_allow_html=True)
     else:
-        left, center, right = st.sidebar.columns([1, 1, 1])
-        with center:
-            st.markdown(
-                """
+        # Fallback logo
+        st.sidebar.markdown(
+            """
+            <div style="
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            ">
                 <div style="
                     width:56px;
                     height:56px;
-                    margin:0 auto;
                     border-radius:12px;
                     border:1px solid rgba(128,128,128,0.25);
                     display:flex;
@@ -315,9 +345,10 @@ def render_sidebar_brand() -> None:
                 ">
                     CS
                 </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     # --------------------------------------------------------
     # BRANDING TEXT
