@@ -398,3 +398,38 @@ creativestudios/
 │   └── mep.py
 │
 └── streamlit_app.py
+
+
+Creative Studios
+│
+├── Dashboard
+├── Projects
+├── Documents
+│
+├── Architecture
+│   ├── Design
+│   ├── Architectural Drawings
+│   ├── Schedules
+│   ├── Revisions
+│   └── Files
+│
+├── Engineering
+│   ├── Structural
+│   ├── Civil
+│   ├── Engineering Drawings
+│   ├── Calculations
+│   ├── Revisions
+│   └── Files
+│
+├── MEP
+│
+└── BOQ
+    ├── Foundations
+    ├── Columns
+    ├── Beams
+    ├── Slabs
+    ├── Walls
+    ├── Doors
+    ├── Windows
+    ├── Finishes
+    └── Other Construction Elements
