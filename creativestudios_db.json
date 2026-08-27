@@ -1,31 +1,104 @@
 {
-  "users": [
-    {
-      "id": 1,
-      "username": "admin",
-      "password": "admin123",
-      "full_name": "System Administrator",
-      "role": "Admin",
-      "active": true
-    }
-  ],
   "projects": [
     {
-      "id": 1,
-      "project_id": "PRJ-001",
-      "name": "Grand Horizon Commercial Complex",
-      "client": "Grand Horizon Holdings",
-      "location": "Kampala, Uganda",
-      "manager": "Project Manager",
-      "project_type": "Commercial",
-      "status": "Active",
-      "estimated_budget": 1250000,
-      "description": "Commercial architectural, engineering and construction project."
+      "id": "proj001",
+      "name": "Sample Office Tower",
+      "type": "New",
+      "status": "Planning",
+      "architecture": {
+        "site_plan": "SitePlan_A1.pdf",
+        "zoning": "Commercial Zone C2",
+        "layout": "20-floor office tower with lobby and rooftop terrace"
+      },
+      "engineering": {
+        "structural_notes": "Steel frame with reinforced concrete core",
+        "steel_schedule": "Schedule_Steel_A1.xlsx",
+        "bim_model": "OfficeTower_BIM.ifc"
+      },
+      "construction": {
+        "notes": "Foundation works scheduled Q4",
+        "tasks": []
+      },
+      "mep": {
+        "hvac": "Central chilled water system",
+        "electrical": "3-phase distribution with backup generator",
+        "plumbing": "Pressurized water system",
+        "fire_safety": "Sprinklers + smoke detectors"
+      },
+      "spaces": [
+        {
+          "name": "Conference Room",
+          "area": 45,
+          "usage": "Office",
+          "finishes": "Tile flooring, acoustic ceiling",
+          "mep": {
+            "hvac": "Split AC",
+            "lighting": "LED panels",
+            "plumbing": "None"
+          },
+          "documents": [
+            {
+              "title": "Conference Room Spec",
+              "phase": "Architecture",
+              "version": "v1.0",
+              "author": "Architect A",
+              "filename": "ConfRoom_Spec.pdf"
+            }
+          ],
+          "drawings": [
+            {
+              "title": "Conference Room Layout",
+              "phase": "MEP",
+              "version": "v1.0",
+              "author": "Engineer B",
+              "filename": "ConfRoom_Layout.dwg"
+            }
+          ]
+        }
+      ],
+      "documents": [
+        {
+          "title": "Main Contract",
+          "phase": "Construction",
+          "version": "v1.0",
+          "author": "Legal Team",
+          "filename": "Contract_Main.pdf"
+        }
+      ],
+      "drawings": [
+        {
+          "title": "Site Plan",
+          "phase": "Architecture",
+          "version": "v1.0",
+          "author": "Architect A",
+          "filename": "SitePlan_A1.pdf"
+        }
+      ],
+      "boq": [
+        {
+          "item": "Concrete Foundation",
+          "quantity": 500,
+          "unit": "m3",
+          "rate": 120,
+          "total": 60000,
+          "responsible": "Engineer B"
+        },
+        {
+          "item": "Steel Columns",
+          "quantity": 200,
+          "unit": "tons",
+          "rate": 800,
+          "total": 160000,
+          "responsible": "Engineer B"
+        }
+      ],
+      "overheads": 20000,
+      "contingency": 15000,
+      "team": [
+        {"name": "Architect A", "role": "Lead Architect"},
+        {"name": "Engineer B", "role": "Structural Engineer"},
+        {"name": "Manager C", "role": "Project Manager"}
+      ]
     }
-  ],
-  "drawings": [],
-  "approvals": [],
-  "boq": [],
-  "rfis": [],
-  "site_logs": []
+  ]
 }
