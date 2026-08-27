@@ -17,12 +17,13 @@ from modules import (
     projects,
     search_dashboard,
     portfolio_dashboard,
+    analytics_dashboard,
 )
 
 def main():
     st.set_page_config(page_title="Creative Studios", layout="wide")
     st.title("Creative Studios Workspace")
-    st.caption("Integrated AEC lifecycle management: Architecture, Engineering, Construction, MEP, Spaces, Documents, Drawings, Approvals, and Portfolio KPIs.")
+    st.caption("Integrated AEC lifecycle management: Architecture, Engineering, Construction, MEP, Spaces, Documents, Drawings, Approvals, Portfolio KPIs, and Analytics.")
 
     # Load database
     database_state = database.load_memory()
@@ -32,7 +33,7 @@ def main():
         "Overview", "Projects", "Architecture", "Engineering", "Construction",
         "BOQ", "Team", "MEP", "Spaces", "Documents", "Drawings",
         "RFIs", "Tasks", "Approvals", "Site Logs", "Branding",
-        "Search", "Portfolio"
+        "Search", "Portfolio", "Analytics"
     ]
     module_name = st.sidebar.radio("Navigate", navigation)
 
@@ -75,6 +76,8 @@ def main():
         search_dashboard.render_search_dashboard(database_state)
     elif module_name == "Portfolio":
         portfolio_dashboard.render_portfolio_dashboard(database_state)
+    elif module_name == "Analytics":
+        analytics_dashboard.render_analytics_dashboard(database_state)
 
 if __name__ == "__main__":
     main()
