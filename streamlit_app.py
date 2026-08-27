@@ -17,6 +17,7 @@ def render_sidebar_logo():
 
     try:
         if os.path.exists(logo_path):
+            # Display logo at top of sidebar
             st.sidebar.image(logo_path, use_column_width=True)
         else:
             st.sidebar.header("Creative Studios")
