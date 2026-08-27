@@ -33,32 +33,72 @@ LOGO_PATH = BASE_DIR / "assets" / "creative_studios.png"
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon="🏗️",
+    page_icon=str(LOGO_PATH),
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# BRANDING
+# GLOBAL BRANDING
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+
+    .cs-login-brand {
+        width: 100%;
+        text-align: center;
+        margin: 25px auto 20px auto;
+    }
+
+    .cs-login-title {
+        color: #FFFFFF;
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1.2;
+        text-align: center;
+        margin-top: 8px;
+    }
+
+    .cs-login-subtitle {
+        color: #64748B;
+        font-size: 13px;
+        text-align: center;
+        margin-top: 5px;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ============================================================
+# SIDEBAR LOGO
 # ============================================================
 
 def render_sidebar_logo() -> None:
     """Render the Creative Studios logo in the sidebar."""
 
     if LOGO_PATH.is_file():
+
         try:
+
             st.sidebar.image(
                 str(LOGO_PATH),
-                use_container_width=True,
+                width=90,
             )
+
         except Exception:
+
             st.sidebar.markdown(
                 """
                 <div style="
                     text-align: center;
-                    padding: 10px 0 20px 0;
-                    font-size: 22px;
+                    padding: 8px 0 16px 0;
+                    font-size: 20px;
                     font-weight: 800;
                     color: #FFFFFF;
                 ">
@@ -67,13 +107,15 @@ def render_sidebar_logo() -> None:
                 """,
                 unsafe_allow_html=True,
             )
+
     else:
+
         st.sidebar.markdown(
             """
             <div style="
                 text-align: center;
-                padding: 10px 0 20px 0;
-                font-size: 22px;
+                padding: 8px 0 16px 0;
+                font-size: 20px;
                 font-weight: 800;
                 color: #FFFFFF;
             ">
@@ -85,64 +127,34 @@ def render_sidebar_logo() -> None:
 
 
 # ============================================================
-# LOGIN / BRANDING
+# LOGIN BRANDING
 # ============================================================
 
 def render_login_branding() -> None:
-    """Render centered login branding."""
+    """
+    Render centered Creative Studios branding.
 
-    st.markdown(
-        """
-        <style>
-        .cs-login-brand {
-            width: 100%;
-            text-align: center;
-            margin: 30px auto 25px auto;
-        }
+    The logo is deliberately kept small.
+    """
 
-        .cs-login-title {
-            color: #FFFFFF;
-            font-size: 30px;
-            font-weight: 800;
-            line-height: 1.2;
-            text-align: center;
-            margin-top: 12px;
-        }
-
-        .cs-login-subtitle {
-            color: #64748B;
-            font-size: 14px;
-            text-align: center;
-            margin-top: 6px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    logo_column_left, logo_column, logo_column_right = st.columns(
+    left_column, center_column, right_column = st.columns(
         [1, 2, 1]
     )
 
-    with logo_column:
+    with center_column:
 
         if LOGO_PATH.is_file():
 
             st.image(
                 str(LOGO_PATH),
-                width=150,
+                width=100,
             )
 
         else:
 
             st.markdown(
                 """
-                <div style="
-                    text-align: center;
-                    color: #FFFFFF;
-                    font-size: 26px;
-                    font-weight: 800;
-                ">
+                <div class="cs-login-title">
                     Creative Studios
                 </div>
                 """,
@@ -247,7 +259,7 @@ def main() -> None:
     """Run Creative Studios."""
 
     # --------------------------------------------------------
-    # Sidebar
+    # Sidebar branding
     # --------------------------------------------------------
 
     render_sidebar_logo()
@@ -283,7 +295,7 @@ def main() -> None:
         st.stop()
 
     # --------------------------------------------------------
-    # Main Module
+    # Module rendering
     # --------------------------------------------------------
 
     try:
