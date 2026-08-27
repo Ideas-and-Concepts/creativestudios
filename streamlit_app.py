@@ -11,6 +11,7 @@ Modules are loaded only when selected.
 
 from __future__ import annotations
 
+import base64
 import importlib
 from pathlib import Path
 from typing import Any, Callable
@@ -45,23 +46,27 @@ st.set_page_config(
 
 
 # ============================================================
-# APPLICATION CSS
+# APPLICATION STYLING
 # ============================================================
 
 def inject_css() -> None:
-    """Apply the Creative Studios interface styling."""
+    """Apply Creative Studios application styling."""
 
     st.markdown(
         """
         <style>
 
         /* ==================================================
-           GLOBAL
+           GLOBAL APPLICATION
            ================================================== */
 
         .block-container {
             padding-top: 1.5rem;
             padding-bottom: 3rem;
+        }
+
+        [data-testid="stHeader"] {
+            background: transparent;
         }
 
 
@@ -73,36 +78,51 @@ def inject_css() -> None:
             border-right: 1px solid #E2E8F0;
         }
 
-        [data-testid="stSidebar"] img {
-            display: block;
-            margin-left: auto !important;
-            margin-right: auto !important;
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 1rem;
         }
 
         .cs-sidebar-brand {
             width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             text-align: center;
-            padding-top: 0.25rem;
-            padding-bottom: 0.75rem;
+            box-sizing: border-box;
+            padding: 0.25rem 0.5rem 0.75rem 0.5rem;
+        }
+
+        .cs-sidebar-logo {
+            display: block;
+            width: 64px;
+            height: auto;
+            margin: 0 auto 8px auto;
+            object-fit: contain;
         }
 
         .cs-sidebar-title {
+            width: 100%;
             text-align: center;
             font-size: 17px;
             font-weight: 700;
             line-height: 1.2;
-            margin-top: 5px;
+            margin: 0;
+            padding: 0;
         }
 
         .cs-sidebar-subtitle {
+            width: 100%;
             text-align: center;
             font-size: 12px;
+            line-height: 1.3;
             color: #64748B;
             margin-top: 4px;
-            line-height: 1.3;
+            padding: 0;
         }
 
         .cs-divider {
+            width: 100%;
             height: 1px;
             background: #E2E8F0;
             margin: 0.75rem 0 1rem 0;
@@ -120,16 +140,19 @@ def inject_css() -> None:
 
 
         /* ==================================================
-           SIDEBAR RADIO NAVIGATION
+           SIDEBAR NAVIGATION
            ================================================== */
 
         [data-testid="stSidebar"] div[role="radiogroup"] {
+            width: 100%;
             gap: 0.25rem;
         }
 
         [data-testid="stSidebar"] div[role="radiogroup"] label {
+            width: 100%;
+            box-sizing: border-box;
             border-radius: 8px;
-            padding: 0.45rem 0.65rem;
+            padding: 0.5rem 0.65rem;
             cursor: pointer;
             transition:
                 background-color 0.15s ease,
@@ -157,22 +180,27 @@ def inject_css() -> None:
 
         div.stButton > button:hover {
             transform: translateY(-1px);
-            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.10);
+            box-shadow:
+                0 3px 10px rgba(15, 23, 42, 0.10);
         }
 
         div.stButton > button:active {
             transform: translateY(0);
         }
 
-
-        /* ==================================================
-           FORM BUTTONS
-           ================================================== */
-
         div[data-testid="stFormSubmitButton"] button {
             min-height: 42px;
             border-radius: 8px;
             font-weight: 600;
+            transition:
+                transform 0.1s ease,
+                box-shadow 0.15s ease;
+        }
+
+        div[data-testid="stFormSubmitButton"] button:hover {
+            transform: translateY(-1px);
+            box-shadow:
+                0 3px 10px rgba(15, 23, 42, 0.10);
         }
 
 
@@ -232,15 +260,6 @@ def inject_css() -> None:
 
 
         /* ==================================================
-           TABS
-           ================================================== */
-
-        button[data-baseweb="tab"] {
-            font-weight: 600;
-        }
-
-
-        /* ==================================================
            EXPANDERS
            ================================================== */
 
@@ -259,6 +278,15 @@ def inject_css() -> None:
             border-radius: 7px !important;
         }
 
+
+        /* ==================================================
+           TABS
+           ================================================== */
+
+        button[data-baseweb="tab"] {
+            font-weight: 600;
+        }
+
         </style>
         """,
         unsafe_allow_html=True,
@@ -270,7 +298,7 @@ def inject_css() -> None:
 # ============================================================
 
 def initialize_session_state() -> None:
-    """Initialize application state."""
+    """Initialize application session state."""
 
     defaults: dict[str, Any] = {
         "active_module": "Dashboard",
@@ -291,7 +319,7 @@ def get_database() -> dict[str, Any]:
     """
     Load the application database once per session.
 
-    The same dictionary is shared with all modules.
+    All modules receive the same database dictionary.
     """
 
     database = st.session_state.get(
@@ -314,61 +342,101 @@ def get_database() -> dict[str, Any]:
 # SIDEBAR BRANDING
 # ============================================================
 
-def render_sidebar_logo() -> None:
-    """Render a small centered Creative Studios logo."""
+def _logo_data_uri() -> str | None:
+    """
+    Convert the logo to a base64 data URI.
 
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-brand">',
-        unsafe_allow_html=True,
-    )
+    This allows the logo to be rendered inside the same
+    HTML container as the branding text, making the entire
+    branding block reliably centered in Streamlit Cloud.
+    """
 
-    if LOGO_PATH.exists():
+    if not LOGO_PATH.exists():
+        return None
 
-        # Four-column layout gives the logo a dedicated
-        # centered area and works reliably in Streamlit Cloud.
-        left, center, right = st.sidebar.columns(
-            [1, 2, 1]
+    try:
+
+        encoded = base64.b64encode(
+            LOGO_PATH.read_bytes()
+        ).decode("utf-8")
+
+        suffix = LOGO_PATH.suffix.lower()
+
+        mime_types = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+        }
+
+        mime_type = mime_types.get(
+            suffix,
+            "image/png",
         )
 
-        with center:
+        return (
+            f"data:{mime_type};base64,{encoded}"
+        )
 
-            st.image(
-                str(LOGO_PATH),
-                width=64,
-            )
+    except OSError:
+        return None
 
-    else:
+
+def render_sidebar_logo() -> None:
+    """
+    Render the Creative Studios branding.
+
+    Logo and text are deliberately rendered as one
+    centered HTML block instead of separate Streamlit
+    elements.
+    """
+
+    logo_uri = _logo_data_uri()
+
+    if logo_uri:
 
         st.sidebar.markdown(
-            """
-            <div style="
-                text-align: center;
-                font-size: 17px;
-                font-weight: 700;
-            ">
-                Creative Studios
+            f"""
+            <div class="cs-sidebar-brand">
+
+                <img
+                    class="cs-sidebar-logo"
+                    src="{logo_uri}"
+                    alt="Creative Studios"
+                />
+
+                <div class="cs-sidebar-title">
+                    Creative Studios
+                </div>
+
+                <div class="cs-sidebar-subtitle">
+                    AEC Collaboration Platform
+                </div>
+
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    st.sidebar.markdown(
-        """
-        <div class="cs-sidebar-title">
-            Creative Studios
-        </div>
+    else:
 
-        <div class="cs-sidebar-subtitle">
-            AEC Collaboration Platform
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.sidebar.markdown(
+            """
+            <div class="cs-sidebar-brand">
 
-    st.sidebar.markdown(
-        "</div>",
-        unsafe_allow_html=True,
-    )
+                <div class="cs-sidebar-title">
+                    Creative Studios
+                </div>
+
+                <div class="cs-sidebar-subtitle">
+                    AEC Collaboration Platform
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ============================================================
@@ -418,9 +486,7 @@ def render_sidebar() -> str:
         label_visibility="collapsed",
     )
 
-    if choice != st.session_state.active_module:
-
-        st.session_state.active_module = choice
+    st.session_state.active_module = choice
 
     return choice
 
@@ -487,9 +553,9 @@ def load_module_renderer(
     None,
 ]:
     """
-    Import and return the renderer for a module.
+    Dynamically load the selected module renderer.
 
-    Modules are imported only when selected.
+    Only the selected module is imported.
     """
 
     if module_name not in MODULE_IMPORTS:
@@ -512,8 +578,9 @@ def load_module_renderer(
 
         raise RuntimeError(
             f"Unable to load the "
-            f"{module_name} module. "
-            f"Python reported: {exc}"
+            f"{module_name} module "
+            f"('{module_path}'). "
+            f"Original error: {exc}"
         ) from exc
 
     renderer = getattr(
@@ -526,8 +593,8 @@ def load_module_renderer(
 
         raise AttributeError(
             f"Module '{module_path}' does not "
-            f"contain a callable "
-            f"'{function_name}' function."
+            f"contain the required callable "
+            f"'{function_name}'."
         )
 
     return renderer
@@ -541,7 +608,7 @@ def render_module(
     choice: str,
     database: dict[str, Any],
 ) -> None:
-    """Render the selected application module."""
+    """Render the selected module."""
 
     try:
 
@@ -549,12 +616,15 @@ def render_module(
             choice
         )
 
-        renderer(database)
+        renderer(
+            database
+        )
 
     except Exception as exc:
 
         st.error(
-            f"Unable to render the {choice} module."
+            f"Unable to render the "
+            f"{choice} module."
         )
 
         with st.expander(
@@ -570,7 +640,7 @@ def render_module(
 # ============================================================
 
 def main() -> None:
-    """Run the Creative Studios application."""
+    """Run Creative Studios."""
 
     initialize_session_state()
 
