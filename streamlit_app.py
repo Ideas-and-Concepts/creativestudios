@@ -1,7 +1,6 @@
 import os
 import streamlit as st
 from modules import (
-    landing,
     dashboard,
     projects,
     documents,
@@ -22,7 +21,6 @@ def render_sidebar_logo():
         else:
             st.sidebar.header("Creative Studios")
     except Exception:
-        # Absolute fallback if Streamlit throws unexpected errors
         st.sidebar.header("Creative Studios")
         st.sidebar.write("⚠️ Logo not available")
 
@@ -34,16 +32,14 @@ def main():
     st.sidebar.title("Navigation")
     choice = st.sidebar.radio(
         "Go to",
-        ["Landing", "Dashboard", "Projects", "Documents", "Architecture", "Engineering", "Drawings", "MEP"]
+        ["Dashboard", "Projects", "Documents", "Architecture", "Engineering", "Drawings", "MEP"]
     )
 
     # Load database
     database = load_memory()
 
     # Route to modules
-    if choice == "Landing":
-        landing.render_landing()
-    elif choice == "Dashboard":
+    if choice == "Dashboard":
         dashboard.render_dashboard(database)
     elif choice == "Projects":
         projects.render_projects_module(database)
