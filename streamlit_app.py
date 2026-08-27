@@ -2,19 +2,18 @@
 Creative Studios
 Architecture • Engineering • Construction
 
-Main Streamlit application entry point.
+Main Streamlit application.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import streamlit as st
 
 from modules import (
     approvals,
-    auth,
-    boq,
     branding,
     documents,
     drawings,
@@ -31,23 +30,23 @@ from modules.database import load_memory
 # PAGE CONFIGURATION
 # ============================================================
 
-BASE_DIR = branding.BASE_DIR
-LOGO_PATH = branding.LOGO_PATH
+BASE_DIR = Path(branding.BASE_DIR)
+LOGO_PATH = Path(branding.LOGO_PATH)
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon=str(LOGO_PATH),
+    page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else "CS",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# BRANDING
+# BRANDING / CSS
 # ============================================================
 
 def initialize_branding() -> None:
-    """Load the Creative Studios global branding."""
+    """Initialize Creative Studios branding."""
 
     inject_css = getattr(
         branding,
@@ -56,15 +55,17 @@ def initialize_branding() -> None:
     )
 
     if callable(inject_css):
-        inject_css()
-        return
+        try:
+            inject_css()
+            return
+        except Exception:
+            pass
 
     st.markdown(
         """
         <style>
         [data-testid="stAppViewContainer"] {
             background: #05070B;
-            color: #F8FAFC;
         }
 
         [data-testid="stHeader"] {
@@ -73,6 +74,25 @@ def initialize_branding() -> None:
 
         [data-testid="stSidebar"] {
             background: #080B12;
+        }
+
+        .cs-login-brand {
+            text-align: center;
+        }
+
+        .cs-login-title {
+            color: #FFFFFF;
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-top: 10px;
+        }
+
+        .cs-login-subtitle {
+            color: #64748B;
+            font-size: 14px;
+            margin-top: 5px;
+            margin-bottom: 24px;
         }
         </style>
         """,
@@ -84,7 +104,7 @@ initialize_branding()
 
 
 # ============================================================
-# CONSTANTS
+# APPLICATION CONSTANTS
 # ============================================================
 
 APPLICATION_NAME = "Creative Studios"
@@ -92,6 +112,8 @@ APPLICATION_NAME = "Creative Studios"
 APPLICATION_SUBTITLE = (
     "Architecture • Engineering • Construction"
 )
+
+DEFAULT_MODULE = "Overview"
 
 NAVIGATION = [
     ("Overview", "Overview"),
@@ -112,12 +134,12 @@ NAVIGATION = [
 # ============================================================
 
 def initialize_session_state() -> None:
-    """Initialize Streamlit session state."""
+    """Initialize application session state."""
 
     defaults: dict[str, Any] = {
         "authenticated": False,
         "user": None,
-        "active_module": "Overview",
+        "active_module": DEFAULT_MODULE,
         "database": None,
     }
 
@@ -131,12 +153,14 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """Load the application database."""
+    """
+    Load the application database once per Streamlit session.
+    """
 
-    existing = st.session_state.get("database")
+    database = st.session_state.get("database")
 
-    if isinstance(existing, dict):
-        return existing
+    if isinstance(database, dict):
+        return database
 
     database = load_memory()
 
@@ -149,22 +173,254 @@ def get_database() -> dict[str, Any]:
 
 
 # ============================================================
-# LOGIN
+# AUTHENTICATION HELPERS
+# ============================================================
+
+def _auth_function(
+    function_name: str,
+):
+    """
+    Safely retrieve an authentication function.
+
+    This keeps streamlit_app.py compatible with the
+    existing modules.auth implementation.
+    """
+
+    try:
+        from modules import auth
+
+        function = getattr(
+            auth,
+            function_name,
+            None,
+        )
+
+        if callable(function):
+            return function
+
+    except Exception:
+        pass
+
+    return None
+
+
+def is_authenticated() -> bool:
+    """Return the current authentication state."""
+
+    function = _auth_function(
+        "is_authenticated"
+    )
+
+    if callable(function):
+        try:
+            return bool(function())
+        except Exception:
+            pass
+
+    return bool(
+        st.session_state.get(
+            "authenticated",
+            False,
+        )
+    )
+
+
+def get_current_user() -> dict[str, Any]:
+    """Return the currently authenticated user."""
+
+    function = _auth_function(
+        "get_current_user"
+    )
+
+    if callable(function):
+        try:
+            user = function()
+
+            if isinstance(user, dict):
+                return user
+
+        except Exception:
+            pass
+
+    user = st.session_state.get(
+        "user"
+    )
+
+    if isinstance(user, dict):
+        return user
+
+    return {}
+
+
+def authenticate_user(
+    username: str,
+    password: str,
+    database: dict[str, Any],
+) -> Any:
+    """
+    Authenticate using the existing modules.auth implementation.
+
+    Falls back to the database user collection if necessary.
+    """
+
+    function = _auth_function(
+        "login_user"
+    )
+
+    if callable(function):
+
+        try:
+            result = function(
+                database,
+                username,
+                password,
+            )
+
+            return result
+
+        except TypeError:
+
+            try:
+                result = function(
+                    username,
+                    password,
+                    database,
+                )
+
+                return result
+
+            except Exception:
+                pass
+
+        except Exception:
+            pass
+
+    # --------------------------------------------------------
+    # Fallback authentication
+    # --------------------------------------------------------
+
+    username = str(
+        username or ""
+    ).strip()
+
+    password = str(
+        password or ""
+    )
+
+    users = database.get(
+        "users",
+        [],
+    )
+
+    if not isinstance(
+        users,
+        list,
+    ):
+        return None
+
+    import hashlib
+    import hmac
+
+    password_hash = hashlib.sha256(
+        password.encode("utf-8")
+    ).hexdigest()
+
+    for user in users:
+
+        if not isinstance(
+            user,
+            dict,
+        ):
+            continue
+
+        stored_username = str(
+            user.get(
+                "username",
+                "",
+            )
+        ).strip()
+
+        if stored_username != username:
+            continue
+
+        if user.get(
+            "active",
+            True,
+        ) is False:
+            return None
+
+        stored_password = str(
+            user.get(
+                "password",
+                user.get(
+                    "password_hash",
+                    "",
+                ),
+            )
+        )
+
+        password_matches = (
+            stored_password == password
+            or
+            (
+                len(stored_password) == 64
+                and hmac.compare_digest(
+                    password_hash,
+                    stored_password.lower(),
+                )
+            )
+        )
+
+        if password_matches:
+            return user
+
+    return None
+
+
+def logout_user() -> None:
+    """Log the current user out."""
+
+    function = _auth_function(
+        "logout_user"
+    )
+
+    if callable(function):
+
+        try:
+            function()
+        except Exception:
+            pass
+
+    st.session_state[
+        "authenticated"
+    ] = False
+
+    st.session_state[
+        "user"
+    ] = None
+
+    st.session_state[
+        "active_module"
+    ] = DEFAULT_MODULE
+
+
+# ============================================================
+# LOGIN PAGE
 # ============================================================
 
 def render_login(
     database: dict[str, Any],
 ) -> None:
-    """Render the Creative Studios login page."""
+    """
+    Render the Creative Studios login page.
 
-    # --------------------------------------------------------
-    # Page spacing
-    # --------------------------------------------------------
+    The logo is centered using native Streamlit columns.
+    """
 
     st.write("")
 
     # --------------------------------------------------------
-    # Center the entire login area
+    # Main centered login area
     # --------------------------------------------------------
 
     left, center, right = st.columns(
@@ -175,7 +431,7 @@ def render_login(
     with center:
 
         # ----------------------------------------------------
-        # Centered logo
+        # CENTERED LOGO
         # ----------------------------------------------------
 
         logo_left, logo_center, logo_right = st.columns(
@@ -199,36 +455,26 @@ def render_login(
                 )
 
         # ----------------------------------------------------
-        # Brand identity
+        # BRAND NAME
         # ----------------------------------------------------
 
         st.markdown(
-            "<h1 style='"
-            "text-align:center;"
-            "font-size:28px;"
-            "font-weight:800;"
-            "margin:8px 0 0 0;"
-            "'>"
-            "Creative Studios"
-            "</h1>",
-            unsafe_allow_html=True,
-        )
+            """
+            <div class="cs-login-brand">
+                <div class="cs-login-title">
+                    Creative Studios
+                </div>
 
-        st.markdown(
-            "<p style='"
-            "text-align:center;"
-            "color:#64748B;"
-            "font-size:14px;"
-            "margin-top:5px;"
-            "margin-bottom:24px;"
-            "'>"
-            "Architecture • Engineering • Construction"
-            "</p>",
+                <div class="cs-login-subtitle">
+                    Architecture • Engineering • Construction
+                </div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
         # ----------------------------------------------------
-        # Login form
+        # LOGIN FORM
         # ----------------------------------------------------
 
         with st.form(
@@ -253,64 +499,122 @@ def render_login(
             )
 
         # ----------------------------------------------------
-        # Authentication
+        # PROCESS LOGIN
         # ----------------------------------------------------
 
-        if submitted:
+        if not submitted:
+            return
 
-            username = str(
-                username or ""
-            ).strip()
+        username = str(
+            username or ""
+        ).strip()
 
-            password = str(
-                password or ""
+        password = str(
+            password or ""
+        )
+
+        if not username:
+
+            st.error(
+                "Please enter your username."
             )
 
-            if not username or not password:
+            return
 
-                st.error(
-                    "Please enter your username and password."
-                )
+        if not password:
 
-                return
+            st.error(
+                "Please enter your password."
+            )
 
-            try:
+            return
 
-                authenticated, user = auth.login_user(
-                    database,
-                    username,
-                    password,
-                )
+        try:
 
-            except Exception as exc:
+            result = authenticate_user(
+                username,
+                password,
+                database,
+            )
 
-                st.error(
-                    f"Authentication error: {exc}"
-                )
+        except Exception as exc:
 
-                return
+            st.error(
+                f"Authentication error: {exc}"
+            )
 
-            if not authenticated:
-
-                st.error(
-                    "Invalid username or password."
-                )
-
-                return
-
-            st.session_state["authenticated"] = True
-            st.session_state["user"] = user
-            st.session_state["active_module"] = "Overview"
-
-            st.rerun()
+            return
 
         # ----------------------------------------------------
-        # Footer
+        # Support both common auth return formats:
+        #
+        #   user
+        #   (authenticated, user)
         # ----------------------------------------------------
 
-        st.caption(
-            "Creative Studios"
-        )
+        authenticated = False
+        user: dict[str, Any] | None = None
+
+        if isinstance(
+            result,
+            tuple,
+        ):
+
+            if len(result) >= 2:
+
+                authenticated = bool(
+                    result[0]
+                )
+
+                if isinstance(
+                    result[1],
+                    dict,
+                ):
+                    user = result[1]
+
+        elif isinstance(
+            result,
+            dict,
+        ):
+
+            user = result
+            authenticated = True
+
+        elif isinstance(
+            result,
+            bool,
+        ):
+
+            authenticated = result
+
+            if authenticated:
+                user = get_current_user()
+
+        if not authenticated or user is None:
+
+            st.error(
+                "Invalid username or password."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # Establish session
+        # ----------------------------------------------------
+
+        st.session_state[
+            "authenticated"
+        ] = True
+
+        st.session_state[
+            "user"
+        ] = user
+
+        st.session_state[
+            "active_module"
+        ] = DEFAULT_MODULE
+
+        st.rerun()
 
 
 # ============================================================
@@ -327,20 +631,34 @@ def render_sidebar_branding() -> None:
 
     with logo_col:
 
-        try:
+        render_logo = getattr(
+            branding,
+            "render_logo",
+            None,
+        )
 
-            branding.render_logo(
-                width=44
-            )
+        if callable(render_logo):
 
-        except Exception:
-
-            if LOGO_PATH.exists():
-
-                st.image(
-                    str(LOGO_PATH),
-                    width=44,
+            try:
+                render_logo(
+                    width=44
                 )
+
+            except Exception:
+
+                if LOGO_PATH.exists():
+
+                    st.image(
+                        str(LOGO_PATH),
+                        width=44,
+                    )
+
+        elif LOGO_PATH.exists():
+
+            st.image(
+                str(LOGO_PATH),
+                width=44,
+            )
 
     with text_col:
 
@@ -360,15 +678,9 @@ def render_sidebar_branding() -> None:
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render application navigation."""
+    """Render the application navigation."""
 
-    user = auth.get_current_user()
-
-    if not isinstance(
-        user,
-        dict,
-    ):
-        user = {}
+    user = get_current_user()
 
     render_sidebar_branding()
 
@@ -378,12 +690,12 @@ def render_sidebar() -> str:
 
     current_module = st.session_state.get(
         "active_module",
-        "Overview",
+        DEFAULT_MODULE,
     )
 
     valid_modules = {
-        key
-        for key, _ in NAVIGATION
+        module_key
+        for module_key, _ in NAVIGATION
     }
 
     valid_modules.add(
@@ -392,22 +704,22 @@ def render_sidebar() -> str:
 
     if current_module not in valid_modules:
 
-        current_module = "Overview"
+        current_module = DEFAULT_MODULE
 
         st.session_state[
             "active_module"
         ] = current_module
 
     # --------------------------------------------------------
-    # Main navigation
+    # Navigation
     # --------------------------------------------------------
 
     for module_key, label in NAVIGATION:
 
         if module_key == current_module:
 
-            # Native Streamlit element.
-            # No HTML span/div is used.
+            # Native Streamlit button.
+            # No HTML span is used.
             st.sidebar.button(
                 f"●  {label}",
                 key=f"active_nav_{module_key}",
@@ -463,7 +775,7 @@ def render_sidebar() -> str:
             st.rerun()
 
     # --------------------------------------------------------
-    # User information
+    # Current user
     # --------------------------------------------------------
 
     full_name = str(
@@ -517,15 +829,11 @@ def render_sidebar() -> str:
         use_container_width=True,
     ):
 
-        try:
-            auth.logout_user()
-        except Exception:
-            pass
+        logout_user()
 
-        st.session_state["authenticated"] = False
-        st.session_state["user"] = None
-        st.session_state["active_module"] = "Overview"
-        st.session_state["database"] = None
+        st.session_state[
+            "database"
+        ] = None
 
         st.rerun()
 
@@ -544,21 +852,13 @@ def _safe_float(
     if value is None:
         return 0.0
 
-    if isinstance(
-        value,
-        bool,
-    ):
-        return float(value)
-
     try:
-
         return float(value)
 
     except (
         TypeError,
         ValueError,
     ):
-
         return 0.0
 
 
@@ -569,7 +869,7 @@ def _safe_float(
 def render_overview(
     database: dict[str, Any],
 ) -> None:
-    """Render the Creative Studios overview."""
+    """Render the Creative Studios workspace overview."""
 
     projects_data = database.get(
         "projects",
@@ -634,22 +934,41 @@ def render_overview(
         )
 
     # --------------------------------------------------------
-    # Header
+    # Module header
     # --------------------------------------------------------
 
-    branding.render_module_header(
-        "AEC Workspace",
-        (
-            "Central workspace for "
-            "architecture, engineering "
-            "and construction activities."
-        ),
+    render_header = getattr(
+        branding,
+        "render_module_header",
+        None,
     )
 
+    if callable(render_header):
+
+        render_header(
+            "AEC Workspace",
+            (
+                "Central workspace for "
+                "architecture, engineering "
+                "and construction activities."
+            ),
+        )
+
+    else:
+
+        st.title(
+            "AEC Workspace"
+        )
+
+        st.caption(
+            "Central workspace for architecture, "
+            "engineering and construction activities."
+        )
+
     # --------------------------------------------------------
-    # KPI row
+    # KPI ROW
     #
-    # Native st.metric() replaces HTML KPI cards.
+    # Native Streamlit metrics.
     # --------------------------------------------------------
 
     columns = st.columns(
@@ -696,8 +1015,6 @@ def render_overview(
 
     # --------------------------------------------------------
     # Workspace overview
-    #
-    # Native Streamlit elements replace cs-card HTML.
     # --------------------------------------------------------
 
     st.subheader(
@@ -714,22 +1031,22 @@ def render_overview(
     st.write("")
 
     # --------------------------------------------------------
-    # Quick workspace summary
+    # Workspace summary
     # --------------------------------------------------------
 
-    summary_left, summary_right = st.columns(
+    left, right = st.columns(
         2,
         gap="medium",
     )
 
-    with summary_left:
+    with left:
 
         with st.container(
             border=True,
         ):
 
-            st.write(
-                "**Project Portfolio**"
+            st.subheader(
+                "Project Portfolio"
             )
 
             st.write(
@@ -744,14 +1061,14 @@ def render_overview(
                 f"Planning projects: **{planning_projects}**"
             )
 
-    with summary_right:
+    with right:
 
         with st.container(
             border=True,
         ):
 
-            st.write(
-                "**Project Status**"
+            st.subheader(
+                "Project Status"
             )
 
             st.write(
@@ -771,12 +1088,25 @@ def render_placeholder(
     title: str,
     description: str,
 ) -> None:
-    """Render a module placeholder."""
+    """Render a safe module placeholder."""
 
-    branding.render_module_header(
-        title,
-        description,
+    render_header = getattr(
+        branding,
+        "render_module_header",
+        None,
     )
+
+    if callable(render_header):
+
+        render_header(
+            title,
+            description,
+        )
+
+    else:
+
+        st.title(title)
+        st.caption(description)
 
     with st.container(
         border=True,
@@ -798,18 +1128,30 @@ def render_placeholder(
 def render_settings() -> None:
     """Render application settings."""
 
-    branding.render_module_header(
-        "Settings",
-        "Creative Studios workspace configuration.",
+    render_header = getattr(
+        branding,
+        "render_module_header",
+        None,
     )
 
-    user = auth.get_current_user()
+    if callable(render_header):
 
-    if not isinstance(
-        user,
-        dict,
-    ):
-        user = {}
+        render_header(
+            "Settings",
+            "Creative Studios workspace configuration.",
+        )
+
+    else:
+
+        st.title(
+            "Settings"
+        )
+
+        st.caption(
+            "Creative Studios workspace configuration."
+        )
+
+    user = get_current_user()
 
     full_name = str(
         user.get(
@@ -867,7 +1209,7 @@ def render_active_module(
     module_name: str,
     database: dict[str, Any],
 ) -> None:
-    """Route the active module."""
+    """Route the active application module."""
 
     if module_name == "Overview":
 
@@ -913,9 +1255,32 @@ def render_active_module(
 
     elif module_name == "BOQ":
 
-        boq.render_boq_module(
-            database
+        boq_module = getattr(
+            __import__(
+                "modules.boq",
+                fromlist=[
+                    "render_boq_module"
+                ],
+            ),
+            "render_boq_module",
+            None,
         )
+
+        if callable(boq_module):
+
+            boq_module(
+                database
+            )
+
+        else:
+
+            render_placeholder(
+                "Bill of Quantities",
+                (
+                    "Manage quantities, "
+                    "costs and project estimates."
+                ),
+            )
 
     elif module_name == "Site Logs":
 
@@ -941,7 +1306,7 @@ def render_active_module(
 
         st.session_state[
             "active_module"
-        ] = "Overview"
+        ] = DEFAULT_MODULE
 
         render_overview(
             database
@@ -977,20 +1342,7 @@ def main() -> None:
     # Authentication
     # --------------------------------------------------------
 
-    try:
-
-        authenticated = auth.is_authenticated()
-
-    except Exception:
-
-        authenticated = bool(
-            st.session_state.get(
-                "authenticated",
-                False,
-            )
-        )
-
-    if not authenticated:
+    if not is_authenticated():
 
         try:
 
@@ -1007,7 +1359,7 @@ def main() -> None:
         return
 
     # --------------------------------------------------------
-    # Authenticated application
+    # Application
     # --------------------------------------------------------
 
     try:
@@ -1027,7 +1379,7 @@ def main() -> None:
 
 
 # ============================================================
-# ENTRY POINT
+# APPLICATION ENTRY POINT
 # ============================================================
 
 if __name__ == "__main__":
