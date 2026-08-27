@@ -12,7 +12,7 @@ from modules import (
 from modules.database import load_memory
 
 def render_sidebar_logo():
-    # Correct path: logo is inside assets/creative_studios.png
+    # Path to logo inside assets folder
     logo_path = os.path.join(os.path.dirname(__file__), "assets", "creative_studios.png")
 
     try:
