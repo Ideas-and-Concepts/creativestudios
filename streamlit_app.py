@@ -9,7 +9,7 @@ from modules import (
     drawings,
     mep
 )
-from modules.database import load_memory
+
 
 # ============================================================
 # MAIN APP
