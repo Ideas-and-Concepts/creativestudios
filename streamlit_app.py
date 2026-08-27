@@ -1,20 +1,8 @@
 """
 Creative Studios
-AEC Collaboration Platform
+Architecture • Engineering • Construction
 
 Main Streamlit application entry point.
-
-Responsibilities:
-    - Page configuration
-    - Global branding
-    - Session initialization
-    - Database loading
-    - Authentication gate
-    - Navigation
-    - Module routing
-    - Workspace overview
-
-Business logic belongs inside modules/.
 """
 
 from __future__ import annotations
@@ -60,7 +48,7 @@ st.set_page_config(
 # ============================================================
 
 def initialize_branding() -> None:
-    """Apply the global Creative Studios branding."""
+    """Apply Creative Studios global branding."""
 
     inject_css = getattr(
         branding,
@@ -72,8 +60,6 @@ def initialize_branding() -> None:
         inject_css()
         return
 
-    # Fallback CSS if branding.py does not expose
-    # inject_branding_css().
     st.markdown(
         """
         <style>
@@ -107,15 +93,33 @@ render_module_header = branding.render_module_header
 
 
 # ============================================================
+# APPLICATION CONSTANTS
+# ============================================================
+
+APPLICATION_NAME = "Creative Studios"
+APPLICATION_SUBTITLE = "Architecture • Engineering • Construction"
+
+
+NAVIGATION = [
+    ("Overview", "Overview"),
+    ("Projects", "Project Directory"),
+    ("Documents", "Documents"),
+    ("Drawings", "Drawings"),
+    ("RFIs", "RFIs"),
+    ("Tasks", "Tasks"),
+    ("Approvals", "Approvals"),
+    ("BOQ", "Bill of Quantities"),
+    ("Site Logs", "Site Logs"),
+    ("Team", "Team"),
+]
+
+
+# ============================================================
 # SESSION STATE
 # ============================================================
 
 def initialize_session_state() -> None:
-    """
-    Initialize application session state.
-
-    Existing values are preserved.
-    """
+    """Initialize application session state."""
 
     defaults: dict[str, Any] = {
         "authenticated": False,
@@ -125,7 +129,6 @@ def initialize_session_state() -> None:
     }
 
     for key, value in defaults.items():
-
         if key not in st.session_state:
             st.session_state[key] = value
 
@@ -137,13 +140,9 @@ def initialize_session_state() -> None:
 def get_database() -> dict[str, Any]:
     """
     Load the application database once per Streamlit session.
-
-    The database module handles JSON normalization and recovery.
     """
 
-    database = st.session_state.get(
-        "database"
-    )
+    database = st.session_state.get("database")
 
     if isinstance(database, dict):
         return database
@@ -167,9 +166,7 @@ def render_login(
 ) -> None:
     """Render the Creative Studios login screen."""
 
-    _, center, _ = st.columns(
-        [1, 2, 1]
-    )
+    _, center, _ = st.columns([1, 2, 1])
 
     with center:
 
@@ -183,10 +180,10 @@ def render_login(
         )
 
         try:
-            render_logo(
-                width=150
-            )
+            render_logo(width=150)
+
         except Exception:
+
             if LOGO_PATH.exists():
                 st.image(
                     str(LOGO_PATH),
@@ -203,19 +200,20 @@ def render_login(
         # ----------------------------------------------------
 
         st.markdown(
-            """
+            f"""
             <div style="
                 text-align: center;
                 margin-top: 8px;
                 margin-bottom: 24px;
             ">
+
                 <div style="
                     color: #FFFFFF;
                     font-size: 28px;
                     font-weight: 800;
                     line-height: 1.2;
                 ">
-                    Creative Studios
+                    {html.escape(APPLICATION_NAME)}
                 </div>
 
                 <div style="
@@ -223,8 +221,9 @@ def render_login(
                     font-size: 14px;
                     margin-top: 5px;
                 ">
-                    AEC Collaboration Platform
+                    {html.escape(APPLICATION_SUBTITLE)}
                 </div>
+
             </div>
             """,
             unsafe_allow_html=True,
@@ -258,12 +257,19 @@ def render_login(
         if not submitted:
             return
 
-        # Authentication belongs to modules.auth.
-        authenticated, user = auth.login_user(
-            database,
-            username,
-            password,
-        )
+        # Authentication is delegated to auth.py.
+        try:
+            authenticated, user = auth.login_user(
+                database,
+                username,
+                password,
+            )
+
+        except Exception as exc:
+            st.error(
+                f"Authentication error: {exc}"
+            )
+            return
 
         if not authenticated:
             st.error(
@@ -283,7 +289,7 @@ def render_login(
 # ============================================================
 
 def render_sidebar_branding() -> None:
-    """Render the sidebar workspace identity."""
+    """Render sidebar logo and workspace identity."""
 
     logo_col, text_col = st.sidebar.columns(
         [1, 3]
@@ -292,9 +298,8 @@ def render_sidebar_branding() -> None:
     with logo_col:
 
         try:
-            render_logo(
-                width=44
-            )
+            render_logo(width=44)
+
         except Exception:
 
             if LOGO_PATH.exists():
@@ -306,13 +311,13 @@ def render_sidebar_branding() -> None:
     with text_col:
 
         st.markdown(
-            """
+            f"""
             <div class="cs-sidebar-name">
-                Creative Studios
+                {html.escape(APPLICATION_NAME)}
             </div>
 
             <div class="cs-sidebar-subtitle">
-                AEC Workspace
+                {html.escape(APPLICATION_SUBTITLE)}
             </div>
             """,
             unsafe_allow_html=True,
@@ -325,59 +330,11 @@ def render_sidebar_branding() -> None:
 
 
 # ============================================================
-# NAVIGATION
-# ============================================================
-
-NAVIGATION = [
-    (
-        "Overview",
-        "Overview",
-    ),
-    (
-        "Projects",
-        "Project Directory",
-    ),
-    (
-        "Documents",
-        "Documents",
-    ),
-    (
-        "Drawings",
-        "Drawings",
-    ),
-    (
-        "RFIs",
-        "RFIs",
-    ),
-    (
-        "Tasks",
-        "Tasks",
-    ),
-    (
-        "Approvals",
-        "Approvals",
-    ),
-    (
-        "BOQ",
-        "Bill of Quantities",
-    ),
-    (
-        "Site Logs",
-        "Site Logs",
-    ),
-    (
-        "Team",
-        "Team",
-    ),
-]
-
-
-# ============================================================
-# SIDEBAR
+# SIDEBAR NAVIGATION
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render the application navigation."""
+    """Render application navigation."""
 
     user = auth.get_current_user()
 
@@ -385,10 +342,6 @@ def render_sidebar() -> str:
         user = {}
 
     render_sidebar_branding()
-
-    # --------------------------------------------------------
-    # Module navigation
-    # --------------------------------------------------------
 
     st.sidebar.markdown(
         '<div class="cs-section-label">'
@@ -408,7 +361,6 @@ def render_sidebar() -> str:
     ):
         current_module = "Overview"
 
-    # Prevent stale/invalid navigation state.
     valid_modules = {
         module_key
         for module_key, _ in NAVIGATION
@@ -417,13 +369,15 @@ def render_sidebar() -> str:
     valid_modules.add("Settings")
 
     if current_module not in valid_modules:
+
         current_module = "Overview"
+
         st.session_state[
             "active_module"
         ] = current_module
 
     # --------------------------------------------------------
-    # Navigation buttons
+    # Main navigation
     # --------------------------------------------------------
 
     for module_key, label in NAVIGATION:
@@ -433,10 +387,13 @@ def render_sidebar() -> str:
             st.sidebar.markdown(
                 f"""
                 <div class="cs-active-module">
+
                     <span class="cs-active-indicator">
                         ●
                     </span>
+
                     {html.escape(label)}
+
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -472,10 +429,13 @@ def render_sidebar() -> str:
         st.sidebar.markdown(
             """
             <div class="cs-active-module">
+
                 <span class="cs-active-indicator">
                     ●
                 </span>
+
                 Settings
+
             </div>
             """,
             unsafe_allow_html=True,
@@ -496,7 +456,7 @@ def render_sidebar() -> str:
             st.rerun()
 
     # --------------------------------------------------------
-    # Current user
+    # User card
     # --------------------------------------------------------
 
     full_name = str(
@@ -563,7 +523,18 @@ def render_sidebar() -> str:
         use_container_width=True,
     ):
 
-        auth.logout_user()
+        try:
+            auth.logout_user()
+        except Exception:
+            pass
+
+        st.session_state[
+            "authenticated"
+        ] = False
+
+        st.session_state[
+            "user"
+        ] = None
 
         st.session_state[
             "active_module"
@@ -598,6 +569,7 @@ def _safe_float(
 
     try:
         return float(value)
+
     except (
         TypeError,
         ValueError,
@@ -612,7 +584,7 @@ def _safe_float(
 def render_overview(
     database: dict[str, Any],
 ) -> None:
-    """Render the AEC Workspace overview."""
+    """Render the Creative Studios workspace overview."""
 
     projects_data = database.get(
         "projects",
@@ -677,7 +649,7 @@ def render_overview(
         "AEC Workspace",
         (
             "Central workspace for "
-            "architectural, engineering "
+            "architecture, engineering "
             "and construction activities."
         ),
     )
@@ -744,7 +716,7 @@ def render_overview(
     st.write("")
 
     # --------------------------------------------------------
-    # Workspace summary
+    # Workspace card
     # --------------------------------------------------------
 
     st.markdown(
@@ -752,14 +724,14 @@ def render_overview(
         <div class="cs-card">
 
             <div class="cs-card-title">
-                Workspace Overview
+                Creative Studios Workspace
             </div>
 
             <div class="cs-card-subtitle">
                 Manage projects, documents, drawings,
-                RFIs, tasks, approvals, quantities
-                and site activities from the Creative
-                Studios workspace.
+                RFIs, tasks, approvals, bills of
+                quantities and site activities from
+                one integrated AEC workspace.
             </div>
 
         </div>
@@ -810,7 +782,7 @@ def render_placeholder(
 # ============================================================
 
 def render_settings() -> None:
-    """Render workspace settings."""
+    """Render Creative Studios settings."""
 
     render_module_header(
         "Settings",
@@ -895,13 +867,13 @@ def render_active_module(
     module_name: str,
     database: dict[str, Any],
 ) -> None:
-    """
-    Route the selected module to its renderer.
-    """
+    """Route the selected module."""
 
     if module_name == "Overview":
 
-        render_overview(database)
+        render_overview(
+            database
+        )
 
     elif module_name == "Projects":
 
@@ -1010,7 +982,20 @@ def main() -> None:
     # Authentication
     # --------------------------------------------------------
 
-    if not auth.is_authenticated():
+    try:
+
+        authenticated = auth.is_authenticated()
+
+    except Exception:
+
+        authenticated = bool(
+            st.session_state.get(
+                "authenticated",
+                False,
+            )
+        )
+
+    if not authenticated:
 
         try:
 
@@ -1049,7 +1034,7 @@ def main() -> None:
 
 
 # ============================================================
-# ENTRY POINT
+# APPLICATION ENTRY POINT
 # ============================================================
 
 if __name__ == "__main__":
