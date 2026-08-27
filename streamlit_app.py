@@ -11,6 +11,7 @@ import base64
 import hashlib
 import hmac
 import html
+import mimetypes
 from typing import Any
 
 import streamlit as st
@@ -45,7 +46,7 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS INJECTION
+# BRANDING
 # ============================================================
 
 if hasattr(branding, "inject_branding_css"):
@@ -62,38 +63,112 @@ else:
         [data-testid="stSidebar"] {
             background: #080B12;
         }
-
-        .cs-login-branding {
-            text-align: center;
-            width: 100%;
-        }
-
-        .cs-login-title {
-            color: #FFFFFF;
-            font-size: 28px;
-            font-weight: 800;
-            line-height: 1.2;
-            margin-top: 12px;
-        }
-
-        .cs-login-subtitle {
-            color: #64748B;
-            font-size: 14px;
-            margin-top: 5px;
-            margin-bottom: 24px;
-        }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-# ============================================================
-# BRANDING
-# ============================================================
-
 render_logo = branding.render_logo
 render_module_header = branding.render_module_header
+
+
+# ============================================================
+# LOGIN CSS
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+
+    /* ======================================================
+       LOGIN BRANDING
+       ====================================================== */
+
+    .cs-login-brand {
+        width: 100%;
+        text-align: center;
+        margin: 0 auto 28px auto;
+    }
+
+    .cs-login-brand img {
+        display: block;
+        width: 150px;
+        max-width: 150px;
+        height: auto;
+        margin: 0 auto 16px auto;
+    }
+
+    .cs-login-brand-title {
+        width: 100%;
+        color: #FFFFFF;
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1.2;
+        text-align: center;
+        margin: 0;
+    }
+
+    .cs-login-brand-subtitle {
+        width: 100%;
+        color: #64748B;
+        font-size: 14px;
+        line-height: 1.4;
+        text-align: center;
+        margin-top: 6px;
+    }
+
+
+    /* ======================================================
+       OVERVIEW
+       ====================================================== */
+
+    .cs-overview-card {
+        background: #0B0F17;
+        border: 1px solid #172033;
+        border-radius: 15px;
+        padding: 22px;
+        margin-top: 12px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .cs-overview-title {
+        color: #FFFFFF;
+        font-size: 18px;
+        font-weight: 850;
+        line-height: 1.3;
+    }
+
+    .cs-overview-subtitle {
+        color: #64748B;
+        font-size: 13px;
+        line-height: 1.6;
+        margin-top: 7px;
+    }
+
+
+    /* ======================================================
+       ACTIVE SIDEBAR MODULE
+       ====================================================== */
+
+    .cs-active-module-clean {
+        width: 100%;
+        box-sizing: border-box;
+        background: #172554;
+        border: 1px solid #2563EB;
+        border-radius: 9px;
+        color: #FFFFFF;
+        padding: 0.55rem 0.75rem;
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # ============================================================
@@ -103,7 +178,7 @@ render_module_header = branding.render_module_header
 def initialize_session_state() -> None:
     """Initialize application session state."""
 
-    defaults = {
+    defaults: dict[str, Any] = {
         "authenticated": False,
         "user": None,
         "active_module": "Overview",
@@ -120,17 +195,25 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """Load or initialize the application database."""
+    """
+    Load the application database once per Streamlit session.
 
-    if st.session_state.database is None:
+    The database module already normalizes the JSON structure,
+    so this function only guarantees that the returned value
+    is a dictionary.
+    """
+
+    database = st.session_state.get("database")
+
+    if database is None:
         database = load_memory()
 
         if not isinstance(database, dict):
             database = {}
 
-        st.session_state.database = database
+        st.session_state["database"] = database
 
-    return st.session_state.database
+    return database
 
 
 # ============================================================
@@ -138,7 +221,7 @@ def get_database() -> dict[str, Any]:
 # ============================================================
 
 def _hash_password(password: str) -> str:
-    """Create a SHA-256 hash of a password."""
+    """Create a SHA-256 password hash."""
 
     return hashlib.sha256(
         password.encode("utf-8")
@@ -150,26 +233,39 @@ def _password_matches(
     provided: str,
 ) -> bool:
     """
-    Compare a stored password or hash with
-    a user-provided password.
+    Compare a stored password with the supplied password.
+
+    Supports:
+    - Plain-text passwords used by the current local JSON database.
+    - SHA-256 password hashes.
     """
+
+    stored = str(stored or "")
+    provided = str(provided or "")
 
     if not stored:
         return False
 
-    if stored == provided:
+    # Current JSON database supports plain text.
+    if hmac.compare_digest(
+        stored,
+        provided,
+    ):
         return True
 
+    # SHA-256 support.
+    stored_lower = stored.lower()
+
     if (
-        len(stored) == 64
+        len(stored_lower) == 64
         and all(
-            c in "0123456789abcdef"
-            for c in stored.lower()
+            character in "0123456789abcdef"
+            for character in stored_lower
         )
     ):
         return hmac.compare_digest(
             _hash_password(provided),
-            stored.lower(),
+            stored_lower,
         )
 
     return False
@@ -179,8 +275,8 @@ def authenticate_user(
     username: str,
     password: str,
     database: dict[str, Any],
-):
-    """Authenticate a user."""
+) -> dict[str, Any] | None:
+    """Authenticate a user from the application database."""
 
     username = str(
         username or ""
@@ -189,6 +285,9 @@ def authenticate_user(
     password = str(
         password or ""
     )
+
+    if not username or not password:
+        return None
 
     users = database.get(
         "users",
@@ -216,6 +315,9 @@ def authenticate_user(
             )
         ).strip()
 
+        if stored_username != username:
+            continue
+
         stored_password = str(
             user.get(
                 "password",
@@ -225,9 +327,6 @@ def authenticate_user(
                 ),
             )
         )
-
-        if stored_username != username:
-            continue
 
         if not _password_matches(
             stored_password,
@@ -247,79 +346,114 @@ def authenticate_user(
 
 
 # ============================================================
-# LOGIN
+# LOGIN LOGO
+# ============================================================
+
+def _get_logo_data_uri() -> str | None:
+    """
+    Convert the application logo into a data URI.
+
+    This lets the logo, title and subtitle exist inside the
+    same HTML block, guaranteeing true visual centering.
+    """
+
+    try:
+        if not LOGO_PATH.exists():
+            return None
+
+        logo_bytes = LOGO_PATH.read_bytes()
+
+        if not logo_bytes:
+            return None
+
+        mime_type = (
+            mimetypes.guess_type(
+                str(LOGO_PATH)
+            )[0]
+            or "image/png"
+        )
+
+        encoded = base64.b64encode(
+            logo_bytes
+        ).decode("ascii")
+
+        return (
+            f"data:{mime_type};base64,{encoded}"
+        )
+
+    except Exception:
+        return None
+
+
+# ============================================================
+# LOGIN PAGE
 # ============================================================
 
 def render_login(
     database: dict[str, Any],
 ) -> None:
-    """Render the centered Creative Studios login page."""
+    """
+    Render the Creative Studios login page.
 
-    # --------------------------------------------------------
-    # Main centered login container
-    # --------------------------------------------------------
+    The logo and both branding lines are rendered as one
+    centered HTML component instead of separate Streamlit
+    columns/components.
+    """
 
-    col_left, col_center, col_right = st.columns(
+    left, center, right = st.columns(
         [1, 2, 1]
     )
 
-    with col_center:
+    with center:
 
-        # ----------------------------------------------------
-        # CENTERED BRANDING
-        #
-        # The logo and both text lines are kept together.
-        # ----------------------------------------------------
+        logo_data_uri = _get_logo_data_uri()
 
-        st.markdown(
-            '<div class="cs-login-branding">',
-            unsafe_allow_html=True,
-        )
+        if logo_data_uri:
 
-        # Logo
-        if LOGO_PATH.exists():
+            st.markdown(
+                f"""
+                <div class="cs-login-brand">
 
-            logo_left, logo_center, logo_right = st.columns(
-                [1, 2, 1]
+                    <img
+                        src="{logo_data_uri}"
+                        alt="Creative Studios Logo"
+                    >
+
+                    <div class="cs-login-brand-title">
+                        Creative Studios
+                    </div>
+
+                    <div class="cs-login-brand-subtitle">
+                        Architecture • Engineering • Construction
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
-            with logo_center:
-
-                st.image(
-                    str(LOGO_PATH),
-                    width=150,
-                )
-
         else:
+
+            st.markdown(
+                """
+                <div class="cs-login-brand">
+
+                    <div class="cs-login-brand-title">
+                        Creative Studios
+                    </div>
+
+                    <div class="cs-login-brand-subtitle">
+                        Architecture • Engineering • Construction
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
             st.warning(
                 f"Logo not found: {LOGO_PATH}"
             )
-
-        # Brand name
-        st.markdown(
-            """
-            <div class="cs-login-title">
-                Creative Studios
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        # Brand description
-        st.markdown(
-            """
-            <div class="cs-login-subtitle">
-                Architecture • Engineering • Construction
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True,
-        )
 
         # ----------------------------------------------------
         # LOGIN FORM
@@ -346,10 +480,6 @@ def render_login(
                 use_container_width=True,
             )
 
-        # ----------------------------------------------------
-        # PROCESS LOGIN
-        # ----------------------------------------------------
-
         if submitted:
 
             user = authenticate_user(
@@ -358,19 +488,19 @@ def render_login(
                 database,
             )
 
-            if user is not None:
-
-                st.session_state.authenticated = True
-                st.session_state.user = user
-                st.session_state.active_module = "Overview"
-
-                st.rerun()
-
-            else:
+            if user is None:
 
                 st.error(
                     "Invalid username or password."
                 )
+
+                return
+
+            st.session_state["authenticated"] = True
+            st.session_state["user"] = user
+            st.session_state["active_module"] = "Overview"
+
+            st.rerun()
 
 
 # ============================================================
@@ -378,7 +508,7 @@ def render_login(
 # ============================================================
 
 def render_sidebar_branding() -> None:
-    """Render the sidebar logo and workspace identity."""
+    """Render sidebar workspace branding."""
 
     logo_col, text_col = st.sidebar.columns(
         [1, 3]
@@ -412,15 +542,16 @@ def render_sidebar_branding() -> None:
 
 
 # ============================================================
-# SIDEBAR
+# SIDEBAR NAVIGATION
 # ============================================================
 
 def render_sidebar() -> str:
     """Render application navigation."""
 
-    user = st.session_state.get(
-        "user"
-    ) or {}
+    user = (
+        st.session_state.get("user")
+        or {}
+    )
 
     render_sidebar_branding()
 
@@ -444,19 +575,22 @@ def render_sidebar() -> str:
         ("Team", "Team"),
     ]
 
-    current_module = st.session_state.get(
-        "active_module",
-        "Overview",
+    current_module = str(
+        st.session_state.get(
+            "active_module",
+            "Overview",
+        )
     )
 
     for module_key, label in navigation:
 
         if module_key == current_module:
 
+            # Deliberately avoid the previous
+            # cs-active-indicator HTML.
             st.sidebar.markdown(
                 f"""
-                <div class="cs-active-module">
-                    <span class="cs-active-indicator">●</span>
+                <div class="cs-active-module-clean">
                     {html.escape(label)}
                 </div>
                 """,
@@ -471,11 +605,14 @@ def render_sidebar() -> str:
                 use_container_width=True,
             ):
 
-                st.session_state.active_module = module_key
+                st.session_state[
+                    "active_module"
+                ] = module_key
+
                 st.rerun()
 
     # --------------------------------------------------------
-    # Administration
+    # ADMINISTRATION
     # --------------------------------------------------------
 
     st.sidebar.markdown(
@@ -489,8 +626,7 @@ def render_sidebar() -> str:
 
         st.sidebar.markdown(
             """
-            <div class="cs-active-module">
-                <span class="cs-active-indicator">●</span>
+            <div class="cs-active-module-clean">
                 Settings
             </div>
             """,
@@ -505,11 +641,14 @@ def render_sidebar() -> str:
             use_container_width=True,
         ):
 
-            st.session_state.active_module = "Settings"
+            st.session_state[
+                "active_module"
+            ] = "Settings"
+
             st.rerun()
 
     # --------------------------------------------------------
-    # User card
+    # USER CARD
     # --------------------------------------------------------
 
     full_name = str(
@@ -539,36 +678,26 @@ def render_sidebar() -> str:
         or "Admin"
     ).strip()
 
-    safe_full_name = html.escape(
-        full_name
-    )
-
-    safe_username = html.escape(
-        username
-    )
-
-    safe_role = html.escape(
-        role
-    )
-
     st.sidebar.markdown(
         f"""
         <div class="cs-user-card">
+
             <div class="user-label">
                 Signed In
             </div>
 
             <div class="user-name">
-                {safe_full_name}
+                {html.escape(full_name)}
             </div>
 
             <div class="user-login">
-                @{safe_username}
+                @{html.escape(username)}
             </div>
 
             <div class="user-role">
-                {safe_role}
+                {html.escape(role)}
             </div>
+
         </div>
         """,
         unsafe_allow_html=True,
@@ -582,9 +711,9 @@ def render_sidebar() -> str:
         use_container_width=True,
     ):
 
-        st.session_state.authenticated = False
-        st.session_state.user = None
-        st.session_state.active_module = "Overview"
+        st.session_state["authenticated"] = False
+        st.session_state["user"] = None
+        st.session_state["active_module"] = "Overview"
 
         st.rerun()
 
@@ -592,7 +721,7 @@ def render_sidebar() -> str:
 
 
 # ============================================================
-# SAFE NUMBER
+# SAFE HELPERS
 # ============================================================
 
 def _safe_float(
@@ -600,17 +729,49 @@ def _safe_float(
 ) -> float:
     """Safely convert a value to float."""
 
+    if value is None:
+        return 0.0
+
+    if isinstance(
+        value,
+        bool,
+    ):
+        return float(value)
+
+    if isinstance(
+        value,
+        (int, float),
+    ):
+        return float(value)
+
     try:
-        return float(
-            value or 0
-        )
+        cleaned = str(
+            value
+        ).replace(
+            ",",
+            "",
+        ).strip()
+
+        if not cleaned:
+            return 0.0
+
+        return float(cleaned)
 
     except (
         TypeError,
         ValueError,
     ):
-
         return 0.0
+
+
+def _safe_status(
+    value: Any,
+) -> str:
+    """Normalize project status."""
+
+    return str(
+        value or ""
+    ).strip().lower()
 
 
 # ============================================================
@@ -620,7 +781,13 @@ def _safe_float(
 def render_overview(
     database: dict[str, Any],
 ) -> None:
-    """Render the AEC Workspace overview."""
+    """
+    Render the main Creative Studios workspace overview.
+
+    Uses native Streamlit metrics rather than HTML KPI markup.
+    This avoids the visual/runtime issues previously seen with
+    cs-kpi-label and cs-kpi-value.
+    """
 
     projects_data = database.get(
         "projects",
@@ -633,43 +800,45 @@ def render_overview(
     ):
         projects_data = []
 
-    total_projects = len(
-        projects_data
-    )
-
-    active_projects = 0
-    planning_projects = 0
-    completed_projects = 0
-    total_budget = 0.0
-
-    for project in projects_data:
-
-        if not isinstance(
+    valid_projects: list[dict[str, Any]] = [
+        project
+        for project in projects_data
+        if isinstance(
             project,
             dict,
-        ):
-            continue
+        )
+    ]
 
-        status = str(
-            project.get(
-                "status",
-                "",
-            )
-        ).strip().lower()
+    total_projects = len(
+        valid_projects
+    )
 
-        if status == "active":
+    active_projects = sum(
+        1
+        for project in valid_projects
+        if _safe_status(
+            project.get("status")
+        ) == "active"
+    )
 
-            active_projects += 1
+    planning_projects = sum(
+        1
+        for project in valid_projects
+        if _safe_status(
+            project.get("status")
+        ) == "planning"
+    )
 
-        elif status == "planning":
+    completed_projects = sum(
+        1
+        for project in valid_projects
+        if _safe_status(
+            project.get("status")
+        ) == "completed"
+    )
 
-            planning_projects += 1
-
-        elif status == "completed":
-
-            completed_projects += 1
-
-        total_budget += _safe_float(
+    total_budget = sum(
+        _safe_float(
             project.get(
                 "estimated_budget",
                 project.get(
@@ -678,6 +847,12 @@ def render_overview(
                 ),
             )
         )
+        for project in valid_projects
+    )
+
+    # --------------------------------------------------------
+    # HEADER
+    # --------------------------------------------------------
 
     render_module_header(
         "AEC Workspace",
@@ -687,52 +862,60 @@ def render_overview(
         ),
     )
 
-    metrics = [
-        ("Projects", str(total_projects)),
-        ("Active", str(active_projects)),
-        ("Planning", str(planning_projects)),
-        ("Completed", str(completed_projects)),
-        ("Total Budget", f"${total_budget:,.2f}"),
-    ]
+    # --------------------------------------------------------
+    # KPI ROW
+    # --------------------------------------------------------
 
-    columns = st.columns(
+    metric_columns = st.columns(
         5,
         gap="small",
     )
 
-    for column, (label, value) in zip(
-        columns,
-        metrics,
-    ):
+    with metric_columns[0]:
+        st.metric(
+            "Projects",
+            total_projects,
+        )
 
-        with column:
+    with metric_columns[1]:
+        st.metric(
+            "Active",
+            active_projects,
+        )
 
-            st.markdown(
-                f"""
-                <div class="cs-kpi">
-                    <div class="cs-kpi-label">
-                        {html.escape(label)}
-                    </div>
+    with metric_columns[2]:
+        st.metric(
+            "Planning",
+            planning_projects,
+        )
 
-                    <div class="cs-kpi-value">
-                        {html.escape(value)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+    with metric_columns[3]:
+        st.metric(
+            "Completed",
+            completed_projects,
+        )
+
+    with metric_columns[4]:
+        st.metric(
+            "Total Budget",
+            f"${total_budget:,.2f}",
+        )
 
     st.write("")
 
+    # --------------------------------------------------------
+    # WORKSPACE CARD
+    # --------------------------------------------------------
+
     st.markdown(
         """
-        <div class="cs-card">
+        <div class="cs-overview-card">
 
-            <div class="cs-card-title">
+            <div class="cs-overview-title">
                 Creative Studios Workspace
             </div>
 
-            <div class="cs-card-subtitle">
+            <div class="cs-overview-subtitle">
                 Manage projects, documents, drawings,
                 RFIs, tasks, approvals, bills of
                 quantities and site activities from
@@ -744,6 +927,140 @@ def render_overview(
         unsafe_allow_html=True,
     )
 
+    # --------------------------------------------------------
+    # PROJECT SNAPSHOT
+    # --------------------------------------------------------
+
+    st.write("")
+
+    st.subheader(
+        "Project Snapshot"
+    )
+
+    if not valid_projects:
+
+        st.info(
+            "No projects have been created yet."
+        )
+
+        return
+
+    snapshot_columns = st.columns(
+        3,
+        gap="medium",
+    )
+
+    # Active
+    with snapshot_columns[0]:
+
+        st.markdown(
+            "### Active Projects"
+        )
+
+        active_list = [
+            project
+            for project in valid_projects
+            if _safe_status(
+                project.get("status")
+            ) == "active"
+        ]
+
+        if not active_list:
+
+            st.caption(
+                "No active projects."
+            )
+
+        else:
+
+            for project in active_list[:5]:
+
+                name = str(
+                    project.get(
+                        "name",
+                        "Unnamed Project",
+                    )
+                    or "Unnamed Project"
+                )
+
+                st.write(
+                    f"• {name}"
+                )
+
+    # Planning
+    with snapshot_columns[1]:
+
+        st.markdown(
+            "### Planning"
+        )
+
+        planning_list = [
+            project
+            for project in valid_projects
+            if _safe_status(
+                project.get("status")
+            ) == "planning"
+        ]
+
+        if not planning_list:
+
+            st.caption(
+                "No planning projects."
+            )
+
+        else:
+
+            for project in planning_list[:5]:
+
+                name = str(
+                    project.get(
+                        "name",
+                        "Unnamed Project",
+                    )
+                    or "Unnamed Project"
+                )
+
+                st.write(
+                    f"• {name}"
+                )
+
+    # Completed
+    with snapshot_columns[2]:
+
+        st.markdown(
+            "### Completed"
+        )
+
+        completed_list = [
+            project
+            for project in valid_projects
+            if _safe_status(
+                project.get("status")
+            ) == "completed"
+        ]
+
+        if not completed_list:
+
+            st.caption(
+                "No completed projects."
+            )
+
+        else:
+
+            for project in completed_list[:5]:
+
+                name = str(
+                    project.get(
+                        "name",
+                        "Unnamed Project",
+                    )
+                    or "Unnamed Project"
+                )
+
+                st.write(
+                    f"• {name}"
+                )
+
 
 # ============================================================
 # PLACEHOLDER
@@ -753,6 +1070,7 @@ def render_placeholder(
     title: str,
     description: str,
 ) -> None:
+    """Render a safe placeholder module."""
 
     render_module_header(
         title,
@@ -786,15 +1104,17 @@ def render_placeholder(
 # ============================================================
 
 def render_settings() -> None:
+    """Render workspace settings."""
 
     render_module_header(
         "Settings",
         "Creative Studios workspace configuration.",
     )
 
-    user = st.session_state.get(
-        "user"
-    ) or {}
+    user = (
+        st.session_state.get("user")
+        or {}
+    )
 
     full_name = str(
         user.get(
@@ -859,14 +1179,14 @@ def render_settings() -> None:
 
 
 # ============================================================
-# ROUTER
+# MODULE ROUTER
 # ============================================================
 
 def render_active_module(
     module_name: str,
     database: dict[str, Any],
 ) -> None:
-    """Route the selected module."""
+    """Route the selected module to its renderer."""
 
     if module_name == "Overview":
 
@@ -915,8 +1235,8 @@ def render_active_module(
         render_placeholder(
             "Bill of Quantities",
             (
-                "Manage quantities, "
-                "costs and project estimates."
+                "Manage quantities, costs "
+                "and project estimates."
             ),
         )
 
@@ -942,7 +1262,9 @@ def render_active_module(
 
     else:
 
-        st.session_state.active_module = "Overview"
+        st.session_state[
+            "active_module"
+        ] = "Overview"
 
         render_overview(
             database
@@ -958,6 +1280,10 @@ def main() -> None:
 
     initialize_session_state()
 
+    # --------------------------------------------------------
+    # DATABASE
+    # --------------------------------------------------------
+
     try:
 
         database = get_database()
@@ -965,26 +1291,31 @@ def main() -> None:
     except Exception as exc:
 
         st.error(
-            f"Unable to load workspace data: {exc}"
+            "Unable to load workspace data."
         )
+
+        st.exception(exc)
 
         st.stop()
 
-    if not st.session_state.authenticated:
+    # --------------------------------------------------------
+    # LOGIN
+    # --------------------------------------------------------
 
-        try:
+    if not st.session_state.get(
+        "authenticated",
+        False,
+    ):
 
-            render_login(
-                database
-            )
-
-        except Exception as exc:
-
-            st.error(
-                f"Error rendering login: {exc}"
-            )
+        render_login(
+            database
+        )
 
         return
+
+    # --------------------------------------------------------
+    # APPLICATION
+    # --------------------------------------------------------
 
     try:
 
@@ -998,8 +1329,11 @@ def main() -> None:
     except Exception as exc:
 
         st.error(
-            f"An error occurred: {exc}"
+            "An error occurred while "
+            "rendering the workspace."
         )
+
+        st.exception(exc)
 
 
 # ============================================================
