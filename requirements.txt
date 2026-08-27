@@ -1,4 +1,11 @@
-streamlit>=1.30.0
-sqlalchemy>=2.0.0
+# Core framework
+streamlit>=1.32.0
+
+# Data handling
 pandas>=2.0.0
-psycopg2-binary>=2.9.0
+
+# Visualization
+plotly>=5.0.0
+
+# Typing support (optional, but good practice)
+typing-extensions>=4.0.0
