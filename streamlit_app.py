@@ -5,15 +5,14 @@ AEC Collaboration Platform
 Main Streamlit application.
 
 Authentication has been removed.
-Modules are loaded only when selected.
+Modules are imported only when selected.
 """
 
 from __future__ import annotations
 
 import importlib
-import traceback
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import streamlit as st
 
@@ -26,32 +25,22 @@ from modules.database import load_memory
 
 BASE_DIR = Path(__file__).resolve().parent
 
-LOGO_PATH = BASE_DIR / "assets" / "creative_studios.png"
+LOGO_PATH = (
+    BASE_DIR
+    / "assets"
+    / "creative_studios.png"
+)
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else None,
+    page_icon=(
+        str(LOGO_PATH)
+        if LOGO_PATH.exists()
+        else None
+    ),
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
-
-# ============================================================
-# SESSION STATE
-# ============================================================
-
-def initialize_session_state() -> None:
-    """Initialize application session state."""
-
-    defaults = {
-        "active_module": "Dashboard",
-        "database": None,
-        "theme": "Dark",
-    }
-
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
 
 
 # ============================================================
@@ -59,17 +48,14 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def initialize_theme() -> None:
-    """Initialize the default application theme."""
+    """Initialize the application theme."""
 
-    if st.session_state.get("theme") not in {
-        "Dark",
-        "Light",
-    }:
+    if "theme" not in st.session_state:
         st.session_state.theme = "Dark"
 
 
 def render_theme_selector() -> None:
-    """Render the theme selector."""
+    """Render the dark/light theme selector."""
 
     current_theme = st.session_state.get(
         "theme",
@@ -79,17 +65,25 @@ def render_theme_selector() -> None:
     selected_theme = st.sidebar.selectbox(
         "Theme",
         ["Dark", "Light"],
-        index=0 if current_theme == "Dark" else 1,
+        index=(
+            0
+            if current_theme == "Dark"
+            else 1
+        ),
         key="theme_selector",
     )
 
     if selected_theme != current_theme:
-        st.session_state.theme = selected_theme
+
+        st.session_state.theme = (
+            selected_theme
+        )
+
         st.rerun()
 
 
 def inject_theme_css() -> None:
-    """Apply application theme CSS."""
+    """Apply Creative Studios theme styling."""
 
     theme = st.session_state.get(
         "theme",
@@ -97,12 +91,15 @@ def inject_theme_css() -> None:
     )
 
     if theme == "Light":
+
         background = "#F8FAFC"
         surface = "#FFFFFF"
         text = "#0F172A"
         muted = "#64748B"
         border = "#E2E8F0"
+
     else:
+
         background = "#05070B"
         surface = "#0B1018"
         text = "#F8FAFC"
@@ -122,6 +119,11 @@ def inject_theme_css() -> None:
             background: transparent;
         }}
 
+        .block-container {{
+            padding-top: 1.5rem;
+            padding-bottom: 2rem;
+        }}
+
         [data-testid="stSidebar"] {{
             background: {surface};
             border-right: 1px solid {border};
@@ -131,21 +133,9 @@ def inject_theme_css() -> None:
             color: {text};
         }}
 
-        .block-container {{
-            padding-top: 1.5rem;
-            padding-bottom: 2rem;
-        }}
-
         .cs-sidebar-brand {{
             text-align: center;
             padding: 0.5rem 0 1rem 0;
-        }}
-
-        .cs-sidebar-logo {{
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 0.5rem;
         }}
 
         .cs-sidebar-title {{
@@ -233,12 +223,8 @@ def inject_theme_css() -> None:
             margin-top: 6px;
         }}
 
-        .cs-error-card {{
-            background: {surface};
-            border: 1px solid #7F1D1D;
-            border-radius: 12px;
-            padding: 1.25rem;
-            margin-top: 1rem;
+        div.stButton > button {{
+            border-radius: 8px;
         }}
 
         </style>
@@ -248,30 +234,53 @@ def inject_theme_css() -> None:
 
 
 # ============================================================
+# SESSION STATE
+# ============================================================
+
+def initialize_session_state() -> None:
+    """Initialize application session state."""
+
+    defaults: dict[str, Any] = {
+        "active_module": "Dashboard",
+        "database": None,
+        "theme": "Dark",
+    }
+
+    for key, value in defaults.items():
+
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+# ============================================================
 # DATABASE
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """Load the database safely."""
+    """
+    Load the application database once per session.
+
+    The same database object is passed to each module.
+    """
 
     database = st.session_state.get(
         "database"
     )
 
-    if isinstance(database, dict):
-        return database
+    if not isinstance(
+        database,
+        dict,
+    ):
 
-    try:
         database = load_memory()
-    except Exception as exc:
-        st.error("Unable to load the Creative Studios database.")
-        st.exception(exc)
-        database = {}
 
-    if not isinstance(database, dict):
-        database = {}
+        if not isinstance(
+            database,
+            dict,
+        ):
+            database = {}
 
-    st.session_state.database = database
+        st.session_state.database = database
 
     return database
 
@@ -281,22 +290,37 @@ def get_database() -> dict[str, Any]:
 # ============================================================
 
 def render_sidebar_logo() -> None:
-    """Render the application logo."""
+    """Render the Creative Studios sidebar branding."""
 
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-brand">',
-        unsafe_allow_html=True,
-    )
+    if LOGO_PATH.exists():
 
-    if LOGO_PATH.is_file():
         st.sidebar.markdown(
-            '<div class="cs-sidebar-logo">',
+            '<div class="cs-sidebar-brand">',
             unsafe_allow_html=True,
         )
 
-        st.sidebar.image(
-            str(LOGO_PATH),
-            width=64,
+        try:
+
+            st.sidebar.image(
+                str(LOGO_PATH),
+                width=64,
+            )
+
+        except Exception:
+
+            pass
+
+        st.sidebar.markdown(
+            """
+            <div class="cs-sidebar-title">
+                Creative Studios
+            </div>
+
+            <div class="cs-sidebar-subtitle">
+                AEC Collaboration Platform
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
         st.sidebar.markdown(
@@ -304,42 +328,32 @@ def render_sidebar_logo() -> None:
             unsafe_allow_html=True,
         )
 
-    st.sidebar.markdown(
-        """
-        <div class="cs-sidebar-title">
-            Creative Studios
-        </div>
+    else:
 
-        <div class="cs-sidebar-subtitle">
-            AEC Collaboration Platform
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.sidebar.markdown(
+            """
+            <div class="cs-sidebar-brand">
 
-    st.sidebar.markdown(
-        "</div>",
-        unsafe_allow_html=True,
-    )
+                <div class="cs-sidebar-title">
+                    Creative Studios
+                </div>
+
+                <div class="cs-sidebar-subtitle">
+                    AEC Collaboration Platform
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ============================================================
-# NAVIGATION
+# SIDEBAR NAVIGATION
 # ============================================================
-
-NAVIGATION = [
-    "Dashboard",
-    "Projects",
-    "Documents",
-    "Architecture",
-    "Engineering",
-    "Drawings",
-    "MEP",
-]
-
 
 def render_sidebar() -> str:
-    """Render sidebar navigation."""
+    """Render application navigation."""
 
     render_sidebar_logo()
 
@@ -353,23 +367,38 @@ def render_sidebar() -> str:
         unsafe_allow_html=True,
     )
 
+    navigation = [
+        "Dashboard",
+        "Projects",
+        "Documents",
+        "Architecture",
+        "Engineering",
+        "Drawings",
+        "BOQ",
+        "MEP",
+    ]
+
     current = st.session_state.get(
         "active_module",
         "Dashboard",
     )
 
-    if current not in NAVIGATION:
+    if current not in navigation:
         current = "Dashboard"
 
     choice = st.sidebar.radio(
         "Go to",
-        NAVIGATION,
-        index=NAVIGATION.index(current),
+        navigation,
+        index=navigation.index(
+            current
+        ),
         key="module_navigation",
         label_visibility="collapsed",
     )
 
-    st.session_state.active_module = choice
+    st.session_state.active_module = (
+        choice
+    )
 
     st.sidebar.markdown(
         '<div class="cs-divider"></div>',
@@ -385,31 +414,46 @@ def render_sidebar() -> str:
 # MODULE REGISTRY
 # ============================================================
 
-MODULE_IMPORTS: dict[str, tuple[str, str]] = {
+MODULE_IMPORTS: dict[
+    str,
+    tuple[str, str],
+] = {
+
     "Dashboard": (
         "modules.dashboard",
         "render_dashboard",
     ),
+
     "Projects": (
         "modules.projects",
         "render_projects_module",
     ),
+
     "Documents": (
         "modules.documents",
         "render_documents_module",
     ),
+
     "Architecture": (
         "modules.architecture",
         "render_architecture_module",
     ),
+
     "Engineering": (
         "modules.engineering",
         "render_engineering_module",
     ),
+
     "Drawings": (
         "modules.drawings",
         "render_drawings_module",
     ),
+
+    "BOQ": (
+        "modules.boq",
+        "render_boq_module",
+    ),
+
     "MEP": (
         "modules.mep",
         "render_mep_module",
@@ -423,28 +467,39 @@ MODULE_IMPORTS: dict[str, tuple[str, str]] = {
 
 def load_module_renderer(
     module_name: str,
-):
+) -> Callable[
+    [dict[str, Any]],
+    None,
+]:
     """
-    Load a module renderer.
+    Dynamically load a module renderer.
 
-    Import errors are returned to the caller instead of being
-    hidden behind a generic RuntimeError.
+    Modules are imported only when selected.
     """
 
-    configuration = MODULE_IMPORTS.get(
-        module_name
-    )
+    if module_name not in MODULE_IMPORTS:
 
-    if configuration is None:
         raise KeyError(
-            f"No module registered for '{module_name}'."
+            f"Unknown module: {module_name}"
         )
 
-    module_path, function_name = configuration
-
-    module = importlib.import_module(
-        module_path
+    module_path, function_name = (
+        MODULE_IMPORTS[module_name]
     )
+
+    try:
+
+        module = importlib.import_module(
+            module_path
+        )
+
+    except Exception as exc:
+
+        raise RuntimeError(
+            f"Unable to load the {module_name} "
+            f"module from '{module_path}'. "
+            f"Original error: {exc}"
+        ) from exc
 
     renderer = getattr(
         module,
@@ -453,50 +508,14 @@ def load_module_renderer(
     )
 
     if not callable(renderer):
+
         raise AttributeError(
-            f"{module_path} does not define "
-            f"callable {function_name}()."
+            f"The module '{module_path}' "
+            f"does not expose the required "
+            f"callable '{function_name}'."
         )
 
     return renderer
-
-
-# ============================================================
-# MODULE ERROR DISPLAY
-# ============================================================
-
-def render_module_error(
-    module_name: str,
-    exc: Exception,
-) -> None:
-    """
-    Display a useful module error without crashing
-    the entire Creative Studios application.
-    """
-
-    st.error(
-        f"Unable to load the {module_name} module."
-    )
-
-    st.markdown(
-        f"""
-        <div class="cs-error-card">
-            <strong>Module:</strong> {module_name}<br>
-            <strong>Error:</strong> {type(exc).__name__}<br>
-            <strong>Message:</strong> {str(exc)}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    with st.expander(
-        "Technical details",
-        expanded=False,
-    ):
-        st.code(
-            traceback.format_exc(),
-            language="text",
-        )
 
 
 # ============================================================
@@ -507,24 +526,13 @@ def render_module(
     choice: str,
     database: dict[str, Any],
 ) -> None:
-    """Safely load and render the selected module."""
+    """Render the selected module."""
 
     try:
 
         renderer = load_module_renderer(
             choice
         )
-
-    except Exception as exc:
-
-        render_module_error(
-            choice,
-            exc,
-        )
-
-        return
-
-    try:
 
         renderer(
             database
@@ -540,21 +548,21 @@ def render_module(
             "Technical details",
             expanded=False,
         ):
-            st.code(
-                traceback.format_exc(),
-                language="text",
-            )
+
+            st.exception(exc)
 
 
 # ============================================================
-# APPLICATION
+# MAIN
 # ============================================================
 
 def main() -> None:
     """Run Creative Studios."""
 
     initialize_session_state()
+
     initialize_theme()
+
     inject_theme_css()
 
     database = get_database()
