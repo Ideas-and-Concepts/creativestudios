@@ -3,7 +3,7 @@ from typing import Any
 from modules.database import save_memory
 
 def render_team_module(database: dict[str, Any]) -> None:
-    """Render Team module for managing project members."""
+    """Render Team module with BOQ assignments."""
 
     st.header("Project Team")
 
@@ -22,11 +22,26 @@ def render_team_module(database: dict[str, Any]) -> None:
         return
 
     team = project.get("team", [])
+    boq_items = project.get("boq", [])
 
     st.subheader("Team Members")
     if team:
         for member in team:
-            st.write(f"• {member.get('name')} ({member.get('role')})")
+            name = member.get("name")
+            role = member.get("role")
+
+            # Find BOQ items assigned to this member
+            assigned_items = [
+                item for item in boq_items if item.get("responsible") == name
+            ]
+
+            st.markdown(f"**{name}** ({role})")
+            if assigned_items:
+                for item in assigned_items:
+                    st.write(f"• {item['description']} (${item['total']:,.2f})")
+            else:
+                st.caption("No BOQ items assigned.")
+            st.write("---")
     else:
         st.caption("No team members yet.")
 
