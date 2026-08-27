@@ -249,3 +249,33 @@ DRAWINGS
     ├── Stair Details
     ├── Reinforcement Details
     └── Structural Details
+
+
+PROJECT
+   │
+   ├── ARCHITECTURE
+   │      │
+   │      ├── Architectural Work
+   │      ├── Architectural Drawings
+   │      ├── Design Changes
+   │      └── Site Observations
+   │
+   ├── ENGINEERING
+   │      │
+   │      ├── Structural
+   │      ├── Civil
+   │      ├── Mechanical
+   │      ├── Electrical
+   │      └── Plumbing
+   │
+   ├── DRAWINGS
+   │      ├── Architectural
+   │      └── Structural
+   │
+   ├── RFIs
+   │
+   ├── APPROVALS
+   │
+   ├── DOCUMENTS
+   │
+   └── SITE ACTIVITIES
