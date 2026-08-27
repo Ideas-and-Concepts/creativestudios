@@ -1,168 +1,106 @@
 """
-Creative Studios
-Drawings Module
+Drawing Repository Module
+Handles document versioning, discipline filtering, and file status tracking.
 """
 
 from __future__ import annotations
-
-import html
-from typing import Any
-
 import streamlit as st
 
-from modules.branding import render_module_header
-from modules.database import (
-    add_record,
-    delete_record,
-    next_id,
-    update_record,
-)
 
+def render_drawings_module(db: dict) -> None:
+    st.markdown("## Drawing Repository")
+    st.caption("Manage architectural, structural, MEP, and site construction drawings.")
 
-DRAWING_STATUSES = [
-    "Draft",
-    "For Review",
-    "Approved",
-    "Issued",
-    "Superseded",
-]
+    if "drawings" not in db:
+        db["drawings"] = []
 
+    # Summary Metrics
+    total_drawings = len(db["drawings"])
+    pending_approval = sum(1 for d in db["drawings"] if d.get("status") == "Pending Review")
+    approved_drawings = sum(1 for d in db["drawings"] if d.get("status") == "Approved")
 
-def _text(value: Any) -> str:
-    return str(value or "").strip()
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Sheets", total_drawings)
+    col2.metric("Pending Review", pending_approval)
+    col3.metric("Approved", approved_drawings)
 
+    st.markdown("---")
 
-def render_drawings_module(database: dict[str, Any]) -> None:
-    render_module_header(
-        "Drawings",
-        "Manage architectural, engineering and construction drawings.",
-    )
+    tab1, tab2 = st.tabs(["Sheet Directory", "Upload / Register Sheet"])
 
-    drawings = database.get("drawings", [])
-    if not isinstance(drawings, list):
-        drawings = []
-
-    search = st.text_input(
-        "Search drawings",
-        placeholder="Search drawing number, title, project or discipline...",
-        key="drawings_search",
-    )
-
-    if st.button("New Drawing", key="new_drawing"):
-        st.session_state["show_drawing_form"] = True
-
-    # Create drawing
-    if st.session_state.get("show_drawing_form", False):
-        with st.form("drawing_form", clear_on_submit=True):
-            number = st.text_input("Drawing Number")
-            title = st.text_input("Drawing Title")
-            project = st.text_input("Project")
-            discipline = st.text_input("Discipline")
-            revision = st.text_input("Revision", value="0")
-            status = st.selectbox("Status", DRAWING_STATUSES)
-
-            submitted = st.form_submit_button("Create Drawing", use_container_width=True)
-
-            if submitted:
-                if not number.strip():
-                    st.error("Drawing number is required.")
-                elif not title.strip():
-                    st.error("Drawing title is required.")
-                else:
-                    drawing = {
-                        "id": next_id("drawings", database),
-                        "drawing_number": number.strip(),
-                        "title": title.strip(),
-                        "project": project.strip(),
-                        "discipline": discipline.strip(),
-                        "revision": revision.strip(),
-                        "status": status,
-                    }
-                    add_record("drawings", drawing, database)  # ✅ correct order
-                    st.session_state["show_drawing_form"] = False
-                    st.success("Drawing created.")
-                    st.rerun()
-
-    # Filter
-    search_value = search.lower().strip()
-    filtered = []
-
-    for drawing in drawings:
-        if not isinstance(drawing, dict):
-            continue
-        searchable = " ".join([
-            _text(drawing.get("drawing_number")),
-            _text(drawing.get("title")),
-            _text(drawing.get("project")),
-            _text(drawing.get("discipline")),
-            _text(drawing.get("status")),
-        ]).lower()
-
-        if not search_value or search_value in searchable:
-            filtered.append(drawing)
-
-    st.metric("Drawings", len(drawings))
-    st.write("")
-
-    if not filtered:
-        st.info("No drawings found.")
-        return
-
-    for drawing in filtered:
-        drawing_id = drawing.get("id")
-        number = html.escape(_text(drawing.get("drawing_number", "")))
-        title = html.escape(_text(drawing.get("title", "Untitled Drawing")))
-        project = html.escape(_text(drawing.get("project", "")))
-        discipline = html.escape(_text(drawing.get("discipline", "")))
-        revision = html.escape(_text(drawing.get("revision", "0")))
-        status = html.escape(_text(drawing.get("status", "Draft")))
-
-        # ✅ KEY: unsafe_allow_html=True
-        st.markdown(
-            f"""
-            <div class="cs-card">
-                <div class="cs-card-title">{number} · {title}</div>
-                <div class="cs-card-subtitle">
-                    {project} &nbsp; • &nbsp; {discipline} &nbsp; • &nbsp;
-                    Rev {revision} &nbsp; • &nbsp; {status}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+    with tab1:
+        c1, c2, c3 = st.columns([2, 1, 1])
+        search = c1.text_input("Search drawing title or code", placeholder="e.g. A-101")
+        discipline_filter = c2.selectbox(
+            "Discipline",
+            ["All", "Architectural", "Structural", "Electrical", "Plumbing", "HVAC", "Civil"]
+        )
+        status_filter = c3.selectbox(
+            "Status",
+            ["All", "Approved", "Pending Review", "Superceded", "Rejected"]
         )
 
-        with st.expander(f"Edit Drawing #{drawing_id}"):
-            with st.form(f"edit_drawing_{drawing_id}"):
-                edit_number = st.text_input("Drawing Number", value=_text(drawing.get("drawing_number")))
-                edit_title = st.text_input("Drawing Title", value=_text(drawing.get("title")))
-                edit_project = st.text_input("Project", value=_text(drawing.get("project")))
-                edit_discipline = st.text_input("Discipline", value=_text(drawing.get("discipline")))
-                edit_revision = st.text_input("Revision", value=_text(drawing.get("revision", "0")))
+        filtered = db["drawings"]
+        if search:
+            s_lower = search.lower()
+            filtered = [
+                d for d in filtered 
+                if s_lower in d.get("code", "").lower() or s_lower in d.get("title", "").lower()
+            ]
+        if discipline_filter != "All":
+            filtered = [d for d in filtered if d.get("discipline") == discipline_filter]
+        if status_filter != "All":
+            filtered = [d for d in filtered if d.get("status") == status_filter]
 
-                current_status = _text(drawing.get("status", "Draft"))
-                status_index = DRAWING_STATUSES.index(current_status) if current_status in DRAWING_STATUSES else 0
-                edit_status = st.selectbox("Status", DRAWING_STATUSES, index=status_index)
+        if not filtered:
+            st.info("No drawing sheets found matching the active criteria.")
+        else:
+            for item in filtered:
+                with st.expander(f"**[{item.get('code', 'N/A')}]** {item.get('title', 'Untitled Sheet')}"):
+                    d_col1, d_col2, d_col3, d_col4 = st.columns(4)
+                    d_col1.write(f"**Discipline:** {item.get('discipline', '-')}")
+                    d_col2.write(f"**Revision:** Rev {item.get('revision', '0')}")
+                    d_col3.write(f"**Status:** {item.get('status', 'Draft')}")
+                    d_col4.write(f"**Author:** {item.get('author', 'N/A')}")
+                    
+                    if item.get("notes"):
+                        st.caption(f"**Notes:** {item.get('notes')}")
 
-                save = st.form_submit_button("Save Changes", use_container_width=True)
+    with tab2:
+        st.markdown("### Register New Drawing Sheet")
+        with st.form("add_drawing_form", clear_on_submit=True):
+            f1, f2 = st.columns(2)
+            code = f1.text_input("Sheet Code*", placeholder="e.g. S-201")
+            title = f2.text_input("Sheet Title*", placeholder="e.g. Foundation Framing Plan")
 
-                if save:
-                    update_record(
-                        "drawings",
-                        drawing_id,
-                        {
-                            "drawing_number": edit_number.strip(),
-                            "title": edit_title.strip(),
-                            "project": edit_project.strip(),
-                            "discipline": edit_discipline.strip(),
-                            "revision": edit_revision.strip(),
-                            "status": edit_status,
-                        },
-                        database,
-                    )
-                    st.success("Drawing updated.")
+            f3, f4, f5 = st.columns(3)
+            discipline = f3.selectbox(
+                "Discipline*",
+                ["Architectural", "Structural", "Electrical", "Plumbing", "HVAC", "Civil"]
+            )
+            revision = f4.text_input("Revision", value="0")
+            status = f5.selectbox("Initial Status", ["Pending Review", "Approved", "Draft"])
+
+            notes = st.text_area("Revision Notes / Scope", placeholder="Describe changes or sheet coverage...")
+            submitted = st.form_submit_button("Register Sheet", use_container_width=True)
+
+            if submitted:
+                if not code or not title:
+                    st.error("Sheet Code and Title are required.")
+                else:
+                    new_doc = {
+                        "id": len(db["drawings"]) + 1,
+                        "code": code.strip(),
+                        "title": title.strip(),
+                        "discipline": discipline,
+                        "revision": revision.strip(),
+                        "status": status,
+                        "author": st.session_state.get("user", {}).get("full_name", "Admin"),
+                        "notes": notes.strip(),
+                    }
+                    db["drawings"].append(new_doc)
+                    st.success(f"Registered sheet {code} successfully!")
                     st.rerun()
 
-            if st.button("Delete Drawing", key=f"delete_drawing_{drawing_id}"):
-                delete_record("drawings", drawing_id, database)
-                st.success("Drawing deleted.")
-                st.rerun()
+
+# ============================================================
