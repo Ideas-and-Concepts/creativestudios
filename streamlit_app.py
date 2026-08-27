@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from modules import (
     landing,
@@ -9,38 +10,29 @@ from modules import (
     drawings,
     mep
 )
-
-
-# ============================================================
-# MAIN APP
-# ============================================================
+from modules.database import load_memory
 
 def main():
-    # Sidebar branding
-    st.sidebar.image("assets/creative_studios.png", use_column_width=True)
-    st.sidebar.title("Creative Studios")
+    # Sidebar branding with safe fallback
+    logo_path = os.path.join(os.path.dirname(__file__), "assets", "creative_studios.png")
+    if os.path.exists(logo_path):
+        st.sidebar.image(logo_path, use_column_width=True)
+    else:
+        st.sidebar.header("Creative Studios")
 
-    navigation = [
-        "Landing Page",
-        "Dashboard",
-        "Projects",
-        "Documents",
-        "Architecture",
-        "Engineering",
-        "Drawings",
-        "MEP"
-    ]
-
-    choice = st.sidebar.radio("Go to", navigation)
+    st.sidebar.title("Navigation")
+    choice = st.sidebar.radio(
+        "Go to",
+        ["Landing", "Dashboard", "Projects", "Documents", "Architecture", "Engineering", "Drawings", "MEP"]
+    )
 
     # Load database
     database = load_memory()
 
-    # Route to selected module
-    if choice == "Landing Page":
-        landing.render_landing_page(database)
+    if choice == "Landing":
+        landing.render_landing()
     elif choice == "Dashboard":
-        dashboard.render_dashboard_module(database)
+        dashboard.render_dashboard(database)
     elif choice == "Projects":
         projects.render_projects_module(database)
     elif choice == "Documents":
