@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#1E3A8A"         # Deep blue (matches professional AEC branding)
+backgroundColor = "#F9FAFB"      # Light gray background for clean look
+secondaryBackgroundColor = "#FFFFFF" # White cards/panels
+textColor = "#111827"            # Dark gray text for readability
+font = "sans serif"              # Modern, clean font
