@@ -1,4 +1,7 @@
-lfrom modules.database import save_memory
+import streamlit as st
+import pandas as pd
+from typing import Any
+from modules.database import save_memory
 
 def render_boq_module(database: dict[str, Any]) -> None:
     st.header("Bill of Quantities")
@@ -20,33 +23,44 @@ def render_boq_module(database: dict[str, Any]) -> None:
 
     st.subheader("Line Items")
     if boq_items:
-        st.dataframe(pd.DataFrame(boq_items))
+        for idx, item in enumerate(boq_items):
+            st.write(
+                f"**{item['description']}** "
+                f"({item['quantity']} {item['unit']} @ ${item['unit_rate']:.2f}) "
+                f"= ${item['total']:,.2f} → {item.get('responsible','Unassigned')}"
+            )
+
+            col1, col2 = st.columns([1,1])
+            with col1:
+                if st.button(f"Edit {idx}", key=f"edit_{idx}"):
+                    with st.form(f"edit_form_{idx}", clear_on_submit=True):
+                        description = st.text_input("Description", item["description"])
+                        quantity = st.number_input("Quantity", value=item["quantity"])
+                        unit = st.text_input("Unit", item["unit"])
+                        unit_rate = st.number_input("Unit Rate ($)", value=item["unit_rate"])
+                        responsible = st.selectbox(
+                            "Responsible",
+                            ["Unassigned"] + [m.get("name") for m in team],
+                            index=(["Unassigned"] + [m.get("name") for m in team]).index(item.get("responsible","Unassigned"))
+                        )
+                        submitted = st.form_submit_button("Save Changes")
+                        if submitted:
+                            item.update({
+                                "description": description,
+                                "quantity": quantity,
+                                "unit": unit,
+                                "unit_rate": unit_rate,
+                                "total": quantity * unit_rate,
+                                "responsible": responsible,
+                            })
+                            save_memory(database)
+                            st.success("Item updated!")
+
+            with col2:
+                if st.button(f"Delete {idx}", key=f"delete_{idx}"):
+                    boq_items.pop(idx)
+                    project["boq"] = boq_items
+                    save_memory(database)
+                    st.warning("Item deleted.")
     else:
         st.caption("No BOQ items yet.")
-
-    with st.form("add_boq_item", clear_on_submit=True):
-        description = st.text_input("Description")
-        quantity = st.number_input("Quantity", min_value=0.0, step=1.0)
-        unit = st.text_input("Unit")
-        unit_rate = st.number_input("Unit Rate ($)", min_value=0.0, step=0.01)
-
-        # New: assign responsibility
-        team_names = [m.get("name") for m in team] if team else []
-        responsible = st.selectbox("Responsible", ["Unassigned"] + team_names)
-
-        submitted = st.form_submit_button("Add Item")
-
-        if submitted and description and unit:
-            total = quantity * unit_rate
-            new_item = {
-                "description": description,
-                "quantity": quantity,
-                "unit": unit,
-                "unit_rate": unit_rate,
-                "total": total,
-                "responsible": responsible,
-            }
-            boq_items.append(new_item)
-            project["boq"] = boq_items
-            save_memory(database)
-            st.success(f"Added item: {description} (${total:,.2f}) → {responsible}")
