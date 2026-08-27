@@ -12,14 +12,25 @@ from modules import (
 )
 from modules.database import load_memory
 
-def main():
-    # Sidebar branding with safe fallback
-    logo_path = os.path.join(os.path.dirname(__file__), "assets", "creative_studios.png")
-    if os.path.exists(logo_path):
-        st.sidebar.image(logo_path, use_column_width=True)
-    else:
-        st.sidebar.header("Creative Studios")
+def render_sidebar_logo():
+    # Correct path: logo is in project root (creative_studios.png)
+    logo_path = os.path.join(os.path.dirname(__file__), "creative_studios.png")
 
+    try:
+        if os.path.exists(logo_path):
+            st.sidebar.image(logo_path, use_column_width=True)
+        else:
+            st.sidebar.header("Creative Studios")
+    except Exception:
+        # Absolute fallback if Streamlit throws unexpected errors
+        st.sidebar.header("Creative Studios")
+        st.sidebar.write("⚠️ Logo not available")
+
+def main():
+    # Sidebar branding
+    render_sidebar_logo()
+
+    # Navigation
     st.sidebar.title("Navigation")
     choice = st.sidebar.radio(
         "Go to",
@@ -29,6 +40,7 @@ def main():
     # Load database
     database = load_memory()
 
+    # Route to modules
     if choice == "Landing":
         landing.render_landing()
     elif choice == "Dashboard":
