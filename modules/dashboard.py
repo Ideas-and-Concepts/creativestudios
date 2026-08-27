@@ -9,166 +9,185 @@ from typing import Any
 
 import streamlit as st
 
+from modules.document_storage import (
+    list_module_files,
+)
 
-def _safe_records(
+
+def _count(
     database: dict[str, Any],
     key: str,
-) -> list[dict[str, Any]]:
-    """Return only dictionary records from a database collection."""
-    value = database.get(key, [])
+) -> int:
 
-    if not isinstance(value, list):
-        return []
+    value = database.get(
+        key,
+        [],
+    )
 
-    return [
-        item
-        for item in value
-        if isinstance(item, dict)
-    ]
-
-
-def _safe_float(value: Any) -> float:
-    try:
-        return float(value or 0)
-    except (TypeError, ValueError):
-        return 0.0
+    return (
+        len(value)
+        if isinstance(value, list)
+        else 0
+    )
 
 
 def render_dashboard(
     database: dict[str, Any],
 ) -> None:
-    """Render the Creative Studios dashboard."""
 
-    projects = _safe_records(database, "projects")
-    documents = _safe_records(database, "documents")
-    drawings = _safe_records(database, "drawings")
-    architecture = _safe_records(database, "architecture")
-    engineering = _safe_records(database, "engineering")
-    mep = _safe_records(database, "mep")
+    st.title("Creative Studios")
 
-    active_projects = sum(
-        1
-        for project in projects
-        if str(project.get("status", "")).strip().lower()
-        == "active"
+    st.caption(
+        "AEC Collaboration Platform"
     )
 
-    completed_projects = sum(
-        1
-        for project in projects
-        if str(project.get("status", "")).strip().lower()
-        == "completed"
+    projects = _count(
+        database,
+        "projects",
     )
 
-    planning_projects = sum(
-        1
-        for project in projects
-        if str(project.get("status", "")).strip().lower()
-        == "planning"
+    architecture = _count(
+        database,
+        "architecture",
     )
 
-    total_budget = sum(
-        _safe_float(
-            project.get(
-                "estimated_budget",
-                project.get("budget", 0),
+    engineering = _count(
+        database,
+        "engineering",
+    )
+
+    drawings = _count(
+        database,
+        "drawings",
+    )
+
+    boq = _count(
+        database,
+        "boq",
+    )
+
+    mep = _count(
+        database,
+        "mep",
+    )
+
+    documents = _count(
+        database,
+        "documents",
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric(
+        "Projects",
+        projects,
+    )
+
+    c2.metric(
+        "Architecture",
+        architecture,
+    )
+
+    c3.metric(
+        "Engineering",
+        engineering,
+    )
+
+    c4.metric(
+        "Drawings",
+        drawings,
+    )
+
+    c5, c6, c7, c8 = st.columns(4)
+
+    c5.metric(
+        "BOQ Items",
+        boq,
+    )
+
+    c6.metric(
+        "MEP Records",
+        mep,
+    )
+
+    c7.metric(
+        "Documents",
+        documents,
+    )
+
+    total_files = sum(
+        len(
+            list_module_files(
+                database,
+                module,
             )
         )
-        for project in projects
+        for module in [
+            "Projects",
+            "Architecture",
+            "Engineering",
+            "Drawings",
+            "BOQ",
+            "MEP",
+        ]
     )
 
-    st.title("Dashboard")
-    st.caption(
-        "Creative Studios AEC collaboration workspace."
+    c8.metric(
+        "Stored Files",
+        total_files,
     )
-
-    metrics = [
-        ("Projects", len(projects)),
-        ("Active", active_projects),
-        ("Planning", planning_projects),
-        ("Completed", completed_projects),
-        ("Documents", len(documents)),
-    ]
-
-    columns = st.columns(5)
-
-    for column, (label, value) in zip(
-        columns,
-        metrics,
-    ):
-        with column:
-            st.metric(label, value)
 
     st.divider()
 
-    left, right = st.columns(2)
+    st.subheader(
+        "Construction Information Flow"
+    )
 
-    with left:
-        st.subheader("Project Summary")
+    st.write(
+        "Projects → Architecture → Engineering → "
+        "Drawings → BOQ → MEP → Documents"
+    )
 
-        if projects:
-            rows = []
+    st.info(
+        "Each module now has its own editable records "
+        "and shared file/document repository."
+    )
 
-            for project in projects:
-                rows.append(
-                    {
-                        "Project": project.get(
-                            "name",
-                            project.get(
-                                "project_name",
-                                "Unnamed Project",
-                            ),
-                        ),
-                        "Client": project.get(
-                            "client",
-                            project.get(
-                                "client_name",
-                                "",
-                            ),
-                        ),
-                        "Status": project.get(
-                            "status",
-                            "Unknown",
-                        ),
-                        "Budget": _safe_float(
-                            project.get(
-                                "estimated_budget",
-                                project.get(
-                                    "budget",
-                                    0,
-                                ),
-                            )
-                        ),
-                    }
-                )
+    st.subheader(
+        "Workspace"
+    )
 
-            st.dataframe(
-                rows,
-                use_container_width=True,
-                hide_index=True,
-            )
-        else:
-            st.info(
-                "No projects have been created yet."
-            )
+    col1, col2, col3 = st.columns(3)
 
-    with right:
-        st.subheader("Workspace Summary")
+    with col1:
 
-        summary = [
-            ("Documents", len(documents)),
-            ("Drawings", len(drawings)),
-            ("Architecture Records", len(architecture)),
-            ("Engineering Records", len(engineering)),
-            ("MEP Records", len(mep)),
-        ]
+        st.markdown(
+            """
+            **Architecture**
 
-        for label, value in summary:
-            st.write(
-                f"**{label}:** {value}"
-            )
+            Building planning, design development,
+            construction documentation and architectural drawings.
+            """
+        )
 
-        st.write(
-            f"**Total Project Budget:** "
-            f"{total_budget:,.2f}"
+    with col2:
+
+        st.markdown(
+            """
+            **Engineering**
+
+            Structural, civil, geotechnical and
+            infrastructure engineering coordination.
+            """
+        )
+
+    with col3:
+
+        st.markdown(
+            """
+            **Construction Information**
+
+            Drawings, BOQ, MEP records, project files
+            and technical documentation.
+            """
         )
