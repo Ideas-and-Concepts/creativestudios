@@ -204,3 +204,25 @@ creativestudios/
 │   └── landing.py
 │
 └── creativestudios_db.json
+
+
+
+
+creativestudios/
+│
+├── streamlit_app.py
+├── creativestudios_db.json
+│
+├── assets/
+│   └── creative_studios.png
+│
+└── modules/
+    ├── __init__.py
+    ├── database.py
+    ├── dashboard.py
+    ├── projects.py
+    ├── documents.py
+    ├── architecture.py
+    ├── engineering.py
+    ├── drawings.py
+    └── mep.py
