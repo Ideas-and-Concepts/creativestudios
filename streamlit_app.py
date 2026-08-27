@@ -7,11 +7,9 @@ Main Streamlit application.
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import html
-import mimetypes
 from typing import Any
 
 import streamlit as st
@@ -46,7 +44,7 @@ st.set_page_config(
 
 
 # ============================================================
-# BRANDING
+# BRANDING / GLOBAL CSS
 # ============================================================
 
 if hasattr(branding, "inject_branding_css"):
@@ -74,7 +72,7 @@ render_module_header = branding.render_module_header
 
 
 # ============================================================
-# LOGIN CSS
+# APPLICATION CSS
 # ============================================================
 
 st.markdown(
@@ -82,25 +80,31 @@ st.markdown(
     <style>
 
     /* ======================================================
-       LOGIN BRANDING
+       LOGIN PAGE
        ====================================================== */
 
-    .cs-login-brand {
+    .cs-login-container {
         width: 100%;
         text-align: center;
         margin: 0 auto 28px auto;
     }
 
-    .cs-login-brand img {
-        display: block;
-        width: 150px;
-        max-width: 150px;
-        height: auto;
-        margin: 0 auto 16px auto;
+    .cs-login-logo {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto 18px auto;
     }
 
-    .cs-login-brand-title {
-        width: 100%;
+    .cs-login-logo img {
+        display: block;
+        margin: 0 auto;
+        max-width: 150px;
+        height: auto;
+    }
+
+    .cs-login-title {
         color: #FFFFFF;
         font-size: 28px;
         font-weight: 800;
@@ -109,13 +113,30 @@ st.markdown(
         margin: 0;
     }
 
-    .cs-login-brand-subtitle {
-        width: 100%;
+    .cs-login-subtitle {
         color: #64748B;
         font-size: 14px;
         line-height: 1.4;
         text-align: center;
         margin-top: 6px;
+    }
+
+
+    /* ======================================================
+       SIDEBAR ACTIVE MODULE
+       ====================================================== */
+
+    .cs-active-module-clean {
+        width: 100%;
+        box-sizing: border-box;
+        background: #172554;
+        border: 1px solid #2563EB;
+        border-radius: 9px;
+        color: #FFFFFF;
+        padding: 0.55rem 0.75rem;
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
     }
 
 
@@ -145,24 +166,6 @@ st.markdown(
         font-size: 13px;
         line-height: 1.6;
         margin-top: 7px;
-    }
-
-
-    /* ======================================================
-       ACTIVE SIDEBAR MODULE
-       ====================================================== */
-
-    .cs-active-module-clean {
-        width: 100%;
-        box-sizing: border-box;
-        background: #172554;
-        border: 1px solid #2563EB;
-        border-radius: 9px;
-        color: #FFFFFF;
-        padding: 0.55rem 0.75rem;
-        font-size: 14px;
-        font-weight: 700;
-        margin-bottom: 0.25rem;
     }
 
     </style>
@@ -197,10 +200,6 @@ def initialize_session_state() -> None:
 def get_database() -> dict[str, Any]:
     """
     Load the application database once per Streamlit session.
-
-    The database module already normalizes the JSON structure,
-    so this function only guarantees that the returned value
-    is a dictionary.
     """
 
     database = st.session_state.get("database")
@@ -235,8 +234,8 @@ def _password_matches(
     """
     Compare a stored password with the supplied password.
 
-    Supports:
-    - Plain-text passwords used by the current local JSON database.
+    Supports both:
+    - Plain-text passwords.
     - SHA-256 password hashes.
     """
 
@@ -246,14 +245,14 @@ def _password_matches(
     if not stored:
         return False
 
-    # Current JSON database supports plain text.
+    # Plain-text compatibility.
     if hmac.compare_digest(
         stored,
         provided,
     ):
         return True
 
-    # SHA-256 support.
+    # SHA-256 compatibility.
     stored_lower = stored.lower()
 
     if (
@@ -346,46 +345,6 @@ def authenticate_user(
 
 
 # ============================================================
-# LOGIN LOGO
-# ============================================================
-
-def _get_logo_data_uri() -> str | None:
-    """
-    Convert the application logo into a data URI.
-
-    This lets the logo, title and subtitle exist inside the
-    same HTML block, guaranteeing true visual centering.
-    """
-
-    try:
-        if not LOGO_PATH.exists():
-            return None
-
-        logo_bytes = LOGO_PATH.read_bytes()
-
-        if not logo_bytes:
-            return None
-
-        mime_type = (
-            mimetypes.guess_type(
-                str(LOGO_PATH)
-            )[0]
-            or "image/png"
-        )
-
-        encoded = base64.b64encode(
-            logo_bytes
-        ).decode("ascii")
-
-        return (
-            f"data:{mime_type};base64,{encoded}"
-        )
-
-    except Exception:
-        return None
-
-
-# ============================================================
 # LOGIN PAGE
 # ============================================================
 
@@ -395,65 +354,67 @@ def render_login(
     """
     Render the Creative Studios login page.
 
-    The logo and both branding lines are rendered as one
-    centered HTML component instead of separate Streamlit
-    columns/components.
+    IMPORTANT:
+    The logo is rendered through the repository's actual
+    branding.render_logo() implementation.
     """
 
-    left, center, right = st.columns(
+    left_column, center_column, right_column = st.columns(
         [1, 2, 1]
     )
 
-    with center:
+    with center_column:
 
-        logo_data_uri = _get_logo_data_uri()
+        # ----------------------------------------------------
+        # LOGO
+        # ----------------------------------------------------
 
-        if logo_data_uri:
+        st.markdown(
+            '<div class="cs-login-container">',
+            unsafe_allow_html=True,
+        )
 
-            st.markdown(
-                f"""
-                <div class="cs-login-brand">
+        st.markdown(
+            '<div class="cs-login-logo">',
+            unsafe_allow_html=True,
+        )
 
-                    <img
-                        src="{logo_data_uri}"
-                        alt="Creative Studios Logo"
-                    >
-
-                    <div class="cs-login-brand-title">
-                        Creative Studios
-                    </div>
-
-                    <div class="cs-login-brand-subtitle">
-                        Architecture • Engineering • Construction
-                    </div>
-
-                </div>
-                """,
-                unsafe_allow_html=True,
+        try:
+            render_logo(
+                width=150
             )
 
-        else:
-
-            st.markdown(
-                """
-                <div class="cs-login-brand">
-
-                    <div class="cs-login-brand-title">
-                        Creative Studios
-                    </div>
-
-                    <div class="cs-login-brand-subtitle">
-                        Architecture • Engineering • Construction
-                    </div>
-
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
+        except Exception as exc:
             st.warning(
-                f"Logo not found: {LOGO_PATH}"
+                f"Unable to render logo: {exc}"
             )
+
+        st.markdown(
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        # ----------------------------------------------------
+        # BRAND NAME
+        # ----------------------------------------------------
+
+        st.markdown(
+            """
+            <div class="cs-login-title">
+                Creative Studios
+            </div>
+
+            <div class="cs-login-subtitle">
+                Architecture • Engineering • Construction
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
         # ----------------------------------------------------
         # LOGIN FORM
@@ -496,9 +457,17 @@ def render_login(
 
                 return
 
-            st.session_state["authenticated"] = True
-            st.session_state["user"] = user
-            st.session_state["active_module"] = "Overview"
+            st.session_state[
+                "authenticated"
+            ] = True
+
+            st.session_state[
+                "user"
+            ] = user
+
+            st.session_state[
+                "active_module"
+            ] = "Overview"
 
             st.rerun()
 
@@ -508,7 +477,7 @@ def render_login(
 # ============================================================
 
 def render_sidebar_branding() -> None:
-    """Render sidebar workspace branding."""
+    """Render sidebar logo and workspace identity."""
 
     logo_col, text_col = st.sidebar.columns(
         [1, 3]
@@ -586,8 +555,6 @@ def render_sidebar() -> str:
 
         if module_key == current_module:
 
-            # Deliberately avoid the previous
-            # cs-active-indicator HTML.
             st.sidebar.markdown(
                 f"""
                 <div class="cs-active-module-clean">
@@ -711,9 +678,17 @@ def render_sidebar() -> str:
         use_container_width=True,
     ):
 
-        st.session_state["authenticated"] = False
-        st.session_state["user"] = None
-        st.session_state["active_module"] = "Overview"
+        st.session_state[
+            "authenticated"
+        ] = False
+
+        st.session_state[
+            "user"
+        ] = None
+
+        st.session_state[
+            "active_module"
+        ] = "Overview"
 
         st.rerun()
 
@@ -745,6 +720,7 @@ def _safe_float(
         return float(value)
 
     try:
+
         cleaned = str(
             value
         ).replace(
@@ -767,7 +743,7 @@ def _safe_float(
 def _safe_status(
     value: Any,
 ) -> str:
-    """Normalize project status."""
+    """Normalize a project status."""
 
     return str(
         value or ""
@@ -781,13 +757,7 @@ def _safe_status(
 def render_overview(
     database: dict[str, Any],
 ) -> None:
-    """
-    Render the main Creative Studios workspace overview.
-
-    Uses native Streamlit metrics rather than HTML KPI markup.
-    This avoids the visual/runtime issues previously seen with
-    cs-kpi-label and cs-kpi-value.
-    """
+    """Render the Creative Studios AEC workspace overview."""
 
     projects_data = database.get(
         "projects",
@@ -800,7 +770,7 @@ def render_overview(
     ):
         projects_data = []
 
-    valid_projects: list[dict[str, Any]] = [
+    valid_projects = [
         project
         for project in projects_data
         if isinstance(
@@ -863,39 +833,39 @@ def render_overview(
     )
 
     # --------------------------------------------------------
-    # KPI ROW
+    # KPI METRICS
     # --------------------------------------------------------
 
-    metric_columns = st.columns(
+    columns = st.columns(
         5,
         gap="small",
     )
 
-    with metric_columns[0]:
+    with columns[0]:
         st.metric(
             "Projects",
             total_projects,
         )
 
-    with metric_columns[1]:
+    with columns[1]:
         st.metric(
             "Active",
             active_projects,
         )
 
-    with metric_columns[2]:
+    with columns[2]:
         st.metric(
             "Planning",
             planning_projects,
         )
 
-    with metric_columns[3]:
+    with columns[3]:
         st.metric(
             "Completed",
             completed_projects,
         )
 
-    with metric_columns[4]:
+    with columns[4]:
         st.metric(
             "Total Budget",
             f"${total_budget:,.2f}",
@@ -1186,7 +1156,7 @@ def render_active_module(
     module_name: str,
     database: dict[str, Any],
 ) -> None:
-    """Route the selected module to its renderer."""
+    """Route the selected module."""
 
     if module_name == "Overview":
 
@@ -1314,7 +1284,7 @@ def main() -> None:
         return
 
     # --------------------------------------------------------
-    # APPLICATION
+    # AUTHENTICATED APPLICATION
     # --------------------------------------------------------
 
     try:
