@@ -343,3 +343,58 @@ Projects
           ├── Finishes
           ├── Civil Works
           └── MEP
+
+
+Creative Studios
+│
+├── Projects
+│   └── Files & Documents
+│
+├── Architecture
+│   └── Files & Documents
+│
+├── Engineering
+│   └── Files & Documents
+│
+├── Drawings
+│   └── Files & Documents
+│       ├── Architectural
+│       └── Structural
+│
+├── BOQ
+│   └── Files & Documents
+│
+├── MEP
+│   └── Files & Documents
+│
+└── Documents
+    └── Central Document Library
+
+
+
+creativestudios/
+│
+├── creativestudios_db.json
+│
+├── storage/
+│   └── documents/
+│       ├── projects/
+│       ├── architecture/
+│       ├── engineering/
+│       ├── drawings/
+│       ├── boq/
+│       └── mep/
+│
+├── modules/
+│   ├── database.py
+│   ├── document_storage.py
+│   ├── dashboard.py
+│   ├── projects.py
+│   ├── documents.py
+│   ├── architecture.py
+│   ├── engineering.py
+│   ├── drawings.py
+│   ├── boq.py
+│   └── mep.py
+│
+└── streamlit_app.py
