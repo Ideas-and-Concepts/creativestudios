@@ -1,12 +1,13 @@
 import streamlit as st
 from modules import (
+    landing,
+    dashboard,
+    projects,
     documents,
     architecture,
     engineering,
     drawings,
-    mep,
-    projects,
-    dashboard
+    mep
 )
 from modules.database import load_memory
 
@@ -17,6 +18,7 @@ from modules.database import load_memory
 def main():
     st.sidebar.title("Creative Studios")
     navigation = [
+        "Landing Page",
         "Dashboard",
         "Projects",
         "Documents",
@@ -32,7 +34,9 @@ def main():
     database = load_memory()
 
     # Route to selected module
-    if choice == "Dashboard":
+    if choice == "Landing Page":
+        landing.render_landing_page(database)
+    elif choice == "Dashboard":
         dashboard.render_dashboard_module(database)
     elif choice == "Projects":
         projects.render_projects_module(database)
