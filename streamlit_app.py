@@ -49,14 +49,14 @@ st.set_page_config(
 # ============================================================
 
 def inject_css() -> None:
-    """Apply Creative Studios application styling."""
+    """Apply the Creative Studios light interface."""
 
     st.markdown(
         """
         <style>
 
         /* ==================================================
-           GLOBAL
+           GLOBAL APPLICATION
            ================================================== */
 
         .block-container {
@@ -68,12 +68,17 @@ def inject_css() -> None:
             background: transparent;
         }
 
+        [data-testid="stAppViewContainer"] {
+            background: #F8FAFC;
+        }
+
 
         /* ==================================================
            SIDEBAR
            ================================================== */
 
         [data-testid="stSidebar"] {
+            background: #FFFFFF;
             border-right: 1px solid #E2E8F0;
         }
 
@@ -81,19 +86,29 @@ def inject_css() -> None:
             padding-top: 1rem;
         }
 
-        /*
-         * Center the native Streamlit image.
-         */
-        [data-testid="stSidebar"] img {
-            display: block;
-            margin-left: auto !important;
-            margin-right: auto !important;
-        }
+
+        /* ==================================================
+           SIDEBAR BRANDING
+           ================================================== */
 
         .cs-sidebar-brand {
             width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             text-align: center;
             padding: 0.25rem 0 0.75rem 0;
+            box-sizing: border-box;
+        }
+
+        .cs-sidebar-logo-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            margin: 0 auto;
         }
 
         .cs-sidebar-title {
@@ -102,7 +117,7 @@ def inject_css() -> None:
             font-size: 17px;
             font-weight: 700;
             line-height: 1.2;
-            margin: 0;
+            margin: 6px 0 0 0;
             padding: 0;
         }
 
@@ -112,9 +127,34 @@ def inject_css() -> None:
             font-size: 12px;
             line-height: 1.3;
             color: #64748B;
-            margin-top: 4px;
+            margin: 4px 0 0 0;
             padding: 0;
         }
+
+
+        /* ==================================================
+           CENTER NATIVE STREAMLIT IMAGE
+           ================================================== */
+
+        [data-testid="stSidebar"] img {
+            display: block;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+
+        [data-testid="stSidebar"]
+        [data-testid="stImage"] {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            width: 100%;
+        }
+
+
+        /* ==================================================
+           DIVIDERS
+           ================================================== */
 
         .cs-divider {
             width: 100%;
@@ -122,6 +162,11 @@ def inject_css() -> None:
             background: #E2E8F0;
             margin: 0.75rem 0 1rem 0;
         }
+
+
+        /* ==================================================
+           SECTION LABELS
+           ================================================== */
 
         .cs-section-label {
             color: #64748B;
@@ -140,7 +185,7 @@ def inject_css() -> None:
 
         [data-testid="stSidebar"] div[role="radiogroup"] {
             width: 100%;
-            gap: 0.25rem;
+            gap: 0.2rem;
         }
 
         [data-testid="stSidebar"] div[role="radiogroup"] label {
@@ -154,7 +199,9 @@ def inject_css() -> None:
                 transform 0.1s ease;
         }
 
-        [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+        [data-testid="stSidebar"]
+        div[role="radiogroup"]
+        label:hover {
             background-color: #F1F5F9;
             transform: translateX(2px);
         }
@@ -200,7 +247,7 @@ def inject_css() -> None:
 
 
         /* ==================================================
-           MAIN MODULE HEADERS
+           MAIN MODULE HEADER
            ================================================== */
 
         .cs-module-title {
@@ -314,7 +361,7 @@ def get_database() -> dict[str, Any]:
     """
     Load the application database once per session.
 
-    All modules receive the same database dictionary.
+    Every module receives the same database dictionary.
     """
 
     database = st.session_state.get(
@@ -339,18 +386,25 @@ def get_database() -> dict[str, Any]:
 
 def render_sidebar_logo() -> None:
     """
-    Render the Creative Studios logo and branding.
+    Render the Creative Studios branding.
 
-    The logo uses Streamlit's native image component.
-    The image is placed inside a dedicated center column
-    to provide reliable horizontal centering.
+    The logo is rendered using Streamlit's native image
+    component and centered inside the sidebar.
     """
+
+    st.sidebar.markdown(
+        """
+        <div class="cs-sidebar-brand">
+        """,
+        unsafe_allow_html=True,
+    )
 
     if LOGO_PATH.exists():
 
         left, center, right = (
             st.sidebar.columns(
-                [1, 2, 1]
+                [1, 2, 1],
+                gap="small",
             )
         )
 
@@ -361,29 +415,8 @@ def render_sidebar_logo() -> None:
                 width=64,
             )
 
-    else:
-
-        st.sidebar.markdown(
-            """
-            <div class="cs-sidebar-brand">
-                <div class="cs-sidebar-title">
-                    Creative Studios
-                </div>
-
-                <div class="cs-sidebar-subtitle">
-                    AEC Collaboration Platform
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        return
-
     st.sidebar.markdown(
         """
-        <div class="cs-sidebar-brand">
-
             <div class="cs-sidebar-title">
                 Creative Studios
             </div>
@@ -391,7 +424,6 @@ def render_sidebar_logo() -> None:
             <div class="cs-sidebar-subtitle">
                 AEC Collaboration Platform
             </div>
-
         </div>
         """,
         unsafe_allow_html=True,
@@ -399,7 +431,7 @@ def render_sidebar_logo() -> None:
 
 
 # ============================================================
-# NAVIGATION
+# SIDEBAR NAVIGATION
 # ============================================================
 
 NAVIGATION = [
@@ -415,7 +447,7 @@ NAVIGATION = [
 
 
 def render_sidebar() -> str:
-    """Render the main application navigation."""
+    """Render the application navigation."""
 
     render_sidebar_logo()
 
@@ -512,7 +544,7 @@ def load_module_renderer(
     None,
 ]:
     """
-    Dynamically load the selected module renderer.
+    Dynamically load the selected module.
 
     Only the selected module is imported.
     """
@@ -538,8 +570,7 @@ def load_module_renderer(
         raise RuntimeError(
             f"Unable to load the "
             f"{module_name} module "
-            f"('{module_path}'). "
-            f"Original error: {exc}"
+            f"('{module_path}')."
         ) from exc
 
     renderer = getattr(
