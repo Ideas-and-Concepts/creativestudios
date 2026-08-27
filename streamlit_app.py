@@ -3,7 +3,6 @@ from modules import (
     database,
     architecture,
     engineering,
-    construction,   # optional grouping if you want BOQ+Team here
     boq,
     team,
     mep,
@@ -16,39 +15,24 @@ from modules import (
     tasks,
     branding,
     projects,
+    search_dashboard,
+    portfolio_dashboard,
 )
-
-# ============================================================
-# MAIN APP
-# ============================================================
 
 def main():
     st.set_page_config(page_title="Creative Studios", layout="wide")
     st.title("Creative Studios Workspace")
-    st.caption("Manage projects, documents, drawings, RFIs, tasks, approvals, "
-               "bills of quantities, spaces, and site activities from one integrated AEC workspace.")
+    st.caption("Integrated AEC lifecycle management: Architecture, Engineering, Construction, MEP, Spaces, Documents, Drawings, Approvals, and Portfolio KPIs.")
 
     # Load database
     database_state = database.load_memory()
 
     # Sidebar navigation
     navigation = [
-        "Overview",
-        "Projects",
-        "Architecture",
-        "Engineering",
-        "Construction",
-        "BOQ",
-        "Team",
-        "MEP",
-        "Spaces",
-        "Documents",
-        "Drawings",
-        "RFIs",
-        "Tasks",
-        "Approvals",
-        "Site Logs",
-        "Branding",
+        "Overview", "Projects", "Architecture", "Engineering", "Construction",
+        "BOQ", "Team", "MEP", "Spaces", "Documents", "Drawings",
+        "RFIs", "Tasks", "Approvals", "Site Logs", "Branding",
+        "Search", "Portfolio"
     ]
     module_name = st.sidebar.radio("Navigate", navigation)
 
@@ -87,6 +71,10 @@ def main():
         site_logs.render_site_logs_module(database_state)
     elif module_name == "Branding":
         branding.render_branding_module(database_state)
+    elif module_name == "Search":
+        search_dashboard.render_search_dashboard(database_state)
+    elif module_name == "Portfolio":
+        portfolio_dashboard.render_portfolio_dashboard(database_state)
 
 if __name__ == "__main__":
     main()
