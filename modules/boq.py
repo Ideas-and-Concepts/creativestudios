@@ -1,28 +1,40 @@
 import streamlit as st
-from typing import Any
+import pandas as pd
 
-def render_boq_module(database: dict[str, Any]) -> None:
-    st.header("Bill of Quantities")
+def render_boq_dashboard(database: dict[str, Any]) -> None:
+    st.header("BOQ Dashboard")
 
-    project = database.get("projects", [])[0]  # Example: first project
-    boq_items = project.get("boq", [])
+    projects = database.get("projects", [])
+    if not projects:
+        st.info("No projects available.")
+        return
 
-    st.subheader("Line Items")
-    for item in boq_items:
-        st.write(
-            f"{item['description']} - {item['quantity']} {item['unit']} "
-            f"@ ${item['unit_rate']:.2f} = ${item['total']:.2f}"
-        )
+    # Build DataFrame
+    data = [
+        {
+            "Project": p.get("name", "Unnamed"),
+            "Status": p.get("status", "unknown").capitalize(),
+            "Grand Total": p.get("grand_total", 0)
+        }
+        for p in projects
+    ]
+    df = pd.DataFrame(data)
 
-    subtotal = sum(item["total"] for item in boq_items)
-    overheads = project.get("overheads", 0)
-    contingency = project.get("contingency", 0)
-    grand_total = subtotal + overheads + contingency
+    # Status filter
+    status_options = df["Status"].unique().tolist()
+    selected_status = st.selectbox("Filter by Status", ["All"] + status_options)
 
-    st.metric("Subtotal", f"${subtotal:,.2f}")
-    st.metric("Overheads", f"${overheads:,.2f}")
-    st.metric("Contingency", f"${contingency:,.2f}")
-    st.metric("Grand Total", f"${grand_total:,.2f}")
+    if selected_status != "All":
+        df = df[df["Status"] == selected_status]
 
-    if st.button("Add Item"):
-        st.info("Form for adding new BOQ line item goes here.")
+    # Portfolio metrics
+    portfolio_total = df["Grand Total"].sum()
+    st.metric("Portfolio Total", f"${portfolio_total:,.2f}")
+
+    # Bar Chart
+    st.subheader("Project Cost Comparison")
+    st.bar_chart(df.set_index("Project")["Grand Total"])
+
+    # Pie Chart
+    st.subheader("Portfolio Distribution")
+    st.write(df.set_index("Project")["Grand Total"].plot.pie(autopct="%1.1f%%"))
