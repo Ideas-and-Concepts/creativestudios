@@ -5,7 +5,6 @@ AEC Collaboration Platform
 Main Streamlit application.
 
 Authentication has been removed.
-Light mode only.
 Modules are imported only when selected.
 """
 
@@ -26,33 +25,86 @@ from modules.database import load_memory
 
 BASE_DIR = Path(__file__).resolve().parent
 
-LOGO_PATH = BASE_DIR / "assets" / "creative_studios.png"
+LOGO_PATH = (
+    BASE_DIR
+    / "assets"
+    / "creative_studios.png"
+)
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else None,
+    page_icon=(
+        str(LOGO_PATH)
+        if LOGO_PATH.exists()
+        else None
+    ),
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# LIGHT THEME
+# THEME
 # ============================================================
 
-def inject_theme_css() -> None:
-    """Apply the Creative Studios light-only theme."""
+def initialize_theme() -> None:
+    """Initialize the application theme."""
 
-    background = "#F8FAFC"
-    surface = "#FFFFFF"
-    surface_alt = "#F1F5F9"
-    input_background = "#FFFFFF"
-    text = "#0F172A"
-    muted = "#64748B"
-    border = "#CBD5E1"
-    accent = "#2563EB"
-    accent_hover = "#1D4ED8"
-    selected = "#DBEAFE"
+    if "theme" not in st.session_state:
+        st.session_state.theme = "Dark"
+
+
+def render_theme_selector() -> None:
+    """Render the dark/light theme selector."""
+
+    current_theme = st.session_state.get(
+        "theme",
+        "Dark",
+    )
+
+    selected_theme = st.sidebar.selectbox(
+        "Theme",
+        ["Dark", "Light"],
+        index=(
+            0
+            if current_theme == "Dark"
+            else 1
+        ),
+        key="theme_selector",
+    )
+
+    if selected_theme != current_theme:
+
+        st.session_state.theme = (
+            selected_theme
+        )
+
+        st.rerun()
+
+
+def inject_theme_css() -> None:
+    """Apply Creative Studios theme styling."""
+
+    theme = st.session_state.get(
+        "theme",
+        "Dark",
+    )
+
+    if theme == "Light":
+
+        background = "#F8FAFC"
+        surface = "#FFFFFF"
+        text = "#0F172A"
+        muted = "#64748B"
+        border = "#E2E8F0"
+
+    else:
+
+        background = "#05070B"
+        surface = "#0B1018"
+        text = "#F8FAFC"
+        muted = "#94A3B8"
+        border = "#1E293B"
 
     st.markdown(
         f"""
@@ -67,47 +119,13 @@ def inject_theme_css() -> None:
             color: {text};
         }}
 
-        [data-testid="stAppViewContainer"] .main {{
-            background: {background};
-        }}
-
         [data-testid="stHeader"] {{
-            background: {background};
+            background: transparent;
         }}
 
         .block-container {{
             padding-top: 1.5rem;
             padding-bottom: 2rem;
-        }}
-
-
-        /* ==================================================
-           GLOBAL TEXT
-           ================================================== */
-
-        html,
-        body,
-        .stApp,
-        .stMarkdown,
-        .stText {{
-            color: {text};
-        }}
-
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6 {{
-            color: {text} !important;
-        }}
-
-        p {{
-            color: {text};
-        }}
-
-        small {{
-            color: {muted};
         }}
 
 
@@ -120,21 +138,24 @@ def inject_theme_css() -> None:
             border-right: 1px solid {border};
         }}
 
-        [data-testid="stSidebar"] > div:first-child {{
-            background: {surface};
-        }}
-
         [data-testid="stSidebar"] * {{
             color: {text};
         }}
 
+        [data-testid="stSidebar"] img {{
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }}
+
         .cs-sidebar-brand {{
+            width: 100%;
             text-align: center;
-            padding: 0.5rem 0 1rem 0;
+            padding: 0.25rem 0 0.75rem 0;
         }}
 
         .cs-sidebar-title {{
-            color: {text} !important;
+            color: {text};
             font-size: 17px;
             font-weight: 700;
             line-height: 1.2;
@@ -142,7 +163,7 @@ def inject_theme_css() -> None:
         }}
 
         .cs-sidebar-subtitle {{
-            color: {muted} !important;
+            color: {muted};
             font-size: 12px;
             margin-top: 4px;
             text-align: center;
@@ -155,7 +176,7 @@ def inject_theme_css() -> None:
         }}
 
         .cs-section-label {{
-            color: {muted} !important;
+            color: {muted};
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
@@ -166,43 +187,18 @@ def inject_theme_css() -> None:
 
 
         /* ==================================================
-           SIDEBAR NAVIGATION
-           ================================================== */
-
-        [data-testid="stSidebar"] [role="radiogroup"] {{
-            gap: 4px;
-        }}
-
-        [data-testid="stSidebar"] [role="radio"] {{
-            background: transparent;
-            border-radius: 8px;
-            padding: 7px 10px;
-        }}
-
-        [data-testid="stSidebar"] [role="radio"]:hover {{
-            background: {surface_alt};
-        }}
-
-        [data-testid="stSidebar"]
-        [role="radio"][aria-checked="true"] {{
-            background: {selected};
-            border: 1px solid {accent};
-        }}
-
-
-        /* ==================================================
-           MODULE TITLES
+           MAIN MODULE
            ================================================== */
 
         .cs-module-title {{
-            color: {text} !important;
+            color: {text};
             font-size: 30px;
             font-weight: 750;
             line-height: 1.15;
         }}
 
         .cs-module-description {{
-            color: {muted} !important;
+            color: {muted};
             font-size: 14px;
             margin-top: 6px;
         }}
@@ -218,17 +214,16 @@ def inject_theme_css() -> None:
             border-radius: 12px;
             padding: 1.25rem;
             margin-bottom: 1rem;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
         }}
 
         .cs-card-title {{
-            color: {text} !important;
+            color: {text};
             font-size: 18px;
             font-weight: 700;
         }}
 
         .cs-card-subtitle {{
-            color: {muted} !important;
+            color: {muted};
             font-size: 14px;
             line-height: 1.5;
             margin-top: 5px;
@@ -236,7 +231,7 @@ def inject_theme_css() -> None:
 
 
         /* ==================================================
-           KPI CARDS
+           KPI
            ================================================== */
 
         .cs-kpi {{
@@ -245,16 +240,15 @@ def inject_theme_css() -> None:
             border-radius: 12px;
             padding: 1rem;
             min-height: 95px;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
         }}
 
         .cs-kpi-label {{
-            color: {muted} !important;
+            color: {muted};
             font-size: 13px;
         }}
 
         .cs-kpi-value {{
-            color: {text} !important;
+            color: {text};
             font-size: 27px;
             font-weight: 750;
             margin-top: 6px;
@@ -267,198 +261,6 @@ def inject_theme_css() -> None:
 
         div.stButton > button {{
             border-radius: 8px;
-            border: 1px solid {border};
-            background: {surface};
-            color: {text};
-            min-height: 40px;
-            font-weight: 600;
-        }}
-
-        div.stButton > button:hover {{
-            border-color: {accent};
-            color: {accent_hover};
-            background: {surface_alt};
-        }}
-
-        div.stButton > button:focus {{
-            border-color: {accent};
-            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-        }}
-
-
-        /* ==================================================
-           INPUTS
-           ================================================== */
-
-        input,
-        textarea {{
-            background: {input_background} !important;
-            color: {text} !important;
-            border-color: {border} !important;
-        }}
-
-        input::placeholder,
-        textarea::placeholder {{
-            color: {muted} !important;
-            opacity: 1;
-        }}
-
-        [data-baseweb="input"] {{
-            background: {input_background};
-            border-color: {border};
-        }}
-
-        [data-baseweb="input"]:focus-within {{
-            border-color: {accent};
-        }}
-
-
-        /* ==================================================
-           SELECTBOX
-           ================================================== */
-
-        [data-baseweb="select"] > div {{
-            background: {input_background} !important;
-            color: {text} !important;
-            border-color: {border} !important;
-        }}
-
-        [data-baseweb="popover"] {{
-            background: {surface} !important;
-            border: 1px solid {border};
-        }}
-
-        [data-baseweb="menu"] {{
-            background: {surface} !important;
-        }}
-
-        [role="option"] {{
-            background: {surface} !important;
-            color: {text} !important;
-        }}
-
-        [role="option"]:hover {{
-            background: {surface_alt} !important;
-        }}
-
-
-        /* ==================================================
-           TABS
-           ================================================== */
-
-        button[data-baseweb="tab"] {{
-            color: {muted} !important;
-        }}
-
-        button[data-baseweb="tab"][aria-selected="true"] {{
-            color: {text} !important;
-        }}
-
-        [data-baseweb="tab-highlight"] {{
-            background: {accent} !important;
-        }}
-
-
-        /* ==================================================
-           EXPANDERS
-           ================================================== */
-
-        [data-testid="stExpander"] {{
-            background: {surface};
-            border: 1px solid {border};
-            border-radius: 10px;
-        }}
-
-        [data-testid="stExpander"] summary {{
-            color: {text} !important;
-        }}
-
-        [data-testid="stExpander"] summary:hover {{
-            background: {surface_alt};
-        }}
-
-
-        /* ==================================================
-           FORMS
-           ================================================== */
-
-        [data-testid="stForm"] {{
-            background: {surface};
-            border: 1px solid {border};
-            border-radius: 12px;
-            padding: 1rem;
-        }}
-
-
-        /* ==================================================
-           METRICS
-           ================================================== */
-
-        [data-testid="stMetric"] {{
-            background: {surface};
-            border: 1px solid {border};
-            border-radius: 10px;
-            padding: 12px;
-        }}
-
-        [data-testid="stMetricLabel"] {{
-            color: {muted} !important;
-        }}
-
-        [data-testid="stMetricValue"] {{
-            color: {text} !important;
-        }}
-
-
-        /* ==================================================
-           DATA TABLES
-           ================================================== */
-
-        [data-testid="stDataFrame"] {{
-            border: 1px solid {border};
-            border-radius: 8px;
-        }}
-
-
-        /* ==================================================
-           CHECKBOX / RADIO
-           ================================================== */
-
-        [data-testid="stCheckbox"] label,
-        [data-testid="stRadio"] label {{
-            color: {text} !important;
-        }}
-
-
-        /* ==================================================
-           ALERTS
-           ================================================== */
-
-        [data-testid="stAlert"] {{
-            border-radius: 9px;
-            border: 1px solid {border};
-        }}
-
-
-        /* ==================================================
-           DIVIDERS
-           ================================================== */
-
-        hr {{
-            border-color: {border} !important;
-        }}
-
-
-        /* ==================================================
-           LINKS
-           ================================================== */
-
-        a {{
-            color: {accent} !important;
-        }}
-
-        a:hover {{
-            color: {accent_hover} !important;
         }}
 
         </style>
@@ -477,6 +279,7 @@ def initialize_session_state() -> None:
     defaults: dict[str, Any] = {
         "active_module": "Dashboard",
         "database": None,
+        "theme": "Dark",
     }
 
     for key, value in defaults.items():
@@ -490,7 +293,11 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """Load the application database once per session."""
+    """
+    Load the application database once per session.
+
+    The same database object is passed to every module.
+    """
 
     database = st.session_state.get(
         "database"
@@ -519,7 +326,10 @@ def get_database() -> dict[str, Any]:
 # ============================================================
 
 def render_sidebar_logo() -> None:
-    """Render the small centered Creative Studios logo."""
+    """
+    Render the Creative Studios logo centered
+    in the Streamlit sidebar.
+    """
 
     st.sidebar.markdown(
         '<div class="cs-sidebar-brand">',
@@ -528,15 +338,35 @@ def render_sidebar_logo() -> None:
 
     if LOGO_PATH.exists():
 
-        try:
+        # Three-column layout ensures reliable
+        # horizontal centering in Streamlit Cloud.
+        left, center, right = (
+            st.sidebar.columns(
+                [1, 2, 1]
+            )
+        )
 
-            st.sidebar.image(
+        with center:
+
+            st.image(
                 str(LOGO_PATH),
                 width=64,
             )
 
-        except Exception:
-            pass
+    else:
+
+        st.sidebar.markdown(
+            """
+            <div style="
+                text-align: center;
+                font-size: 17px;
+                font-weight: 700;
+            ">
+                Creative Studios
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     st.sidebar.markdown(
         """
@@ -593,17 +423,29 @@ def render_sidebar() -> str:
     )
 
     if current not in navigation:
+
         current = "Dashboard"
 
     choice = st.sidebar.radio(
         "Go to",
         navigation,
-        index=navigation.index(current),
+        index=navigation.index(
+            current
+        ),
         key="module_navigation",
         label_visibility="collapsed",
     )
 
-    st.session_state.active_module = choice
+    st.session_state.active_module = (
+        choice
+    )
+
+    st.sidebar.markdown(
+        '<div class="cs-divider"></div>',
+        unsafe_allow_html=True,
+    )
+
+    render_theme_selector()
 
     return choice
 
@@ -612,35 +454,46 @@ def render_sidebar() -> str:
 # MODULE REGISTRY
 # ============================================================
 
-MODULE_IMPORTS: dict[str, tuple[str, str]] = {
+MODULE_IMPORTS: dict[
+    str,
+    tuple[str, str],
+] = {
+
     "Dashboard": (
         "modules.dashboard",
         "render_dashboard",
     ),
+
     "Projects": (
         "modules.projects",
         "render_projects_module",
     ),
+
     "Documents": (
         "modules.documents",
         "render_documents_module",
     ),
+
     "Architecture": (
         "modules.architecture",
         "render_architecture_module",
     ),
+
     "Engineering": (
         "modules.engineering",
         "render_engineering_module",
     ),
+
     "Drawings": (
         "modules.drawings",
         "render_drawings_module",
     ),
+
     "BOQ": (
         "modules.boq",
         "render_boq_module",
     ),
+
     "MEP": (
         "modules.mep",
         "render_mep_module",
@@ -654,8 +507,15 @@ MODULE_IMPORTS: dict[str, tuple[str, str]] = {
 
 def load_module_renderer(
     module_name: str,
-) -> Callable[[dict[str, Any]], None]:
-    """Load a module renderer dynamically."""
+) -> Callable[
+    [dict[str, Any]],
+    None,
+]:
+    """
+    Dynamically load a module renderer.
+
+    Modules are imported only when selected.
+    """
 
     if module_name not in MODULE_IMPORTS:
 
@@ -663,9 +523,9 @@ def load_module_renderer(
             f"Unknown module: {module_name}"
         )
 
-    module_path, function_name = MODULE_IMPORTS[
-        module_name
-    ]
+    module_path, function_name = (
+        MODULE_IMPORTS[module_name]
+    )
 
     try:
 
@@ -676,8 +536,10 @@ def load_module_renderer(
     except Exception as exc:
 
         raise RuntimeError(
-            f"Unable to load the {module_name} "
-            f"module from '{module_path}': {exc}"
+            f"Unable to load the "
+            f"{module_name} module from "
+            f"'{module_path}'. "
+            f"Original error: {exc}"
         ) from exc
 
     renderer = getattr(
@@ -689,9 +551,9 @@ def load_module_renderer(
     if not callable(renderer):
 
         raise AttributeError(
-            f"The module '{module_path}' does not "
-            f"contain a callable '{function_name}' "
-            f"function."
+            f"The module '{module_path}' "
+            f"does not expose the required "
+            f"callable '{function_name}'."
         )
 
     return renderer
@@ -720,7 +582,8 @@ def render_module(
     except Exception as exc:
 
         st.error(
-            f"Unable to render the {choice} module."
+            f"Unable to render the "
+            f"{choice} module."
         )
 
         with st.expander(
@@ -739,6 +602,8 @@ def main() -> None:
     """Run Creative Studios."""
 
     initialize_session_state()
+
+    initialize_theme()
 
     inject_theme_css()
 
