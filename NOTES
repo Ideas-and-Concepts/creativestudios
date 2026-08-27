@@ -143,3 +143,30 @@ creativestudios/
   "documents": [],
   "drawings": []
 }
+
+creativestudios/
+│
+├── streamlit_app.py
+│
+├── modules/
+│   ├── __init__.py              # <-- REQUIRED (empty file)
+│   ├── database.py              # contains load_memory(), save_memory()
+│   ├── architecture.py
+│   ├── engineering.py
+│   ├── boq.py
+│   ├── team.py
+│   ├── mep.py
+│   ├── spaces.py
+│   ├── documents.py
+│   ├── drawings.py
+│   ├── approvals.py
+│   ├── rfis.py
+│   ├── site_logs.py
+│   ├── tasks.py
+│   ├── branding.py
+│   ├── projects.py
+│   ├── search_dashboard.py
+│   ├── portfolio_dashboard.py
+│   └── analytics_dashboard.py
+│
+└── creativestudios_db.json      # your persistent database file
