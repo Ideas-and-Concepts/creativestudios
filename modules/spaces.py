@@ -3,7 +3,7 @@ from typing import Any
 from modules.database import save_memory
 
 def render_spaces_module(database: dict[str, Any]) -> None:
-    """Render Spaces module for documenting rooms and areas."""
+    """Render Spaces module for documenting rooms and linking files."""
 
     st.header("Project Spaces")
 
@@ -12,10 +12,8 @@ def render_spaces_module(database: dict[str, Any]) -> None:
         st.info("No projects available.")
         return
 
-    # Select project
     project_names = [p.get("name", "Unnamed Project") for p in projects]
     selected_project = st.selectbox("Select Project", project_names)
-
     project = next((p for p in projects if p.get("name") == selected_project), None)
     if not project:
         st.warning("Project not found.")
@@ -34,37 +32,43 @@ def render_spaces_module(database: dict[str, Any]) -> None:
             st.write(f"  - HVAC: {space['mep'].get('hvac','')}")
             st.write(f"  - Lighting: {space['mep'].get('lighting','')}")
             st.write(f"  - Plumbing: {space['mep'].get('plumbing','')}")
+
+            # Linked files
+            linked_docs = space.get("documents", [])
+            linked_drawings = space.get("drawings", [])
+            if linked_docs:
+                st.write("**Linked Documents:**")
+                for doc in linked_docs:
+                    st.write(f"• {doc['title']} (v{doc['version']})")
+            if linked_drawings:
+                st.write("**Linked Drawings:**")
+                for dr in linked_drawings:
+                    st.write(f"• {dr['title']} (v{dr['version']})")
+
             st.write("---")
 
-            # Edit/Delete controls
-            col1, col2 = st.columns([1,1])
-            if col1.button(f"Edit {idx}", key=f"edit_space_{idx}"):
-                with st.form(f"edit_space_form_{idx}", clear_on_submit=True):
-                    name = st.text_input("Name", space["name"])
-                    area = st.number_input("Area (m²)", value=space["area"])
-                    usage = st.text_input("Usage", space["usage"])
-                    finishes = st.text_input("Finishes", space["finishes"])
-                    hvac = st.text_input("HVAC", space["mep"].get("hvac",""))
-                    lighting = st.text_input("Lighting", space["mep"].get("lighting",""))
-                    plumbing = st.text_input("Plumbing", space["mep"].get("plumbing",""))
-                    submitted = st.form_submit_button("Save Changes")
-                    if submitted:
-                        space.update({
-                            "name": name,
-                            "area": area,
-                            "usage": usage,
-                            "finishes": finishes,
-                            "mep": {"hvac": hvac, "lighting": lighting, "plumbing": plumbing}
-                        })
-                        save_memory(database)
-                        st.success("Space updated!")
+            # Add file linkage
+            with st.form(f"link_file_{idx}", clear_on_submit=True):
+                file_type = st.selectbox("Link Type", ["Document", "Drawing"])
+                title = st.text_input("Title")
+                version = st.text_input("Version", "v1.0")
+                author = st.text_input("Author")
+                filename = st.text_input("Filename (stored path)")
+                submitted = st.form_submit_button("Link File")
 
-            if col2.button(f"Delete {idx}", key=f"delete_space_{idx}"):
-                spaces.pop(idx)
-                project["spaces"] = spaces
-                save_memory(database)
-                st.warning("Space deleted.")
-
+                if submitted and title and filename:
+                    new_file = {
+                        "title": title,
+                        "version": version,
+                        "author": author,
+                        "filename": filename
+                    }
+                    if file_type == "Document":
+                        space.setdefault("documents", []).append(new_file)
+                    else:
+                        space.setdefault("drawings", []).append(new_file)
+                    save_memory(database)
+                    st.success(f"Linked {file_type}: {title}")
     else:
         st.caption("No spaces documented yet.")
 
@@ -85,7 +89,9 @@ def render_spaces_module(database: dict[str, Any]) -> None:
                 "area": area,
                 "usage": usage,
                 "finishes": finishes,
-                "mep": {"hvac": hvac, "lighting": lighting, "plumbing": plumbing}
+                "mep": {"hvac": hvac, "lighting": lighting, "plumbing": plumbing},
+                "documents": [],
+                "drawings": []
             }
             spaces.append(new_space)
             project["spaces"] = spaces
