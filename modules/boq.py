@@ -1,14 +1,9 @@
 import streamlit as st
 import pandas as pd
 from typing import Any
-
-# ============================================================
-# BOQ MODULE
-# ============================================================
+from modules.database import save_memory
 
 def render_boq_module(database: dict[str, Any]) -> None:
-    """Render Bill of Quantities module for a single project."""
-
     st.header("Bill of Quantities")
 
     projects = database.get("projects", [])
@@ -16,7 +11,6 @@ def render_boq_module(database: dict[str, Any]) -> None:
         st.info("No projects available.")
         return
 
-    # Select project
     project_names = [p.get("name", "Unnamed Project") for p in projects]
     selected_project = st.selectbox("Select Project", project_names)
 
@@ -27,7 +21,6 @@ def render_boq_module(database: dict[str, Any]) -> None:
 
     boq_items = project.get("boq", [])
 
-    # Display line items
     st.subheader("Line Items")
     if boq_items:
         df = pd.DataFrame(boq_items)
@@ -35,7 +28,6 @@ def render_boq_module(database: dict[str, Any]) -> None:
     else:
         st.caption("No BOQ items yet.")
 
-    # Add new item form
     with st.form("add_boq_item", clear_on_submit=True):
         description = st.text_input("Description")
         quantity = st.number_input("Quantity", min_value=0.0, step=1.0)
@@ -54,9 +46,9 @@ def render_boq_module(database: dict[str, Any]) -> None:
             }
             boq_items.append(new_item)
             project["boq"] = boq_items
+            save_memory(database)
             st.success(f"Added item: {description} (${total:,.2f})")
 
-    # Totals
     subtotal = sum(item["total"] for item in boq_items)
     overheads = project.get("overheads", 0)
     contingency = project.get("contingency", 0)
@@ -67,14 +59,7 @@ def render_boq_module(database: dict[str, Any]) -> None:
     st.metric("Contingency", f"${contingency:,.2f}")
     st.metric("Grand Total", f"${grand_total:,.2f}")
 
-
-# ============================================================
-# BOQ DASHBOARD
-# ============================================================
-
 def render_boq_dashboard(database: dict[str, Any]) -> None:
-    """Render multi-project BOQ dashboard with charts."""
-
     st.header("BOQ Dashboard")
 
     projects = database.get("projects", [])
@@ -93,31 +78,21 @@ def render_boq_dashboard(database: dict[str, Any]) -> None:
     ]
     df = pd.DataFrame(data)
 
-    # Status filter
     status_options = df["Status"].unique().tolist()
     selected_status = st.selectbox("Filter by Status", ["All"] + status_options)
     if selected_status != "All":
         df = df[df["Status"] == selected_status]
 
-    # Portfolio metrics
     portfolio_total = df["Estimated"].sum()
     st.metric("Portfolio Estimated Total", f"${portfolio_total:,.2f}")
 
-    # Charts
     st.subheader("Project Cost Comparison")
     st.bar_chart(df.set_index("Project")[["Estimated", "Actual"]])
 
     st.subheader("Portfolio Distribution")
     st.write(df.set_index("Project")["Estimated"].plot.pie(autopct="%1.1f%%"))
 
-
-# ============================================================
-# BOQ COMPARISON
-# ============================================================
-
 def render_boq_comparison(database: dict[str, Any]) -> None:
-    """Render estimated vs actual cost comparison."""
-
     st.header("BOQ Cost Comparison")
 
     projects = database.get("projects", [])
