@@ -185,3 +185,22 @@ creativestudios/
     ├── drawings.py
     ├── mep.py
     └── projects.py
+
+
+creativestudios/
+│
+├── streamlit_app.py
+│
+├── modules/
+│   ├── __init__.py              # <-- REQUIRED
+│   ├── database.py              # contains load_memory(), save_memory()
+│   ├── projects.py              # imports save_memory from .database
+│   ├── dashboard.py
+│   ├── documents.py
+│   ├── architecture.py
+│   ├── engineering.py
+│   ├── drawings.py
+│   ├── mep.py
+│   └── landing.py
+│
+└── creativestudios_db.json
