@@ -317,3 +317,29 @@ Drawings
     ├── Slab Plans
     ├── Reinforcement Details
     └── Structural Details
+
+
+Projects
+   │
+   ├── Architecture
+   │      └── Architectural work items
+   │
+   ├── Engineering
+   │      └── Structural / civil engineering items
+   │
+   ├── Drawings
+   │      ├── Architectural Drawings
+   │      └── Structural Drawings
+   │
+   └── BOQ
+          ├── Columns
+          ├── Beams
+          ├── Slabs
+          ├── Foundations
+          ├── Walls
+          ├── Doors
+          ├── Windows
+          ├── Roofing
+          ├── Finishes
+          ├── Civil Works
+          └── MEP
