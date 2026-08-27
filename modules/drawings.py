@@ -10,20 +10,56 @@ from typing import Any
 
 import streamlit as st
 
+from modules.database import save_memory
 
-def _drawings(
+
+def _normalize_drawings(
     database: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    value = database.setdefault(
+
+    value = database.get(
         "drawings",
         [],
     )
 
     if not isinstance(value, list):
-        database["drawings"] = []
-        return database["drawings"]
+        value = []
 
-    return value
+    drawings = []
+
+    for index, item in enumerate(
+        value,
+        start=1,
+    ):
+
+        if isinstance(item, dict):
+
+            record = dict(item)
+
+            if not record.get("id"):
+                record["id"] = index
+
+            drawings.append(record)
+
+        elif isinstance(item, str):
+
+            drawings.append(
+                {
+                    "id": index,
+                    "drawing_number": "",
+                    "title": item,
+                    "project": "",
+                    "discipline": "Architectural",
+                    "revision": "A",
+                    "status": "Draft",
+                    "scale": "1:100",
+                    "created_at": "",
+                }
+            )
+
+    database["drawings"] = drawings
+
+    return drawings
 
 
 def _next_id(
@@ -37,7 +73,10 @@ def _next_id(
             ids.append(
                 int(record.get("id", 0))
             )
-        except (TypeError, ValueError):
+        except (
+            TypeError,
+            ValueError,
+        ):
             continue
 
     return max(ids, default=0) + 1
@@ -46,14 +85,16 @@ def _next_id(
 def render_drawings_module(
     database: dict[str, Any],
 ) -> None:
-    """Render drawing repository."""
+    """Render editable drawing repository."""
 
     st.title("Drawings")
     st.caption(
-        "Manage architectural, structural and engineering drawings."
+        "Create, edit and manage architectural, structural and engineering drawings."
     )
 
-    drawings = _drawings(database)
+    drawings = _normalize_drawings(
+        database
+    )
 
     tab_vault, tab_register = st.tabs(
         [
@@ -72,11 +113,13 @@ def render_drawings_module(
 
         else:
 
-            for drawing in drawings:
+            for index, drawing in enumerate(
+                drawings
+            ):
 
-                number = drawing.get(
-                    "drawing_number",
-                    "-",
+                drawing_id = drawing.get(
+                    "id",
+                    index + 1,
                 )
 
                 title = drawing.get(
@@ -84,40 +127,203 @@ def render_drawings_module(
                     "Untitled Drawing",
                 )
 
-                with st.container(
-                    border=True
+                number = drawing.get(
+                    "drawing_number",
+                    "",
+                )
+
+                heading = (
+                    f"{number} — {title}"
+                    if number
+                    else str(title)
+                )
+
+                with st.expander(
+                    heading,
+                    expanded=False,
                 ):
 
-                    st.subheader(
-                        f"{number} — {title}"
-                    )
+                    with st.form(
+                        f"edit_drawing_{drawing_id}"
+                    ):
 
-                    columns = st.columns(5)
+                        edited_number = st.text_input(
+                            "Drawing Number",
+                            value=str(
+                                number or ""
+                            ),
+                        )
 
-                    columns[0].write(
-                        f"**Discipline**  \n"
-                        f"{drawing.get('discipline', '-')}"
-                    )
+                        edited_title = st.text_input(
+                            "Drawing Title",
+                            value=str(
+                                title or ""
+                            ),
+                        )
 
-                    columns[1].write(
-                        f"**Revision**  \n"
-                        f"{drawing.get('revision', '-')}"
-                    )
+                        edited_project = st.text_input(
+                            "Project",
+                            value=str(
+                                drawing.get(
+                                    "project",
+                                    "",
+                                )
+                                or ""
+                            ),
+                        )
 
-                    columns[2].write(
-                        f"**Status**  \n"
-                        f"{drawing.get('status', '-')}"
-                    )
+                        disciplines = [
+                            "Architectural",
+                            "Structural",
+                            "Civil",
+                            "Electrical",
+                            "Mechanical",
+                            "Plumbing",
+                            "Other",
+                        ]
 
-                    columns[3].write(
-                        f"**Project**  \n"
-                        f"{drawing.get('project', '-')}"
-                    )
+                        current_discipline = str(
+                            drawing.get(
+                                "discipline",
+                                "Architectural",
+                            )
+                        )
 
-                    columns[4].write(
-                        f"**Scale**  \n"
-                        f"{drawing.get('scale', '-')}"
-                    )
+                        discipline_index = (
+                            disciplines.index(
+                                current_discipline
+                            )
+                            if current_discipline
+                            in disciplines
+                            else 0
+                        )
+
+                        edited_discipline = st.selectbox(
+                            "Discipline",
+                            disciplines,
+                            index=discipline_index,
+                        )
+
+                        edited_revision = st.text_input(
+                            "Revision",
+                            value=str(
+                                drawing.get(
+                                    "revision",
+                                    "A",
+                                )
+                                or ""
+                            ),
+                        )
+
+                        statuses = [
+                            "Draft",
+                            "In Review",
+                            "Approved",
+                            "Issued",
+                            "Superseded",
+                        ]
+
+                        current_status = str(
+                            drawing.get(
+                                "status",
+                                "Draft",
+                            )
+                        )
+
+                        status_index = (
+                            statuses.index(
+                                current_status
+                            )
+                            if current_status
+                            in statuses
+                            else 0
+                        )
+
+                        edited_status = st.selectbox(
+                            "Status",
+                            statuses,
+                            index=status_index,
+                        )
+
+                        edited_scale = st.text_input(
+                            "Scale",
+                            value=str(
+                                drawing.get(
+                                    "scale",
+                                    "1:100",
+                                )
+                                or ""
+                            ),
+                        )
+
+                        submitted = st.form_submit_button(
+                            "Save Changes",
+                            use_container_width=True,
+                        )
+
+                    if submitted:
+
+                        if not edited_number.strip():
+                            st.error(
+                                "Drawing number is required."
+                            )
+                        elif not edited_title.strip():
+                            st.error(
+                                "Drawing title is required."
+                            )
+                        else:
+
+                            drawing[
+                                "drawing_number"
+                            ] = edited_number.strip()
+
+                            drawing["title"] = (
+                                edited_title.strip()
+                            )
+
+                            drawing["project"] = (
+                                edited_project.strip()
+                            )
+
+                            drawing[
+                                "discipline"
+                            ] = edited_discipline
+
+                            drawing[
+                                "revision"
+                            ] = edited_revision.strip()
+
+                            drawing[
+                                "status"
+                            ] = edited_status
+
+                            drawing["scale"] = (
+                                edited_scale.strip()
+                            )
+
+                            save_memory(database)
+
+                            st.success(
+                                "Drawing updated successfully."
+                            )
+
+                            st.rerun()
+
+                    if st.button(
+                        "Delete Drawing",
+                        key=f"delete_drawing_{drawing_id}",
+                        use_container_width=True,
+                    ):
+
+                        drawings.remove(drawing)
+
+                        save_memory(database)
+
+                        st.success(
+                            "Drawing deleted successfully."
+                        )
+
+                        st.rerun()
 
     with tab_register:
 
@@ -127,15 +333,15 @@ def render_drawings_module(
         ):
 
             drawing_number = st.text_input(
-                "Drawing Number",
+                "Drawing Number"
             )
 
             title = st.text_input(
-                "Drawing Title",
+                "Drawing Title"
             )
 
             project = st.text_input(
-                "Project",
+                "Project"
             )
 
             discipline = st.selectbox(
@@ -208,6 +414,8 @@ def render_drawings_module(
                     ),
                 }
             )
+
+            save_memory(database)
 
             st.success(
                 "Drawing registered successfully."
