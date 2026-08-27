@@ -16,7 +16,10 @@ from modules.database import load_memory
 # ============================================================
 
 def main():
+    # Sidebar branding
+    st.sidebar.image("assets/creative_studios.png", use_column_width=True)
     st.sidebar.title("Creative Studios")
+
     navigation = [
         "Landing Page",
         "Dashboard",
