@@ -1,0 +1,52 @@
+import streamlit as st
+from typing import Any
+from modules.database import save_memory
+
+def render_documents_module(database: dict[str, Any]) -> None:
+    """Render Documents module for contracts, specs, BIM files."""
+
+    st.header("Project Documents")
+
+    projects = database.get("projects", [])
+    if not projects:
+        st.info("No projects available.")
+        return
+
+    project_names = [p.get("name", "Unnamed Project") for p in projects]
+    selected_project = st.selectbox("Select Project", project_names)
+    project = next((p for p in projects if p.get("name") == selected_project), None)
+    if not project:
+        st.warning("Project not found.")
+        return
+
+    documents = project.get("documents", [])
+
+    st.subheader("Documents")
+    if documents:
+        for idx, doc in enumerate(documents):
+            st.write(f"**{doc['title']}** (Phase: {doc['phase']}, Version: {doc['version']})")
+            st.caption(f"Author: {doc['author']} | File: {doc['filename']}")
+            st.write("---")
+    else:
+        st.caption("No documents uploaded yet.")
+
+    with st.form("add_document", clear_on_submit=True):
+        title = st.text_input("Title")
+        phase = st.selectbox("Phase", ["Architecture", "Engineering", "Construction", "MEP"])
+        version = st.text_input("Version", "v1.0")
+        author = st.text_input("Author")
+        filename = st.text_input("Filename (stored path)")
+        submitted = st.form_submit_button("Add Document")
+
+        if submitted and title and filename:
+            new_doc = {
+                "title": title,
+                "phase": phase,
+                "version": version,
+                "author": author,
+                "filename": filename
+            }
+            documents.append(new_doc)
+            project["documents"] = documents
+            save_memory(database)
+            st.success(f"Added document: {title} ({phase})")
