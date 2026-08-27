@@ -23,7 +23,7 @@ def render_projects_module(database: dict[str, Any]) -> None:
     with st.form("add_project", clear_on_submit=True):
         project_id = st.text_input("Project ID")
         name = st.text_input("Project Name")
-        project_type = st.selectbox("Project Type", ["New", "Renovation", "Infrastructure"])
+        project_type = st.selectbox("Project Type", ["Architecture", "Engineering", "Construction", "MEP"])
         status = st.selectbox("Status", ["Planning", "Design", "Execution", "Completed"])
         submitted = st.form_submit_button("Add Project")
 
@@ -33,16 +33,12 @@ def render_projects_module(database: dict[str, Any]) -> None:
                 "name": name,
                 "type": project_type,
                 "status": status,
-                "boq": [],
-                "team": [],
                 "documents": [],
-                "drawings": [],
-                "spaces": [],
-                "rfis": [],
-                "site_logs": [],
-                "tasks": [],
-                "branding": {},
-                "pending_approvals": []
+                "architecture_drawings": [],
+                "architecture_suggestions": [],
+                "engineering_drawings": [],
+                "engineering_suggestions": [],
+                "mep": []
             }
             projects.append(new_project)
             database["projects"] = projects
