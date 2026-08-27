@@ -226,3 +226,26 @@ creativestudios/
     ├── engineering.py
     ├── drawings.py
     └── mep.py
+
+
+DRAWINGS
+│
+├── Architectural Drawings
+│   ├── Site Plans
+│   ├── Floor Plans
+│   ├── Elevations
+│   ├── Sections
+│   ├── Roof Plans
+│   ├── Reflected Ceiling Plans
+│   ├── Details
+│   └── Schedules
+│
+└── Structural Drawings
+    ├── Foundation Plans
+    ├── Column Layouts
+    ├── Beam Layouts
+    ├── Slab Plans
+    ├── Roof Structure
+    ├── Stair Details
+    ├── Reinforcement Details
+    └── Structural Details
