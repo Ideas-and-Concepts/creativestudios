@@ -60,7 +60,6 @@ def find_logo() -> Path | None:
     ]
 
     for path in candidates:
-
         if path.exists() and path.is_file():
             return path
 
@@ -102,41 +101,13 @@ NAVIGATION = [
 # ============================================================
 
 MODULE_IMPORTS: dict[str, tuple[str, str]] = {
-
-    "Dashboard": (
-        "modules.dashboard",
-        "render_dashboard",
-    ),
-
-    "Projects": (
-        "modules.projects",
-        "render_projects_module",
-    ),
-
-    "Documents": (
-        "modules.documents",
-        "render_documents_module",
-    ),
-
-    "Architecture": (
-        "modules.architecture",
-        "render_architecture_module",
-    ),
-
-    "Engineering": (
-        "modules.engineering",
-        "render_engineering_module",
-    ),
-
-    "MEP": (
-        "modules.mep",
-        "render_mep_module",
-    ),
-
-    "BOQ": (
-        "modules.boq",
-        "render_boq_module",
-    ),
+    "Dashboard": ("modules.dashboard", "render_dashboard"),
+    "Projects": ("modules.projects", "render_projects_module"),
+    "Documents": ("modules.documents", "render_documents_module"),
+    "Architecture": ("modules.architecture", "render_architecture_module"),
+    "Engineering": ("modules.engineering", "render_engineering_module"),
+    "MEP": ("modules.mep", "render_mep_module"),
+    "BOQ": ("modules.boq", "render_boq_module"),
 }
 
 
@@ -153,7 +124,6 @@ def initialize_session_state() -> None:
     }
 
     for key, value in defaults.items():
-
         if key not in st.session_state:
             st.session_state[key] = value
 
@@ -259,16 +229,12 @@ def inject_css() -> None:
             gap: 0.2rem;
         }
 
-        [data-testid="stSidebar"]
-        div[role="radiogroup"]
-        label {
+        [data-testid="stSidebar"] div[role="radiogroup"] label {
             border-radius: 8px;
             padding: 0.2rem 0.45rem;
         }
 
-        [data-testid="stSidebar"]
-        div[role="radiogroup"]
-        label:hover {
+        [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
             background: rgba(128, 128, 128, 0.10);
         }
 
@@ -289,7 +255,6 @@ def inject_css() -> None:
            ================================================== */
 
         @media (max-width: 768px) {
-
             [data-testid="stSidebar"] {
                 min-width: 230px;
                 max-width: 230px;
@@ -327,33 +292,12 @@ def render_sidebar_brand() -> None:
     # --------------------------------------------------------
 
     if LOGO_PATH is not None:
-
-        # Equal-width columns provide a reliable centered
-        # position on Streamlit Cloud.
-
-        left, center, right = st.sidebar.columns(
-            [1, 1, 1]
-        )
-
+        left, center, right = st.sidebar.columns([1, 1, 1])
         with center:
-
-            st.image(
-                str(LOGO_PATH),
-                width=56,
-            )
-
+            st.image(str(LOGO_PATH), width=56)
     else:
-
-        # ----------------------------------------------------
-        # Fallback logo
-        # ----------------------------------------------------
-
-        left, center, right = st.sidebar.columns(
-            [1, 1, 1]
-        )
-
+        left, center, right = st.sidebar.columns([1, 1, 1])
         with center:
-
             st.markdown(
                 """
                 <div style="
@@ -380,20 +324,12 @@ def render_sidebar_brand() -> None:
     # --------------------------------------------------------
 
     st.sidebar.markdown(
-        """
-        <div class="cs-sidebar-title">
-            Creative Studios
-        </div>
-        """,
+        '<div class="cs-sidebar-title">Creative Studios</div>',
         unsafe_allow_html=True,
     )
 
     st.sidebar.markdown(
-        """
-        <div class="cs-sidebar-subtitle">
-            AEC Collaboration Platform
-        </div>
-        """,
+        '<div class="cs-sidebar-subtitle">AEC Collaboration Platform</div>',
         unsafe_allow_html=True,
     )
 
@@ -417,13 +353,9 @@ def render_sidebar() -> str:
         unsafe_allow_html=True,
     )
 
-    current = st.session_state.get(
-        "active_module",
-        "Dashboard",
-    )
+    current = st.session_state.get("active_module", "Dashboard")
 
     if current not in NAVIGATION:
-
         current = "Dashboard"
 
     choice = st.sidebar.radio(
@@ -446,33 +378,20 @@ def render_sidebar() -> str:
 def get_database() -> dict[str, Any]:
     """Load the database safely."""
 
-    database = st.session_state.get(
-        "database"
-    )
+    database = st.session_state.get("database")
 
     if isinstance(database, dict):
         return database
 
     try:
-
         database = load_memory()
-
     except Exception as exc:
-
-        st.error(
-            "Unable to load the Creative Studios database."
-        )
-
-        with st.expander(
-            "Database error details"
-        ):
-
+        st.error("Unable to load the Creative Studios database.")
+        with st.expander("Database error details"):
             st.exception(exc)
-
         database = {}
 
     if not isinstance(database, dict):
-
         database = {}
 
     st.session_state.database = database
@@ -490,36 +409,20 @@ def load_module_renderer(
     """Load the selected module dynamically."""
 
     if module_name not in MODULE_IMPORTS:
+        raise KeyError(f"Unknown module: {module_name}")
 
-        raise KeyError(
-            f"Unknown module: {module_name}"
-        )
-
-    module_path, function_name = MODULE_IMPORTS[
-        module_name
-    ]
+    module_path, function_name = MODULE_IMPORTS[module_name]
 
     try:
-
-        module = importlib.import_module(
-            module_path
-        )
-
+        module = importlib.import_module(module_path)
     except Exception as exc:
-
         raise RuntimeError(
-            f"Unable to import the {module_name} module "
-            f"from '{module_path}'."
+            f"Unable to import the {module_name} module from '{module_path}'."
         ) from exc
 
-    renderer = getattr(
-        module,
-        function_name,
-        None,
-    )
+    renderer = getattr(module, function_name, None)
 
     if not callable(renderer):
-
         raise AttributeError(
             f"Module '{module_path}' does not contain "
             f"a callable '{function_name}' function."
@@ -532,24 +435,13 @@ def load_module_renderer(
 # MODULE ERROR
 # ============================================================
 
-def render_module_error(
-    module_name: str,
-    exc: Exception,
-) -> None:
+def render_module_error(module_name: str, exc: Exception) -> None:
     """Display a controlled module error."""
 
-    st.error(
-        f"Unable to load the {module_name} module."
-    )
+    st.error(f"Unable to load the {module_name} module.")
+    st.caption("The Creative Studios application is still running.")
 
-    st.caption(
-        "The Creative Studios application is still running."
-    )
-
-    with st.expander(
-        "Technical details"
-    ):
-
+    with st.expander("Technical details"):
         st.exception(exc)
 
 
@@ -557,28 +449,14 @@ def render_module_error(
 # MODULE ROUTER
 # ============================================================
 
-def render_module(
-    choice: str,
-    database: dict[str, Any],
-) -> None:
+def render_module(choice: str, database: dict[str, Any]) -> None:
     """Render the selected module."""
 
     try:
-
-        renderer = load_module_renderer(
-            choice
-        )
-
-        renderer(
-            database
-        )
-
+        renderer = load_module_renderer(choice)
+        renderer(database)
     except Exception as exc:
-
-        render_module_error(
-            choice,
-            exc,
-        )
+        render_module_error(choice, exc)
 
 
 # ============================================================
@@ -611,18 +489,10 @@ def main() -> None:
     """Run Creative Studios."""
 
     initialize_session_state()
-
     inject_css()
-
     database = get_database()
-
     choice = render_sidebar()
-
-    render_module(
-        choice,
-        database,
-    )
-
+    render_module(choice, database)
     render_footer()
 
 
