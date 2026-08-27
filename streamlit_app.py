@@ -5,8 +5,7 @@ AEC Collaboration Platform
 Main Streamlit application.
 
 Authentication has been removed.
-Modules are loaded lazily to prevent one broken module
-from preventing the entire application from starting.
+Modules are imported only when selected.
 """
 
 from __future__ import annotations
@@ -52,27 +51,27 @@ def initialize_theme() -> None:
 
 
 def render_theme_selector() -> None:
-    """Render the dark/light mode selector."""
+    """Render the theme selector."""
 
     current_theme = st.session_state.get(
         "theme",
         "Dark",
     )
 
-    theme = st.sidebar.selectbox(
+    selected_theme = st.sidebar.selectbox(
         "Theme",
         ["Dark", "Light"],
         index=0 if current_theme == "Dark" else 1,
         key="theme_selector",
     )
 
-    if theme != current_theme:
-        st.session_state.theme = theme
+    if selected_theme != current_theme:
+        st.session_state.theme = selected_theme
         st.rerun()
 
 
 def inject_theme_css() -> None:
-    """Inject theme-aware Creative Studios styling."""
+    """Apply Creative Studios theme styling."""
 
     theme = st.session_state.get(
         "theme",
@@ -99,10 +98,6 @@ def inject_theme_css() -> None:
         f"""
         <style>
 
-        /* ================================================== */
-        /* APPLICATION */
-        /* ================================================== */
-
         [data-testid="stAppViewContainer"] {{
             background: {background};
             color: {text};
@@ -116,10 +111,6 @@ def inject_theme_css() -> None:
             padding-top: 1.5rem;
             padding-bottom: 2rem;
         }}
-
-        /* ================================================== */
-        /* SIDEBAR */
-        /* ================================================== */
 
         [data-testid="stSidebar"] {{
             background: {surface};
@@ -135,31 +126,25 @@ def inject_theme_css() -> None:
             padding: 0.5rem 0 1rem 0;
         }}
 
-        .cs-sidebar-brand img {{
-            width: 64px;
-            max-width: 64px;
-            height: auto;
-            display: block;
-            margin: 0 auto 8px auto;
-        }}
-
         .cs-sidebar-title {{
             color: {text};
             font-size: 17px;
             font-weight: 700;
             line-height: 1.2;
+            text-align: center;
         }}
 
         .cs-sidebar-subtitle {{
             color: {muted};
             font-size: 12px;
             margin-top: 4px;
+            text-align: center;
         }}
 
         .cs-divider {{
             height: 1px;
             background: {border};
-            margin: 0.5rem 0 1rem 0;
+            margin: 0.75rem 0 1rem 0;
         }}
 
         .cs-section-label {{
@@ -170,14 +155,6 @@ def inject_theme_css() -> None:
             letter-spacing: 0.08em;
             margin-top: 1rem;
             margin-bottom: 0.5rem;
-        }}
-
-        /* ================================================== */
-        /* MAIN HEADERS */
-        /* ================================================== */
-
-        .cs-module-header {{
-            margin-bottom: 1.5rem;
         }}
 
         .cs-module-title {{
@@ -192,10 +169,6 @@ def inject_theme_css() -> None:
             font-size: 14px;
             margin-top: 6px;
         }}
-
-        /* ================================================== */
-        /* CARDS */
-        /* ================================================== */
 
         .cs-card {{
             background: {surface};
@@ -218,10 +191,6 @@ def inject_theme_css() -> None:
             margin-top: 5px;
         }}
 
-        /* ================================================== */
-        /* KPI */
-        /* ================================================== */
-
         .cs-kpi {{
             background: {surface};
             border: 1px solid {border};
@@ -242,20 +211,8 @@ def inject_theme_css() -> None:
             margin-top: 6px;
         }}
 
-        /* ================================================== */
-        /* BUTTONS */
-        /* ================================================== */
-
         div.stButton > button {{
             border-radius: 8px;
-        }}
-
-        /* ================================================== */
-        /* FORMS */
-        /* ================================================== */
-
-        div[data-testid="stForm"] {{
-            border-color: {border};
         }}
 
         </style>
@@ -288,11 +245,7 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """
-    Load the application database.
-
-    The database is loaded once per Streamlit session.
-    """
+    """Load the application database once per session."""
 
     database = st.session_state.get(
         "database"
@@ -325,6 +278,11 @@ def render_sidebar_logo() -> None:
 
     if LOGO_PATH.exists():
 
+        st.sidebar.markdown(
+            '<div class="cs-sidebar-brand">',
+            unsafe_allow_html=True,
+        )
+
         st.sidebar.image(
             str(LOGO_PATH),
             width=64,
@@ -343,16 +301,23 @@ def render_sidebar_logo() -> None:
             unsafe_allow_html=True,
         )
 
+        st.sidebar.markdown(
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
     else:
 
         st.sidebar.markdown(
             """
-            <div class="cs-sidebar-title">
-                Creative Studios
-            </div>
+            <div class="cs-sidebar-brand">
+                <div class="cs-sidebar-title">
+                    Creative Studios
+                </div>
 
-            <div class="cs-sidebar-subtitle">
-                AEC Collaboration Platform
+                <div class="cs-sidebar-subtitle">
+                    AEC Collaboration Platform
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -364,7 +329,7 @@ def render_sidebar_logo() -> None:
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render the main application navigation."""
+    """Render the application navigation."""
 
     render_sidebar_logo()
 
@@ -417,10 +382,10 @@ def render_sidebar() -> str:
 
 
 # ============================================================
-# LAZY MODULE IMPORT
+# MODULE REGISTRY
 # ============================================================
 
-MODULE_IMPORTS = {
+MODULE_IMPORTS: dict[str, tuple[str, str]] = {
     "Dashboard": (
         "modules.dashboard",
         "render_dashboard",
@@ -452,41 +417,33 @@ MODULE_IMPORTS = {
 }
 
 
+# ============================================================
+# MODULE LOADER
+# ============================================================
+
 def load_module_renderer(
     module_name: str,
 ):
     """
-    Import a module only when it is requested.
+    Load a module renderer on demand.
 
-    This prevents import errors in one module from crashing
-    the entire Creative Studios application.
+    No RuntimeError wrapper is used here. The original
+    Python exception is intentionally allowed to propagate.
     """
 
-    configuration = MODULE_IMPORTS.get(
+    if module_name not in MODULE_IMPORTS:
+
+        raise KeyError(
+            f"Unknown module: {module_name}"
+        )
+
+    module_path, function_name = MODULE_IMPORTS[
         module_name
+    ]
+
+    module = importlib.import_module(
+        module_path
     )
-
-    if configuration is None:
-
-        raise ImportError(
-            f"No renderer is registered for "
-            f"'{module_name}'."
-        )
-
-    module_path, function_name = configuration
-
-    try:
-
-        module = importlib.import_module(
-            module_path
-        )
-
-    except Exception as exc:
-
-        raise RuntimeError(
-            f"Unable to import {module_path}: "
-            f"{type(exc).__name__}: {exc}"
-        ) from exc
 
     renderer = getattr(
         module,
@@ -497,7 +454,7 @@ def load_module_renderer(
     if not callable(renderer):
 
         raise AttributeError(
-            f"{module_path} does not expose "
+            f"'{module_path}' does not contain "
             f"a callable '{function_name}' function."
         )
 
@@ -514,40 +471,13 @@ def render_module(
 ) -> None:
     """Render the selected module."""
 
-    try:
+    renderer = load_module_renderer(
+        choice
+    )
 
-        renderer = load_module_renderer(
-            choice
-        )
-
-    except Exception as exc:
-
-        st.error(
-            f"Unable to load {choice}."
-        )
-
-        st.exception(exc)
-
-        st.info(
-            "The rest of Creative Studios is still available. "
-            "This module can be repaired independently."
-        )
-
-        return
-
-    try:
-
-        renderer(
-            database
-        )
-
-    except Exception as exc:
-
-        st.error(
-            f"Unable to render {choice}."
-        )
-
-        st.exception(exc)
+    renderer(
+        database
+    )
 
 
 # ============================================================
@@ -561,19 +491,7 @@ def main() -> None:
     initialize_theme()
     inject_theme_css()
 
-    try:
-
-        database = get_database()
-
-    except Exception as exc:
-
-        st.error(
-            "Unable to load workspace data."
-        )
-
-        st.exception(exc)
-
-        st.stop()
+    database = get_database()
 
     choice = render_sidebar()
 
@@ -584,7 +502,7 @@ def main() -> None:
 
 
 # ============================================================
-# APPLICATION ENTRY POINT
+# ENTRY POINT
 # ============================================================
 
 if __name__ == "__main__":
