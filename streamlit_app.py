@@ -97,7 +97,10 @@ render_module_header = branding.render_module_header
 # ============================================================
 
 APPLICATION_NAME = "Creative Studios"
-APPLICATION_SUBTITLE = "Architecture • Engineering • Construction"
+
+APPLICATION_SUBTITLE = (
+    "Architecture • Engineering • Construction"
+)
 
 
 NAVIGATION = [
@@ -166,99 +169,116 @@ def render_login(
 ) -> None:
     """Render the Creative Studios login screen."""
 
-    _, center, _ = st.columns([1, 2, 1])
+    st.markdown(
+        '<div class="cs-login-wrapper">',
+        unsafe_allow_html=True,
+    )
 
-    with center:
+    st.markdown(
+        '<div class="cs-login-card">',
+        unsafe_allow_html=True,
+    )
 
-        # ----------------------------------------------------
-        # Logo
-        # ----------------------------------------------------
+    # --------------------------------------------------------
+    # Centered logo
+    # --------------------------------------------------------
 
-        st.markdown(
-            '<div style="text-align:center;">',
-            unsafe_allow_html=True,
-        )
+    logo_left, logo_center, logo_right = st.columns(
+        [1, 2, 1],
+        gap="small",
+    )
 
-        try:
-            render_logo(width=150)
+    with logo_center:
 
-        except Exception:
+        if LOGO_PATH.exists():
 
-            if LOGO_PATH.exists():
-                st.image(
-                    str(LOGO_PATH),
-                    width=150,
-                )
-
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
-        # ----------------------------------------------------
-        # Application identity
-        # ----------------------------------------------------
-
-        st.markdown(
-            f"""
-            <div style="
-                text-align: center;
-                margin-top: 8px;
-                margin-bottom: 24px;
-            ">
-
-                <div style="
-                    color: #FFFFFF;
-                    font-size: 28px;
-                    font-weight: 800;
-                    line-height: 1.2;
-                ">
-                    {html.escape(APPLICATION_NAME)}
-                </div>
-
-                <div style="
-                    color: #64748B;
-                    font-size: 14px;
-                    margin-top: 5px;
-                ">
-                    {html.escape(APPLICATION_SUBTITLE)}
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        # ----------------------------------------------------
-        # Login form
-        # ----------------------------------------------------
-
-        with st.form(
-            "creative_studios_login",
-            clear_on_submit=False,
-        ):
-
-            username = st.text_input(
-                "Username",
-                placeholder="Enter username",
+            st.image(
+                str(LOGO_PATH),
+                width=150,
             )
 
-            password = st.text_input(
-                "Password",
-                type="password",
-                placeholder="Enter password",
+        else:
+
+            st.warning(
+                f"Creative Studios logo not found: "
+                f"{LOGO_PATH}"
             )
 
-            submitted = st.form_submit_button(
-                "Login",
-                use_container_width=True,
+    # --------------------------------------------------------
+    # Application name
+    #
+    # Deliberately rendered as normal Streamlit text.
+    # This avoids the raw HTML <div> issue on the login page.
+    # --------------------------------------------------------
+
+    st.markdown(
+        "<div class='cs-login-title'>"
+        "Creative Studios"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        "<div class='cs-login-subtitle'>"
+        "Architecture • Engineering • Construction"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    # --------------------------------------------------------
+    # Login form
+    # --------------------------------------------------------
+
+    with st.form(
+        "creative_studios_login",
+        clear_on_submit=False,
+    ):
+
+        username = st.text_input(
+            "Username",
+            placeholder="Enter username",
+        )
+
+        password = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Enter password",
+        )
+
+        submitted = st.form_submit_button(
+            "Login",
+            use_container_width=True,
+        )
+
+    # --------------------------------------------------------
+    # Authentication
+    # --------------------------------------------------------
+
+    if submitted:
+
+        username = str(
+            username or ""
+        ).strip()
+
+        password = str(
+            password or ""
+        )
+
+        if not username or not password:
+
+            st.error(
+                "Please enter your username and password."
             )
 
-        if not submitted:
+            st.markdown(
+                "</div></div>",
+                unsafe_allow_html=True,
+            )
+
             return
 
-        # Authentication is delegated to auth.py.
         try:
+
             authenticated, user = auth.login_user(
                 database,
                 username,
@@ -266,15 +286,29 @@ def render_login(
             )
 
         except Exception as exc:
+
             st.error(
                 f"Authentication error: {exc}"
             )
+
+            st.markdown(
+                "</div></div>",
+                unsafe_allow_html=True,
+            )
+
             return
 
         if not authenticated:
+
             st.error(
                 "Invalid username or password."
             )
+
+            st.markdown(
+                "</div></div>",
+                unsafe_allow_html=True,
+            )
+
             return
 
         st.session_state["authenticated"] = True
@@ -282,6 +316,24 @@ def render_login(
         st.session_state["active_module"] = "Overview"
 
         st.rerun()
+
+    # --------------------------------------------------------
+    # Login footer
+    # --------------------------------------------------------
+
+    st.markdown(
+        """
+        <div class="cs-login-footer">
+            Creative Studios
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        "</div></div>",
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
@@ -298,11 +350,15 @@ def render_sidebar_branding() -> None:
     with logo_col:
 
         try:
-            render_logo(width=44)
+
+            render_logo(
+                width=44
+            )
 
         except Exception:
 
             if LOGO_PATH.exists():
+
                 st.image(
                     str(LOGO_PATH),
                     width=44,
@@ -338,7 +394,10 @@ def render_sidebar() -> str:
 
     user = auth.get_current_user()
 
-    if not isinstance(user, dict):
+    if not isinstance(
+        user,
+        dict,
+    ):
         user = {}
 
     render_sidebar_branding()
@@ -366,7 +425,9 @@ def render_sidebar() -> str:
         for module_key, _ in NAVIGATION
     }
 
-    valid_modules.add("Settings")
+    valid_modules.add(
+        "Settings"
+    )
 
     if current_module not in valid_modules:
 
@@ -568,12 +629,14 @@ def _safe_float(
         return float(value)
 
     try:
+
         return float(value)
 
     except (
         TypeError,
         ValueError,
     ):
+
         return 0.0
 
 
@@ -623,12 +686,15 @@ def render_overview(
         ).strip().lower()
 
         if status == "active":
+
             active_projects += 1
 
         elif status == "planning":
+
             planning_projects += 1
 
         elif status == "completed":
+
             completed_projects += 1
 
         total_budget += _safe_float(
@@ -954,10 +1020,6 @@ def render_active_module(
 
 def main() -> None:
     """Run Creative Studios."""
-
-    # --------------------------------------------------------
-    # Session
-    # --------------------------------------------------------
 
     initialize_session_state()
 
