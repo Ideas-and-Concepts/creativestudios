@@ -21,9 +21,6 @@ Drawings is intentionally NOT a standalone module.
 Architectural drawings are handled by Architecture.
 
 Engineering drawings are handled by Engineering.
-
-The application uses lazy module loading so that one broken
-module does not prevent the main application from starting.
 """
 
 from __future__ import annotations
@@ -42,21 +39,15 @@ from modules.database import load_memory
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-
 ASSETS_DIR = BASE_DIR / "assets"
 
 
 # ============================================================
-# LOGO DISCOVERY
+# LOGO
 # ============================================================
 
 def find_logo() -> Path | None:
-    """
-    Locate the Creative Studios logo.
-
-    Several filenames are supported so the application remains
-    compatible with existing asset files.
-    """
+    """Find the Creative Studios logo."""
 
     candidates = [
         ASSETS_DIR / "creative_studios.png",
@@ -68,10 +59,10 @@ def find_logo() -> Path | None:
         ASSETS_DIR / "logo.jpeg",
     ]
 
-    for candidate in candidates:
+    for path in candidates:
 
-        if candidate.exists() and candidate.is_file():
-            return candidate
+        if path.exists() and path.is_file():
+            return path
 
     return None
 
@@ -95,7 +86,7 @@ st.set_page_config(
 # NAVIGATION
 # ============================================================
 
-NAVIGATION: list[str] = [
+NAVIGATION = [
     "Dashboard",
     "Projects",
     "Documents",
@@ -164,7 +155,6 @@ def initialize_session_state() -> None:
     for key, value in defaults.items():
 
         if key not in st.session_state:
-
             st.session_state[key] = value
 
 
@@ -173,14 +163,14 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def inject_css() -> None:
-    """Apply global Creative Studios styling."""
+    """Apply global application styling."""
 
     st.markdown(
         """
         <style>
 
         /* ==================================================
-           MAIN APPLICATION
+           MAIN CONTENT
            ================================================== */
 
         .block-container {
@@ -209,16 +199,16 @@ def inject_css() -> None:
 
         .cs-sidebar-brand {
             width: 100%;
-            text-align: center !important;
+            text-align: center;
+            padding: 0;
             margin: 0;
-            padding: 0.15rem 0 0.85rem 0;
         }
 
         .cs-sidebar-title {
             width: 100%;
-            text-align: center !important;
+            text-align: center;
             font-size: 17px;
-            font-weight: 750;
+            font-weight: 700;
             line-height: 1.25;
             margin: 0.35rem 0 0 0;
             padding: 0;
@@ -226,10 +216,10 @@ def inject_css() -> None:
 
         .cs-sidebar-subtitle {
             width: 100%;
-            text-align: center !important;
+            text-align: center;
             font-size: 11px;
             line-height: 1.35;
-            margin: 0.2rem 0 0 0;
+            margin: 0.15rem 0 0 0;
             padding: 0;
             opacity: 0.65;
         }
@@ -242,13 +232,13 @@ def inject_css() -> None:
         .cs-sidebar-divider {
             width: 100%;
             height: 1px;
-            margin: 0.7rem 0 0.9rem 0;
+            margin: 0.75rem 0 0.9rem 0;
             background: rgba(128, 128, 128, 0.20);
         }
 
 
         /* ==================================================
-           SIDEBAR SECTION
+           NAVIGATION LABEL
            ================================================== */
 
         .cs-sidebar-section {
@@ -262,7 +252,7 @@ def inject_css() -> None:
 
 
         /* ==================================================
-           SIDEBAR RADIO NAVIGATION
+           RADIO NAVIGATION
            ================================================== */
 
         [data-testid="stSidebar"] div[role="radiogroup"] {
@@ -295,15 +285,6 @@ def inject_css() -> None:
 
 
         /* ==================================================
-           METRICS
-           ================================================== */
-
-        [data-testid="stMetric"] {
-            border-radius: 10px;
-        }
-
-
-        /* ==================================================
            MOBILE
            ================================================== */
 
@@ -321,7 +302,6 @@ def inject_css() -> None:
             .cs-sidebar-subtitle {
                 font-size: 10px;
             }
-
         }
 
         </style>
@@ -331,33 +311,28 @@ def inject_css() -> None:
 
 
 # ============================================================
-# SIDEBAR BRANDING
+# SIDEBAR BRAND
 # ============================================================
 
 def render_sidebar_brand() -> None:
     """
-    Render the Creative Studios branding in the sidebar.
+    Render the centered sidebar logo and branding.
 
-    The logo is intentionally small and centered.
-
-    Streamlit's native image renderer is used instead of an
-    HTML <img> element because it is substantially more
-    reliable on Streamlit Cloud.
+    The logo uses Streamlit's native image component.
+    No HTML <img> element is used.
     """
 
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-brand">',
-        unsafe_allow_html=True,
-    )
-
     # --------------------------------------------------------
-    # Logo
+    # LOGO
     # --------------------------------------------------------
 
     if LOGO_PATH is not None:
 
+        # Equal-width columns provide a reliable centered
+        # position on Streamlit Cloud.
+
         left, center, right = st.sidebar.columns(
-            [1.35, 1, 1.35]
+            [1, 1, 1]
         )
 
         with center:
@@ -370,11 +345,11 @@ def render_sidebar_brand() -> None:
     else:
 
         # ----------------------------------------------------
-        # Logo fallback
+        # Fallback logo
         # ----------------------------------------------------
 
         left, center, right = st.sidebar.columns(
-            [1.35, 1, 1.35]
+            [1, 1, 1]
         )
 
         with center:
@@ -401,7 +376,7 @@ def render_sidebar_brand() -> None:
             )
 
     # --------------------------------------------------------
-    # Branding text
+    # BRANDING TEXT
     # --------------------------------------------------------
 
     st.sidebar.markdown(
@@ -409,16 +384,16 @@ def render_sidebar_brand() -> None:
         <div class="cs-sidebar-title">
             Creative Studios
         </div>
-
-        <div class="cs-sidebar-subtitle">
-            AEC Collaboration Platform
-        </div>
         """,
         unsafe_allow_html=True,
     )
 
     st.sidebar.markdown(
-        "</div>",
+        """
+        <div class="cs-sidebar-subtitle">
+            AEC Collaboration Platform
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -428,7 +403,7 @@ def render_sidebar_brand() -> None:
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render the main application navigation."""
+    """Render the application sidebar."""
 
     render_sidebar_brand()
 
@@ -469,19 +444,13 @@ def render_sidebar() -> str:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """
-    Load the application database once per session.
-
-    Database loading failures are displayed without preventing
-    the application shell from starting.
-    """
+    """Load the database safely."""
 
     database = st.session_state.get(
         "database"
     )
 
     if isinstance(database, dict):
-
         return database
 
     try:
@@ -518,11 +487,7 @@ def get_database() -> dict[str, Any]:
 def load_module_renderer(
     module_name: str,
 ) -> Callable[[dict[str, Any]], Any]:
-    """
-    Dynamically import the selected module renderer.
-
-    Modules are imported only after the user selects them.
-    """
+    """Load the selected module dynamically."""
 
     if module_name not in MODULE_IMPORTS:
 
@@ -564,21 +529,21 @@ def load_module_renderer(
 
 
 # ============================================================
-# MODULE ERROR DISPLAY
+# MODULE ERROR
 # ============================================================
 
 def render_module_error(
     module_name: str,
     exc: Exception,
 ) -> None:
-    """Render a controlled module error."""
+    """Display a controlled module error."""
 
     st.error(
         f"Unable to load the {module_name} module."
     )
 
     st.caption(
-        "The rest of Creative Studios is still available."
+        "The Creative Studios application is still running."
     )
 
     with st.expander(
@@ -596,7 +561,7 @@ def render_module(
     choice: str,
     database: dict[str, Any],
 ) -> None:
-    """Render the selected application module."""
+    """Render the selected module."""
 
     try:
 
@@ -617,11 +582,11 @@ def render_module(
 
 
 # ============================================================
-# APPLICATION FOOTER
+# FOOTER
 # ============================================================
 
 def render_footer() -> None:
-    """Render a small application footer."""
+    """Render the application footer."""
 
     st.markdown(
         """
