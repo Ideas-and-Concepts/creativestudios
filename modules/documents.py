@@ -5,444 +5,251 @@ Documents Module
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 import streamlit as st
 
 from modules.database import save_memory
+from modules.document_storage import (
+    delete_file,
+    get_file_bytes,
+    list_module_files,
+    render_module_files,
+)
 
 
-def _normalize_documents(
+MODULES = [
+    "Projects",
+    "Architecture",
+    "Engineering",
+    "Drawings",
+    "BOQ",
+    "MEP",
+]
+
+
+def _all_documents(
     database: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Normalize legacy and current document records."""
 
-    value = database.get("documents", [])
+    value = database.get(
+        "documents",
+        [],
+    )
 
     if not isinstance(value, list):
         value = []
 
-    normalized = []
-
-    for index, item in enumerate(
-        value,
-        start=1,
-    ):
-
-        if isinstance(item, dict):
-
-            record = dict(item)
-
-            if not record.get("id"):
-                record["id"] = index
-
-            normalized.append(record)
-
-        elif isinstance(item, str):
-
-            normalized.append(
-                {
-                    "id": index,
-                    "title": item,
-                    "name": item,
-                    "document_number": "",
-                    "category": "General",
-                    "project": "",
-                    "status": "Draft",
-                    "description": "",
-                    "created_at": "",
-                }
-            )
-
-    database["documents"] = normalized
-
-    return normalized
-
-
-def _next_id(
-    records: list[dict[str, Any]],
-) -> int:
-
-    ids = []
-
-    for record in records:
-        try:
-            ids.append(
-                int(record.get("id", 0))
-            )
-        except (
-            TypeError,
-            ValueError,
-        ):
-            continue
-
-    return max(ids, default=0) + 1
-
-
-def _save(
-    database: dict[str, Any],
-) -> None:
-    save_memory(database)
+    return [
+        dict(item)
+        for item in value
+        if isinstance(item, dict)
+    ]
 
 
 def render_documents_module(
     database: dict[str, Any],
 ) -> None:
-    """Render editable document management."""
 
     st.title("Documents")
+
     st.caption(
-        "Create, edit and manage project documentation and records."
+        "Central document library for Creative Studios."
     )
 
-    documents = _normalize_documents(
+    documents = _all_documents(
         database
     )
 
-    tab_library, tab_create = st.tabs(
+    upload, library, module_library = st.tabs(
         [
-            "Document Library",
             "Add Document",
+            "Document Library",
+            "Module Libraries",
         ]
     )
 
-    with tab_library:
+    with upload:
 
-        if not documents:
+        selected_module = st.selectbox(
+            "Module",
+            MODULES,
+        )
+
+        render_module_files(
+            database,
+            selected_module,
+        )
+
+    with library:
+
+        search = st.text_input(
+            "Search documents"
+        ).strip().lower()
+
+        filtered = documents
+
+        if search:
+
+            filtered = [
+                document
+                for document in documents
+                if search in " ".join(
+                    [
+                        str(
+                            document.get(
+                                "title",
+                                "",
+                            )
+                        ),
+                        str(
+                            document.get(
+                                "original_name",
+                                "",
+                            )
+                        ),
+                        str(
+                            document.get(
+                                "project",
+                                "",
+                            )
+                        ),
+                        str(
+                            document.get(
+                                "module",
+                                "",
+                            )
+                        ),
+                        str(
+                            document.get(
+                                "document_type",
+                                "",
+                            )
+                        ),
+                    ]
+                ).lower()
+            ]
+
+        if not filtered:
 
             st.info(
-                "No documents have been registered yet."
+                "No documents found."
             )
 
         else:
 
-            search = st.text_input(
-                "Search documents",
-                key="document_search",
+            st.write(
+                f"{len(filtered)} document(s)"
             )
 
-            search_value = (
-                search.strip().lower()
-            )
-
-            filtered = []
-
-            for document in documents:
-
-                searchable = " ".join(
-                    str(
-                        document.get(
-                            field,
-                            "",
-                        )
-                        or ""
-                    )
-                    for field in (
-                        "name",
-                        "title",
-                        "document_number",
-                        "category",
-                        "project",
-                        "status",
-                        "description",
-                    )
-                ).lower()
-
-                if (
-                    not search_value
-                    or search_value
-                    in searchable
-                ):
-                    filtered.append(
-                        document
-                    )
-
-            if not filtered:
-
-                st.info(
-                    "No documents match your search."
-                )
-
-            for index, document in enumerate(
-                filtered
-            ):
+            for document in filtered:
 
                 document_id = document.get(
-                    "id",
-                    index + 1,
-                )
-
-                title = document.get(
-                    "title",
-                    document.get(
-                        "name",
-                        "Untitled Document",
-                    ),
+                    "id"
                 )
 
                 with st.expander(
-                    str(title),
+                    str(
+                        document.get(
+                            "title",
+                            "Untitled",
+                        )
+                    ),
                     expanded=False,
                 ):
 
-                    with st.form(
-                        f"edit_document_{document_id}"
-                    ):
+                    st.write(
+                        f"**Module:** "
+                        f"{document.get('module', '')}"
+                    )
 
-                        edited_title = st.text_input(
-                            "Document Title",
-                            value=str(
-                                title or ""
-                            ),
-                        )
+                    st.write(
+                        f"**File:** "
+                        f"{document.get('original_name', '')}"
+                    )
 
-                        edited_number = st.text_input(
-                            "Document Number",
-                            value=str(
+                    st.write(
+                        f"**Project:** "
+                        f"{document.get('project', '') or 'General'}"
+                    )
+
+                    st.write(
+                        f"**Type:** "
+                        f"{document.get('document_type', 'General')}"
+                    )
+
+                    st.write(
+                        f"**Revision:** "
+                        f"{document.get('revision', 'A')}"
+                    )
+
+                    st.write(
+                        f"**Status:** "
+                        f"{document.get('status', 'Draft')}"
+                    )
+
+                    file_bytes = get_file_bytes(
+                        document
+                    )
+
+                    if file_bytes is not None:
+
+                        st.download_button(
+                            "Download",
+                            data=file_bytes,
+                            file_name=str(
                                 document.get(
-                                    "document_number",
-                                    "",
+                                    "original_name",
+                                    "file",
                                 )
-                                or ""
                             ),
-                        )
-
-                        categories = [
-                            "General",
-                            "Contract",
-                            "Specification",
-                            "Report",
-                            "Correspondence",
-                            "Technical",
-                            "Other",
-                        ]
-
-                        current_category = str(
-                            document.get(
-                                "category",
-                                "General",
-                            )
-                        )
-
-                        category_index = (
-                            categories.index(
-                                current_category
-                            )
-                            if current_category
-                            in categories
-                            else 0
-                        )
-
-                        edited_category = st.selectbox(
-                            "Category",
-                            categories,
-                            index=category_index,
-                        )
-
-                        edited_project = st.text_input(
-                            "Project",
-                            value=str(
-                                document.get(
-                                    "project",
-                                    "",
-                                )
-                                or ""
+                            mime=document.get(
+                                "mime_type",
+                                "application/octet-stream",
                             ),
-                        )
-
-                        statuses = [
-                            "Draft",
-                            "Issued",
-                            "Approved",
-                            "Archived",
-                        ]
-
-                        current_status = str(
-                            document.get(
-                                "status",
-                                "Draft",
-                            )
-                        )
-
-                        status_index = (
-                            statuses.index(
-                                current_status
-                            )
-                            if current_status
-                            in statuses
-                            else 0
-                        )
-
-                        edited_status = st.selectbox(
-                            "Status",
-                            statuses,
-                            index=status_index,
-                        )
-
-                        edited_description = st.text_area(
-                            "Description",
-                            value=str(
-                                document.get(
-                                    "description",
-                                    "",
-                                )
-                                or ""
-                            ),
-                        )
-
-                        submitted = st.form_submit_button(
-                            "Save Changes",
+                            key=f"documents_download_{document_id}",
                             use_container_width=True,
                         )
 
-                    if submitted:
-
-                        if not edited_title.strip():
-                            st.error(
-                                "Document title is required."
-                            )
-                        else:
-
-                            document["title"] = (
-                                edited_title.strip()
-                            )
-
-                            document["name"] = (
-                                edited_title.strip()
-                            )
-
-                            document[
-                                "document_number"
-                            ] = edited_number.strip()
-
-                            document[
-                                "category"
-                            ] = edited_category
-
-                            document[
-                                "project"
-                            ] = edited_project.strip()
-
-                            document[
-                                "status"
-                            ] = edited_status
-
-                            document[
-                                "description"
-                            ] = edited_description.strip()
-
-                            _save(database)
-
-                            st.success(
-                                "Document updated successfully."
-                            )
-
-                            st.rerun()
-
                     if st.button(
-                        "Delete Document",
-                        key=f"delete_document_{document_id}",
+                        "Delete",
+                        key=f"documents_delete_{document_id}",
                         use_container_width=True,
                     ):
 
-                        documents.remove(
-                            document
-                        )
-
-                        _save(database)
-
-                        st.success(
-                            "Document deleted successfully."
+                        delete_file(
+                            database,
+                            document_id,
                         )
 
                         st.rerun()
 
-    with tab_create:
+    with module_library:
 
-        with st.form(
-            "create_document_form",
-            clear_on_submit=True,
-        ):
+        for module_name in MODULES:
 
-            title = st.text_input(
-                "Document Title"
+            files = list_module_files(
+                database,
+                module_name,
             )
 
-            document_number = st.text_input(
-                "Document Number"
-            )
+            with st.expander(
+                f"{module_name} ({len(files)})",
+                expanded=False,
+            ):
 
-            category = st.selectbox(
-                "Category",
-                [
-                    "General",
-                    "Contract",
-                    "Specification",
-                    "Report",
-                    "Correspondence",
-                    "Technical",
-                    "Other",
-                ],
-            )
+                if not files:
 
-            project = st.text_input(
-                "Project"
-            )
+                    st.info(
+                        "No documents."
+                    )
 
-            status = st.selectbox(
-                "Status",
-                [
-                    "Draft",
-                    "Issued",
-                    "Approved",
-                    "Archived",
-                ],
-            )
+                else:
 
-            description = st.text_area(
-                "Description"
-            )
+                    for document in files:
 
-            submitted = st.form_submit_button(
-                "Add Document",
-                use_container_width=True,
-            )
-
-        if submitted:
-
-            if not title.strip():
-                st.error(
-                    "Document title is required."
-                )
-                return
-
-            documents.append(
-                {
-                    "id": _next_id(
-                        documents
-                    ),
-                    "title": title.strip(),
-                    "name": title.strip(),
-                    "document_number": (
-                        document_number.strip()
-                    ),
-                    "category": category,
-                    "project": project.strip(),
-                    "status": status,
-                    "description": (
-                        description.strip()
-                    ),
-                    "created_at": datetime.now().isoformat(
-                        timespec="seconds"
-                    ),
-                }
-            )
-
-            _save(database)
-
-            st.success(
-                "Document added successfully."
-            )
-
-            st.rerun()
+                        st.write(
+                            f"**{document.get('title', 'Untitled')}** "
+                            f"— "
+                            f"{document.get('original_name', '')}"
+                        )
