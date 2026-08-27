@@ -3,8 +3,6 @@ from typing import Any
 from modules.database import save_memory
 
 def render_documents_module(database: dict[str, Any]) -> None:
-    """Render Documents module for contracts, specs, BIM files."""
-
     st.header("Project Documents")
 
     projects = database.get("projects", [])
@@ -20,13 +18,13 @@ def render_documents_module(database: dict[str, Any]) -> None:
         return
 
     documents = project.get("documents", [])
+    spaces = project.get("spaces", [])
 
     st.subheader("Documents")
     if documents:
-        for idx, doc in enumerate(documents):
-            st.write(f"**{doc['title']}** (Phase: {doc['phase']}, Version: {doc['version']})")
+        for doc in documents:
+            st.write(f"**{doc['title']}** (Phase: {doc['phase']}, v{doc['version']})")
             st.caption(f"Author: {doc['author']} | File: {doc['filename']}")
-            st.write("---")
     else:
         st.caption("No documents uploaded yet.")
 
@@ -36,6 +34,10 @@ def render_documents_module(database: dict[str, Any]) -> None:
         version = st.text_input("Version", "v1.0")
         author = st.text_input("Author")
         filename = st.text_input("Filename (stored path)")
+        # New: link to space
+        space_names = [s["name"] for s in spaces] if spaces else []
+        link_space = st.selectbox("Link to Space", ["None"] + space_names)
+
         submitted = st.form_submit_button("Add Document")
 
         if submitted and title and filename:
@@ -48,5 +50,12 @@ def render_documents_module(database: dict[str, Any]) -> None:
             }
             documents.append(new_doc)
             project["documents"] = documents
+
+            # If linked to a space, also push into that space record
+            if link_space != "None":
+                for s in spaces:
+                    if s["name"] == link_space:
+                        s.setdefault("documents", []).append(new_doc)
+
             save_memory(database)
             st.success(f"Added document: {title} ({phase})")
