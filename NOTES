@@ -127,3 +127,19 @@ creativestudios/
     ├── rfis.py
     ├── tasks.py
     └── approvals.py
+
+
+
+{
+  "id": "proj001",
+  "name": "Office Tower",
+  "type": "New",              // New, Renovation, Alteration
+  "status": "Planning",
+  "architecture": {},
+  "engineering": {},
+  "construction": {},
+  "mep": {},
+  "spaces": [],
+  "documents": [],
+  "drawings": []
+}
