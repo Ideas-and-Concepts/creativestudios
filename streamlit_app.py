@@ -11,6 +11,7 @@ Modules are loaded only when selected.
 
 from __future__ import annotations
 
+import base64
 import importlib
 from pathlib import Path
 from typing import Any, Callable
@@ -45,18 +46,18 @@ st.set_page_config(
 
 
 # ============================================================
-# APPLICATION STYLING
+# GLOBAL CSS
 # ============================================================
 
 def inject_css() -> None:
-    """Apply the Creative Studios light interface."""
+    """Apply Creative Studios application styling."""
 
     st.markdown(
         """
         <style>
 
         /* ==================================================
-           GLOBAL APPLICATION
+           GLOBAL
            ================================================== */
 
         .block-container {
@@ -98,34 +99,39 @@ def inject_css() -> None:
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 0.25rem 0 0.75rem 0;
             box-sizing: border-box;
+            padding: 0.25rem 0 1rem 0;
+            margin: 0;
         }
 
-        .cs-sidebar-logo-wrapper {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            margin: 0 auto;
+        .cs-sidebar-logo {
+            display: block;
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            object-position: center;
+            margin: 0 auto 8px auto;
+            padding: 0;
         }
 
         .cs-sidebar-title {
+            display: block;
             width: 100%;
             text-align: center;
             font-size: 17px;
             font-weight: 700;
             line-height: 1.2;
-            margin: 6px 0 0 0;
+            margin: 0;
             padding: 0;
         }
 
         .cs-sidebar-subtitle {
+            display: block;
             width: 100%;
             text-align: center;
             font-size: 12px;
-            line-height: 1.3;
+            font-weight: 400;
+            line-height: 1.35;
             color: #64748B;
             margin: 4px 0 0 0;
             padding: 0;
@@ -133,27 +139,7 @@ def inject_css() -> None:
 
 
         /* ==================================================
-           CENTER NATIVE STREAMLIT IMAGE
-           ================================================== */
-
-        [data-testid="stSidebar"] img {
-            display: block;
-            margin-left: auto !important;
-            margin-right: auto !important;
-        }
-
-        [data-testid="stSidebar"]
-        [data-testid="stImage"] {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            width: 100%;
-        }
-
-
-        /* ==================================================
-           DIVIDERS
+           SIDEBAR NAVIGATION
            ================================================== */
 
         .cs-divider {
@@ -162,11 +148,6 @@ def inject_css() -> None:
             background: #E2E8F0;
             margin: 0.75rem 0 1rem 0;
         }
-
-
-        /* ==================================================
-           SECTION LABELS
-           ================================================== */
 
         .cs-section-label {
             color: #64748B;
@@ -177,11 +158,6 @@ def inject_css() -> None:
             margin-top: 0.5rem;
             margin-bottom: 0.5rem;
         }
-
-
-        /* ==================================================
-           SIDEBAR NAVIGATION
-           ================================================== */
 
         [data-testid="stSidebar"] div[role="radiogroup"] {
             width: 100%;
@@ -247,7 +223,7 @@ def inject_css() -> None:
 
 
         /* ==================================================
-           MAIN MODULE HEADER
+           MAIN MODULE HEADERS
            ================================================== */
 
         .cs-module-title {
@@ -361,7 +337,7 @@ def get_database() -> dict[str, Any]:
     """
     Load the application database once per session.
 
-    Every module receives the same database dictionary.
+    All modules receive the same database dictionary.
     """
 
     database = st.session_state.get(
@@ -381,57 +357,112 @@ def get_database() -> dict[str, Any]:
 
 
 # ============================================================
+# LOGO DATA
+# ============================================================
+
+def get_logo_data_uri() -> str | None:
+    """
+    Convert the Creative Studios PNG into a browser-safe
+    data URI.
+
+    This keeps the logo and branding in one HTML element,
+    allowing reliable centering on Streamlit Cloud.
+    """
+
+    if not LOGO_PATH.exists():
+        return None
+
+    try:
+
+        logo_bytes = LOGO_PATH.read_bytes()
+
+    except OSError:
+
+        return None
+
+    encoded = base64.b64encode(
+        logo_bytes
+    ).decode("utf-8")
+
+    extension = LOGO_PATH.suffix.lower()
+
+    mime_type = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+    }.get(
+        extension,
+        "image/png",
+    )
+
+    return (
+        f"data:{mime_type};base64,{encoded}"
+    )
+
+
+# ============================================================
 # SIDEBAR BRANDING
 # ============================================================
 
 def render_sidebar_logo() -> None:
     """
-    Render the Creative Studios branding.
+    Render the complete centered Creative Studios branding.
 
-    The logo is rendered using Streamlit's native image
-    component and centered inside the sidebar.
+    Logo, title and subtitle are intentionally contained in
+    one HTML element.
     """
 
-    st.sidebar.markdown(
-        """
-        <div class="cs-sidebar-brand">
-        """,
-        unsafe_allow_html=True,
-    )
+    logo_uri = get_logo_data_uri()
 
-    if LOGO_PATH.exists():
+    if logo_uri:
 
-        left, center, right = (
-            st.sidebar.columns(
-                [1, 2, 1],
-                gap="small",
-            )
+        st.sidebar.markdown(
+            f"""
+            <div class="cs-sidebar-brand">
+
+                <img
+                    class="cs-sidebar-logo"
+                    src="{logo_uri}"
+                    alt="Creative Studios logo"
+                />
+
+                <div class="cs-sidebar-title">
+                    Creative Studios
+                </div>
+
+                <div class="cs-sidebar-subtitle">
+                    AEC Collaboration Platform
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        with center:
+    else:
 
-            st.image(
-                str(LOGO_PATH),
-                width=64,
-            )
+        st.sidebar.markdown(
+            """
+            <div class="cs-sidebar-brand">
 
-    st.sidebar.markdown(
-        """
-            <div class="cs-sidebar-title">
-                Creative Studios
+                <div class="cs-sidebar-title">
+                    Creative Studios
+                </div>
+
+                <div class="cs-sidebar-subtitle">
+                    AEC Collaboration Platform
+                </div>
+
             </div>
-
-            <div class="cs-sidebar-subtitle">
-                AEC Collaboration Platform
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ============================================================
-# SIDEBAR NAVIGATION
+# NAVIGATION
 # ============================================================
 
 NAVIGATION = [
