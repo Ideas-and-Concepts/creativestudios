@@ -10,7 +10,11 @@ from typing import Any
 import streamlit as st
 
 
-def _safe_list(database: dict[str, Any], key: str) -> list[dict[str, Any]]:
+def _safe_records(
+    database: dict[str, Any],
+    key: str,
+) -> list[dict[str, Any]]:
+    """Return only dictionary records from a database collection."""
     value = database.get(key, [])
 
     if not isinstance(value, list):
@@ -30,33 +34,37 @@ def _safe_float(value: Any) -> float:
         return 0.0
 
 
-def render_dashboard(database: dict[str, Any]) -> None:
+def render_dashboard(
+    database: dict[str, Any],
+) -> None:
     """Render the Creative Studios dashboard."""
 
-    projects = _safe_list(database, "projects")
-    documents = _safe_list(database, "documents")
-    drawings = _safe_list(database, "drawings")
-    rfis = _safe_list(database, "rfis")
-    tasks = _safe_list(database, "tasks")
+    projects = _safe_records(database, "projects")
+    documents = _safe_records(database, "documents")
+    drawings = _safe_records(database, "drawings")
+    architecture = _safe_records(database, "architecture")
+    engineering = _safe_records(database, "engineering")
+    mep = _safe_records(database, "mep")
 
     active_projects = sum(
         1
         for project in projects
-        if str(project.get("status", "")).lower() == "active"
+        if str(project.get("status", "")).strip().lower()
+        == "active"
     )
 
-    open_rfis = sum(
+    completed_projects = sum(
         1
-        for rfi in rfis
-        if str(rfi.get("status", "")).lower()
-        not in {"closed", "completed"}
+        for project in projects
+        if str(project.get("status", "")).strip().lower()
+        == "completed"
     )
 
-    open_tasks = sum(
+    planning_projects = sum(
         1
-        for task in tasks
-        if str(task.get("status", "")).lower()
-        not in {"completed", "closed"}
+        for project in projects
+        if str(project.get("status", "")).strip().lower()
+        == "planning"
     )
 
     total_budget = sum(
@@ -74,17 +82,20 @@ def render_dashboard(database: dict[str, Any]) -> None:
         "Creative Studios AEC collaboration workspace."
     )
 
-    columns = st.columns(5)
-
     metrics = [
         ("Projects", len(projects)),
-        ("Active Projects", active_projects),
+        ("Active", active_projects),
+        ("Planning", planning_projects),
+        ("Completed", completed_projects),
         ("Documents", len(documents)),
-        ("Drawings", len(drawings)),
-        ("Open RFIs", open_rfis),
     ]
 
-    for column, (label, value) in zip(columns, metrics):
+    columns = st.columns(5)
+
+    for column, (label, value) in zip(
+        columns,
+        metrics,
+    ):
         with column:
             st.metric(label, value)
 
@@ -103,7 +114,17 @@ def render_dashboard(database: dict[str, Any]) -> None:
                     {
                         "Project": project.get(
                             "name",
-                            project.get("project_name", "Unnamed"),
+                            project.get(
+                                "project_name",
+                                "Unnamed Project",
+                            ),
+                        ),
+                        "Client": project.get(
+                            "client",
+                            project.get(
+                                "client_name",
+                                "",
+                            ),
                         ),
                         "Status": project.get(
                             "status",
@@ -112,7 +133,10 @@ def render_dashboard(database: dict[str, Any]) -> None:
                         "Budget": _safe_float(
                             project.get(
                                 "estimated_budget",
-                                project.get("budget", 0),
+                                project.get(
+                                    "budget",
+                                    0,
+                                ),
                             )
                         ),
                     }
@@ -124,20 +148,25 @@ def render_dashboard(database: dict[str, Any]) -> None:
                 hide_index=True,
             )
         else:
-            st.info("No projects have been created yet.")
+            st.info(
+                "No projects have been created yet."
+            )
 
     with right:
-        st.subheader("Workspace Activity")
+        st.subheader("Workspace Summary")
 
-        activity = [
+        summary = [
             ("Documents", len(documents)),
             ("Drawings", len(drawings)),
-            ("Open RFIs", open_rfis),
-            ("Open Tasks", open_tasks),
+            ("Architecture Records", len(architecture)),
+            ("Engineering Records", len(engineering)),
+            ("MEP Records", len(mep)),
         ]
 
-        for label, value in activity:
-            st.write(f"**{label}:** {value}")
+        for label, value in summary:
+            st.write(
+                f"**{label}:** {value}"
+            )
 
         st.write(
             f"**Total Project Budget:** "
