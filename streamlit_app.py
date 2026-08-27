@@ -12,12 +12,37 @@ from modules import (
 from modules.database import load_memory
 
 def render_sidebar_logo():
-    # Path to logo inside assets folder
     logo_path = os.path.join(os.path.dirname(__file__), "assets", "creative_studios.png")
+
+    # Custom CSS for background styling
+    st.markdown(
+        """
+        <style>
+        .sidebar-logo {
+            background-color: #2C3E50; /* Dark theme color */
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .sidebar-logo img {
+            max-width: 100%;
+            height: auto;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
     try:
         if os.path.exists(logo_path):
-            st.sidebar.image(logo_path, use_column_width=True)
+            st.sidebar.markdown(
+                f"""
+                <div class="sidebar-logo">
+                    <img src="assets/creative_studios.png" alt="Creative Studios Logo">
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
         else:
             st.sidebar.header("Creative Studios")
     except Exception:
@@ -25,20 +50,16 @@ def render_sidebar_logo():
         st.sidebar.write("⚠️ Logo not available")
 
 def main():
-    # Sidebar branding
     render_sidebar_logo()
 
-    # Navigation
     st.sidebar.title("Navigation")
     choice = st.sidebar.radio(
         "Go to",
         ["Dashboard", "Projects", "Documents", "Architecture", "Engineering", "Drawings", "MEP"]
     )
 
-    # Load database
     database = load_memory()
 
-    # Route to modules
     if choice == "Dashboard":
         dashboard.render_dashboard(database)
     elif choice == "Projects":
