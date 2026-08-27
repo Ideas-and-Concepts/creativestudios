@@ -15,15 +15,10 @@ def render_sidebar_logo():
     # Path to logo inside assets folder
     logo_path = os.path.join(os.path.dirname(__file__), "assets", "creative_studios.png")
 
-    try:
-        if os.path.exists(logo_path):
-            # Display logo at top of sidebar
-            st.sidebar.image(logo_path, use_column_width=True)
-        else:
-            st.sidebar.header("Creative Studios")
-    except Exception:
+    if os.path.exists(logo_path):
+        st.sidebar.image(logo_path, use_column_width=True)
+    else:
         st.sidebar.header("Creative Studios")
-        st.sidebar.write("⚠️ Logo not available")
 
 def main():
     # Sidebar branding
