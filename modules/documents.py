@@ -1,70 +1,29 @@
 import streamlit as st
 from .database import save_memory
 
-# ============================================================
-# DOCUMENTS MODULE
-# ============================================================
+def render_documents_module(database):
+    st.header("📄 Documents")
 
-def render_documents_module(database: dict[str, Any]) -> None:
-    """Render Documents module for managing project files and approvals."""
+    # Create
+    uploaded_file = st.file_uploader("Upload Document")
+    if uploaded_file and st.button("Add Document"):
+        database.setdefault("documents", []).append(uploaded_file.name)
+        save_memory(database)
+        st.success(f"Document '{uploaded_file.name}' added!")
 
-    st.header("Documents")
-
-    projects = database.get("projects", [])
-    if not projects:
-        st.info("No projects available.")
-        return
-
-    # Select project
-    project_names = [p.get("name", "Unnamed Project") for p in projects]
-    selected_project = st.selectbox("Select Project", project_names)
-
-    project = next((p for p in projects if p.get("name") == selected_project), None)
-    if not project:
-        st.warning("Project not found.")
-        return
-
-    documents = project.get("documents", [])
-
-    # Display documents
-    st.subheader("Project Documents")
-    if documents:
-        df = pd.DataFrame(documents)
-        st.dataframe(df)
-    else:
-        st.caption("No documents uploaded yet.")
-
-    # Add new document form
-    with st.form("add_document", clear_on_submit=True):
-        title = st.text_input("Document Title")
-        filename = st.text_input("Filename")
-        phase = st.selectbox("Phase", ["Planning", "Design", "Construction"])
-        status = st.selectbox("Status", ["Pending", "Approved"])
-        author = st.text_input("Author")
-        submitted = st.form_submit_button("Add Document")
-
-        if submitted and title and filename:
-            new_doc = {
-                "title": title,
-                "filename": filename,
-                "phase": phase,
-                "status": status,
-                "author": author
-            }
-            documents.append(new_doc)
-            project["documents"] = documents
-            save_memory(database)
-            st.success(f"Added document: {title} ({status})")
-
-    # Update document status
-    if documents:
-        st.subheader("Update Document Status")
-        doc_titles = [d["title"] for d in documents]
-        selected_doc = st.selectbox("Select Document", doc_titles)
-        new_status = st.selectbox("New Status", ["Pending", "Approved"])
-        if st.button("Update Status"):
-            for d in documents:
-                if d["title"] == selected_doc:
-                    d["status"] = new_status
+    # Read + Update + Delete
+    if "documents" in database and database["documents"]:
+        st.subheader("Manage Documents")
+        for i, doc in enumerate(database["documents"]):
+            with st.expander(f"Document: {doc}"):
+                new_name = st.text_input("Edit Name", value=doc, key=f"doc_{i}")
+                if st.button("Update", key=f"update_doc_{i}"):
+                    database["documents"][i] = new_name
                     save_memory(database)
-                    st.success(f"Updated {selected_doc} to {new_status}")
+                    st.success("Document updated!")
+
+                if st.button("Delete", key=f"delete_doc_{i}"):
+                    database["documents"].pop(i)
+                    save_memory(database)
+                    st.warning("Document deleted!")
+                    st.experimental_rerun()
