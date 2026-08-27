@@ -5,6 +5,7 @@ AEC Collaboration Platform
 Main Streamlit application.
 
 Authentication has been removed.
+Light mode only.
 Modules are imported only when selected.
 """
 
@@ -36,70 +37,22 @@ st.set_page_config(
 
 
 # ============================================================
-# THEME
+# LIGHT THEME
 # ============================================================
 
-def initialize_theme() -> None:
-    """Initialize the application theme."""
-
-    if "theme" not in st.session_state:
-        st.session_state.theme = "Dark"
-
-
-def render_theme_selector() -> None:
-    """Render the dark/light theme selector."""
-
-    current_theme = st.session_state.get(
-        "theme",
-        "Dark",
-    )
-
-    selected_theme = st.sidebar.selectbox(
-        "Theme",
-        ["Dark", "Light"],
-        index=0 if current_theme == "Dark" else 1,
-        key="theme_selector",
-    )
-
-    if selected_theme != current_theme:
-        st.session_state.theme = selected_theme
-        st.rerun()
-
-
 def inject_theme_css() -> None:
-    """Apply Creative Studios theme styling."""
+    """Apply the Creative Studios light-only theme."""
 
-    theme = st.session_state.get(
-        "theme",
-        "Dark",
-    )
-
-    if theme == "Light":
-
-        background = "#F8FAFC"
-        surface = "#FFFFFF"
-        surface_alt = "#F1F5F9"
-        input_background = "#FFFFFF"
-        text = "#0F172A"
-        muted = "#64748B"
-        border = "#E2E8F0"
-        accent = "#2563EB"
-        accent_hover = "#1D4ED8"
-        selected = "#DBEAFE"
-
-    else:
-
-        # Professional high-contrast dark palette.
-        background = "#111827"
-        surface = "#1E293B"
-        surface_alt = "#273449"
-        input_background = "#273449"
-        text = "#F8FAFC"
-        muted = "#CBD5E1"
-        border = "#475569"
-        accent = "#60A5FA"
-        accent_hover = "#93C5FD"
-        selected = "#1E3A5F"
+    background = "#F8FAFC"
+    surface = "#FFFFFF"
+    surface_alt = "#F1F5F9"
+    input_background = "#FFFFFF"
+    text = "#0F172A"
+    muted = "#64748B"
+    border = "#CBD5E1"
+    accent = "#2563EB"
+    accent_hover = "#1D4ED8"
+    selected = "#DBEAFE"
 
     st.markdown(
         f"""
@@ -119,7 +72,7 @@ def inject_theme_css() -> None:
         }}
 
         [data-testid="stHeader"] {{
-            background: transparent;
+            background: {background};
         }}
 
         .block-container {{
@@ -127,28 +80,36 @@ def inject_theme_css() -> None:
             padding-bottom: 2rem;
         }}
 
+
         /* ==================================================
            GLOBAL TEXT
            ================================================== */
 
         html,
         body,
-        [class*="css"],
+        .stApp,
         .stMarkdown,
         .stText {{
             color: {text};
         }}
 
-        p,
-        span,
-        label,
-        div {{
-            color: inherit;
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {{
+            color: {text} !important;
+        }}
+
+        p {{
+            color: {text};
         }}
 
         small {{
             color: {muted};
         }}
+
 
         /* ==================================================
            SIDEBAR
@@ -203,8 +164,9 @@ def inject_theme_css() -> None:
             margin-bottom: 0.5rem;
         }}
 
+
         /* ==================================================
-           SIDEBAR RADIO NAVIGATION
+           SIDEBAR NAVIGATION
            ================================================== */
 
         [data-testid="stSidebar"] [role="radiogroup"] {{
@@ -215,30 +177,22 @@ def inject_theme_css() -> None:
             background: transparent;
             border-radius: 8px;
             padding: 7px 10px;
-            transition: background 0.15s ease;
         }}
 
         [data-testid="stSidebar"] [role="radio"]:hover {{
             background: {surface_alt};
         }}
 
-        [data-testid="stSidebar"] [role="radio"][aria-checked="true"] {{
+        [data-testid="stSidebar"]
+        [role="radio"][aria-checked="true"] {{
             background: {selected};
             border: 1px solid {accent};
         }}
 
-        /* ==================================================
-           HEADINGS
-           ================================================== */
 
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6 {{
-            color: {text} !important;
-        }}
+        /* ==================================================
+           MODULE TITLES
+           ================================================== */
 
         .cs-module-title {{
             color: {text} !important;
@@ -253,6 +207,7 @@ def inject_theme_css() -> None:
             margin-top: 6px;
         }}
 
+
         /* ==================================================
            CARDS
            ================================================== */
@@ -263,7 +218,7 @@ def inject_theme_css() -> None:
             border-radius: 12px;
             padding: 1.25rem;
             margin-bottom: 1rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
         }}
 
         .cs-card-title {{
@@ -279,6 +234,7 @@ def inject_theme_css() -> None:
             margin-top: 5px;
         }}
 
+
         /* ==================================================
            KPI CARDS
            ================================================== */
@@ -289,7 +245,7 @@ def inject_theme_css() -> None:
             border-radius: 12px;
             padding: 1rem;
             min-height: 95px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
         }}
 
         .cs-kpi-label {{
@@ -304,6 +260,7 @@ def inject_theme_css() -> None:
             margin-top: 6px;
         }}
 
+
         /* ==================================================
            BUTTONS
            ================================================== */
@@ -311,7 +268,7 @@ def inject_theme_css() -> None:
         div.stButton > button {{
             border-radius: 8px;
             border: 1px solid {border};
-            background: {surface_alt};
+            background: {surface};
             color: {text};
             min-height: 40px;
             font-weight: 600;
@@ -320,21 +277,21 @@ def inject_theme_css() -> None:
         div.stButton > button:hover {{
             border-color: {accent};
             color: {accent_hover};
-            background: {surface};
+            background: {surface_alt};
         }}
 
         div.stButton > button:focus {{
             border-color: {accent};
-            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.20);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
         }}
+
 
         /* ==================================================
            INPUTS
            ================================================== */
 
         input,
-        textarea,
-        [data-baseweb="select"] > div {{
+        textarea {{
             background: {input_background} !important;
             color: {text} !important;
             border-color: {border} !important;
@@ -355,9 +312,16 @@ def inject_theme_css() -> None:
             border-color: {accent};
         }}
 
+
         /* ==================================================
-           SELECTBOX / DROPDOWN
+           SELECTBOX
            ================================================== */
+
+        [data-baseweb="select"] > div {{
+            background: {input_background} !important;
+            color: {text} !important;
+            border-color: {border} !important;
+        }}
 
         [data-baseweb="popover"] {{
             background: {surface} !important;
@@ -377,6 +341,7 @@ def inject_theme_css() -> None:
             background: {surface_alt} !important;
         }}
 
+
         /* ==================================================
            TABS
            ================================================== */
@@ -392,6 +357,7 @@ def inject_theme_css() -> None:
         [data-baseweb="tab-highlight"] {{
             background: {accent} !important;
         }}
+
 
         /* ==================================================
            EXPANDERS
@@ -411,14 +377,18 @@ def inject_theme_css() -> None:
             background: {surface_alt};
         }}
 
+
         /* ==================================================
-           DATAFRAMES / TABLES
+           FORMS
            ================================================== */
 
-        [data-testid="stDataFrame"] {{
+        [data-testid="stForm"] {{
+            background: {surface};
             border: 1px solid {border};
-            border-radius: 8px;
+            border-radius: 12px;
+            padding: 1rem;
         }}
+
 
         /* ==================================================
            METRICS
@@ -439,8 +409,19 @@ def inject_theme_css() -> None:
             color: {text} !important;
         }}
 
+
         /* ==================================================
-           CHECKBOXES / RADIO BUTTONS
+           DATA TABLES
+           ================================================== */
+
+        [data-testid="stDataFrame"] {{
+            border: 1px solid {border};
+            border-radius: 8px;
+        }}
+
+
+        /* ==================================================
+           CHECKBOX / RADIO
            ================================================== */
 
         [data-testid="stCheckbox"] label,
@@ -448,16 +429,6 @@ def inject_theme_css() -> None:
             color: {text} !important;
         }}
 
-        /* ==================================================
-           FORM CONTAINERS
-           ================================================== */
-
-        [data-testid="stForm"] {{
-            background: {surface};
-            border: 1px solid {border};
-            border-radius: 12px;
-            padding: 1rem;
-        }}
 
         /* ==================================================
            ALERTS
@@ -468,6 +439,7 @@ def inject_theme_css() -> None:
             border: 1px solid {border};
         }}
 
+
         /* ==================================================
            DIVIDERS
            ================================================== */
@@ -475,6 +447,7 @@ def inject_theme_css() -> None:
         hr {{
             border-color: {border} !important;
         }}
+
 
         /* ==================================================
            LINKS
@@ -504,10 +477,10 @@ def initialize_session_state() -> None:
     defaults: dict[str, Any] = {
         "active_module": "Dashboard",
         "database": None,
-        "theme": "Dark",
     }
 
     for key, value in defaults.items():
+
         if key not in st.session_state:
             st.session_state[key] = value
 
@@ -519,13 +492,21 @@ def initialize_session_state() -> None:
 def get_database() -> dict[str, Any]:
     """Load the application database once per session."""
 
-    database = st.session_state.get("database")
+    database = st.session_state.get(
+        "database"
+    )
 
-    if not isinstance(database, dict):
+    if not isinstance(
+        database,
+        dict,
+    ):
 
         database = load_memory()
 
-        if not isinstance(database, dict):
+        if not isinstance(
+            database,
+            dict,
+        ):
             database = {}
 
         st.session_state.database = database
@@ -538,7 +519,7 @@ def get_database() -> dict[str, Any]:
 # ============================================================
 
 def render_sidebar_logo() -> None:
-    """Render the Creative Studios sidebar branding."""
+    """Render the small centered Creative Studios logo."""
 
     st.sidebar.markdown(
         '<div class="cs-sidebar-brand">',
@@ -581,7 +562,7 @@ def render_sidebar_logo() -> None:
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render application navigation."""
+    """Render the application navigation."""
 
     render_sidebar_logo()
 
@@ -623,13 +604,6 @@ def render_sidebar() -> str:
     )
 
     st.session_state.active_module = choice
-
-    st.sidebar.markdown(
-        '<div class="cs-divider"></div>',
-        unsafe_allow_html=True,
-    )
-
-    render_theme_selector()
 
     return choice
 
@@ -739,7 +713,9 @@ def render_module(
             choice
         )
 
-        renderer(database)
+        renderer(
+            database
+        )
 
     except Exception as exc:
 
@@ -763,8 +739,6 @@ def main() -> None:
     """Run Creative Studios."""
 
     initialize_session_state()
-
-    initialize_theme()
 
     inject_theme_css()
 
