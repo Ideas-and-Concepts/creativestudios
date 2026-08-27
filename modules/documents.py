@@ -1,7 +1,6 @@
 import streamlit as st
-import pandas as pd
-from typing import Any
-from modules.database import save_memory
+from .database import save_memory
+def render_documents_module(database): ...
 
 # ============================================================
 # DOCUMENTS MODULE
