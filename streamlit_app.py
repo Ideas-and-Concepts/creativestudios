@@ -5,7 +5,8 @@ from modules import (
     engineering,
     drawings,
     mep,
-    projects
+    projects,
+    dashboard
 )
 from modules.database import load_memory
 
@@ -16,6 +17,7 @@ from modules.database import load_memory
 def main():
     st.sidebar.title("Creative Studios")
     navigation = [
+        "Dashboard",
         "Projects",
         "Documents",
         "Architecture",
@@ -30,7 +32,9 @@ def main():
     database = load_memory()
 
     # Route to selected module
-    if choice == "Projects":
+    if choice == "Dashboard":
+        dashboard.render_dashboard_module(database)
+    elif choice == "Projects":
         projects.render_projects_module(database)
     elif choice == "Documents":
         documents.render_documents_module(database)
