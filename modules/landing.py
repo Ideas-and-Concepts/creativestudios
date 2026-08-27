@@ -1,4 +1,8 @@
 import streamlit as st
+
+def render_landing():
+    st.title("Welcome to Creative Studios")
+    st.write("Your enterprise app for projects, documents, and more.")
 import pandas as pd
 from typing import Any
 
