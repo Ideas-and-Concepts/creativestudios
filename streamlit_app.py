@@ -55,9 +55,6 @@ st.set_page_config(
 # APPLICATION CONSTANTS
 # ============================================================
 
-APP_NAME = "Creative Studios"
-APP_DESCRIPTION = "AEC Collaboration Platform"
-
 NAVIGATION = [
     "Dashboard",
     "Projects",
@@ -134,10 +131,7 @@ def get_database() -> dict[str, Any]:
         "database"
     )
 
-    if isinstance(
-        database,
-        dict,
-    ):
+    if isinstance(database, dict):
         return database
 
     try:
@@ -154,10 +148,7 @@ def get_database() -> dict[str, Any]:
 
         database = {}
 
-    if not isinstance(
-        database,
-        dict,
-    ):
+    if not isinstance(database, dict):
         database = {}
 
     st.session_state.database = database
@@ -176,15 +167,10 @@ def inject_css() -> None:
         """
         <style>
 
-        /* ==================================================
-           MAIN APPLICATION
-           ================================================== */
-
         .block-container {
             padding-top: 1.5rem;
             padding-bottom: 3rem;
         }
-
 
         /* ==================================================
            SIDEBAR
@@ -198,7 +184,6 @@ def inject_css() -> None:
         [data-testid="stSidebar"] > div:first-child {
             padding-top: 1rem;
         }
-
 
         /* ==================================================
            SIDEBAR BRANDING
@@ -245,7 +230,6 @@ def inject_css() -> None:
             margin: 0.5rem 0 0.5rem 0;
         }
 
-
         /* ==================================================
            SIDEBAR NAVIGATION
            ================================================== */
@@ -263,7 +247,6 @@ def inject_css() -> None:
             background: rgba(128, 128, 128, 0.10);
         }
 
-
         /* ==================================================
            BUTTONS
            ================================================== */
@@ -273,7 +256,6 @@ def inject_css() -> None:
             min-height: 2.5rem;
             font-weight: 600;
         }
-
 
         /* ==================================================
            MOBILE
@@ -302,9 +284,8 @@ def render_sidebar_brand() -> None:
     """
     Render centered Creative Studios branding.
 
-    The actual logo is rendered with st.image() rather than
-    an HTML img tag because this is more reliable on
-    Streamlit Cloud.
+    The logo itself is rendered through Streamlit rather than
+    an HTML img element for better Streamlit Cloud reliability.
     """
 
     st.sidebar.markdown(
@@ -314,7 +295,7 @@ def render_sidebar_brand() -> None:
 
     if LOGO_PATH is not None:
 
-        # Three-column layout centers the real Streamlit image.
+        # The middle column physically centers the image.
         left, center, right = st.sidebar.columns(
             [1, 2, 1]
         )
@@ -328,7 +309,7 @@ def render_sidebar_brand() -> None:
 
     else:
 
-        # Fallback if the asset is unavailable.
+        # Fallback if the logo file does not exist.
         left, center, right = st.sidebar.columns(
             [1, 2, 1]
         )
@@ -355,8 +336,6 @@ def render_sidebar_brand() -> None:
                 unsafe_allow_html=True,
             )
 
-    # These are deliberately outside the image container so
-    # Streamlit Cloud renders them reliably.
     st.sidebar.markdown(
         """
         <div class="cs-sidebar-title">
@@ -381,7 +360,7 @@ def render_sidebar_brand() -> None:
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render the application sidebar navigation."""
+    """Render the application sidebar."""
 
     render_sidebar_brand()
 
@@ -423,11 +402,7 @@ def render_sidebar() -> str:
 def load_module_renderer(
     module_name: str,
 ) -> Callable[[dict[str, Any]], None]:
-    """
-    Dynamically load a module renderer.
-
-    Modules are imported only when selected.
-    """
+    """Load a module renderer only when required."""
 
     if module_name not in MODULE_IMPORTS:
 
@@ -469,7 +444,7 @@ def load_module_renderer(
 
 
 # ============================================================
-# MODULE ERROR DISPLAY
+# MODULE ERROR
 # ============================================================
 
 def render_module_error(
