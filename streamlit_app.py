@@ -6,8 +6,24 @@ Main Streamlit application.
 
 Authentication has been removed.
 
-Architecture and Engineering manage their own drawings.
-There is no standalone Drawings module.
+Top-level modules:
+
+    Dashboard
+    Projects
+    Documents
+    Architecture
+    Engineering
+    MEP
+    BOQ
+
+Drawings is intentionally NOT a standalone module.
+
+Architectural drawings are handled by Architecture.
+
+Engineering drawings are handled by Engineering.
+
+The application uses lazy module loading so that one broken
+module does not prevent the main application from starting.
 """
 
 from __future__ import annotations
@@ -22,40 +38,64 @@ from modules.database import load_memory
 
 
 # ============================================================
-# PAGE CONFIGURATION
+# APPLICATION PATHS
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
 ASSETS_DIR = BASE_DIR / "assets"
 
-LOGO_CANDIDATES = [
-    ASSETS_DIR / "creative_studios.png",
-    ASSETS_DIR / "creative_studios_logo.png",
-    ASSETS_DIR / "logo.png",
-]
 
-LOGO_PATH: Path | None = None
+# ============================================================
+# LOGO DISCOVERY
+# ============================================================
 
-for candidate in LOGO_CANDIDATES:
-    if candidate.exists():
-        LOGO_PATH = candidate
-        break
+def find_logo() -> Path | None:
+    """
+    Locate the Creative Studios logo.
 
+    Several filenames are supported so the application remains
+    compatible with existing asset files.
+    """
+
+    candidates = [
+        ASSETS_DIR / "creative_studios.png",
+        ASSETS_DIR / "creative_studios_logo.png",
+        ASSETS_DIR / "logo.png",
+        ASSETS_DIR / "creative_studios.jpg",
+        ASSETS_DIR / "creative_studios.jpeg",
+        ASSETS_DIR / "logo.jpg",
+        ASSETS_DIR / "logo.jpeg",
+    ]
+
+    for candidate in candidates:
+
+        if candidate.exists() and candidate.is_file():
+            return candidate
+
+    return None
+
+
+LOGO_PATH = find_logo()
+
+
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon=str(LOGO_PATH) if LOGO_PATH else None,
+    page_icon=str(LOGO_PATH) if LOGO_PATH else "CS",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# APPLICATION CONSTANTS
+# NAVIGATION
 # ============================================================
 
-NAVIGATION = [
+NAVIGATION: list[str] = [
     "Dashboard",
     "Projects",
     "Documents",
@@ -71,30 +111,37 @@ NAVIGATION = [
 # ============================================================
 
 MODULE_IMPORTS: dict[str, tuple[str, str]] = {
+
     "Dashboard": (
         "modules.dashboard",
         "render_dashboard",
     ),
+
     "Projects": (
         "modules.projects",
         "render_projects_module",
     ),
+
     "Documents": (
         "modules.documents",
         "render_documents_module",
     ),
+
     "Architecture": (
         "modules.architecture",
         "render_architecture_module",
     ),
+
     "Engineering": (
         "modules.engineering",
         "render_engineering_module",
     ),
+
     "MEP": (
         "modules.mep",
         "render_mep_module",
     ),
+
     "BOQ": (
         "modules.boq",
         "render_boq_module",
@@ -117,43 +164,8 @@ def initialize_session_state() -> None:
     for key, value in defaults.items():
 
         if key not in st.session_state:
+
             st.session_state[key] = value
-
-
-# ============================================================
-# DATABASE
-# ============================================================
-
-def get_database() -> dict[str, Any]:
-    """Load the application database once per session."""
-
-    database = st.session_state.get(
-        "database"
-    )
-
-    if isinstance(database, dict):
-        return database
-
-    try:
-
-        database = load_memory()
-
-    except Exception as exc:
-
-        st.error(
-            "Unable to load the Creative Studios database."
-        )
-
-        st.exception(exc)
-
-        database = {}
-
-    if not isinstance(database, dict):
-        database = {}
-
-    st.session_state.database = database
-
-    return database
 
 
 # ============================================================
@@ -161,16 +173,21 @@ def get_database() -> dict[str, Any]:
 # ============================================================
 
 def inject_css() -> None:
-    """Apply application-wide styling."""
+    """Apply global Creative Studios styling."""
 
     st.markdown(
         """
         <style>
 
+        /* ==================================================
+           MAIN APPLICATION
+           ================================================== */
+
         .block-container {
             padding-top: 1.5rem;
             padding-bottom: 3rem;
         }
+
 
         /* ==================================================
            SIDEBAR
@@ -182,8 +199,9 @@ def inject_css() -> None:
         }
 
         [data-testid="stSidebar"] > div:first-child {
-            padding-top: 1rem;
+            padding-top: 0.75rem;
         }
+
 
         /* ==================================================
            SIDEBAR BRANDING
@@ -193,59 +211,77 @@ def inject_css() -> None:
             width: 100%;
             text-align: center !important;
             margin: 0;
-            padding: 0.25rem 0 1rem 0;
+            padding: 0.15rem 0 0.85rem 0;
         }
 
         .cs-sidebar-title {
             width: 100%;
             text-align: center !important;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 750;
             line-height: 1.25;
-            margin: 0.5rem 0 0 0;
+            margin: 0.35rem 0 0 0;
+            padding: 0;
         }
 
         .cs-sidebar-subtitle {
             width: 100%;
             text-align: center !important;
-            font-size: 12px;
-            line-height: 1.4;
-            margin-top: 0.25rem;
-            opacity: 0.68;
+            font-size: 11px;
+            line-height: 1.35;
+            margin: 0.2rem 0 0 0;
+            padding: 0;
+            opacity: 0.65;
         }
+
+
+        /* ==================================================
+           SIDEBAR DIVIDER
+           ================================================== */
 
         .cs-sidebar-divider {
             width: 100%;
             height: 1px;
-            margin: 0.75rem 0 1rem 0;
+            margin: 0.7rem 0 0.9rem 0;
             background: rgba(128, 128, 128, 0.20);
         }
 
+
+        /* ==================================================
+           SIDEBAR SECTION
+           ================================================== */
+
         .cs-sidebar-section {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
             opacity: 0.60;
-            margin: 0.5rem 0 0.5rem 0;
+            margin: 0.5rem 0 0.45rem 0;
         }
 
+
         /* ==================================================
-           SIDEBAR NAVIGATION
+           SIDEBAR RADIO NAVIGATION
            ================================================== */
 
         [data-testid="stSidebar"] div[role="radiogroup"] {
-            gap: 0.25rem;
+            gap: 0.2rem;
         }
 
-        [data-testid="stSidebar"] div[role="radiogroup"] label {
+        [data-testid="stSidebar"]
+        div[role="radiogroup"]
+        label {
             border-radius: 8px;
-            padding: 0.25rem 0.5rem;
+            padding: 0.2rem 0.45rem;
         }
 
-        [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+        [data-testid="stSidebar"]
+        div[role="radiogroup"]
+        label:hover {
             background: rgba(128, 128, 128, 0.10);
         }
+
 
         /* ==================================================
            BUTTONS
@@ -253,9 +289,19 @@ def inject_css() -> None:
 
         div.stButton > button {
             border-radius: 8px;
-            min-height: 2.5rem;
+            min-height: 2.4rem;
             font-weight: 600;
         }
+
+
+        /* ==================================================
+           METRICS
+           ================================================== */
+
+        [data-testid="stMetric"] {
+            border-radius: 10px;
+        }
+
 
         /* ==================================================
            MOBILE
@@ -266,6 +312,14 @@ def inject_css() -> None:
             [data-testid="stSidebar"] {
                 min-width: 230px;
                 max-width: 230px;
+            }
+
+            .cs-sidebar-title {
+                font-size: 16px;
+            }
+
+            .cs-sidebar-subtitle {
+                font-size: 10px;
             }
 
         }
@@ -282,10 +336,13 @@ def inject_css() -> None:
 
 def render_sidebar_brand() -> None:
     """
-    Render centered Creative Studios branding.
+    Render the Creative Studios branding in the sidebar.
 
-    The logo itself is rendered through Streamlit rather than
-    an HTML img element for better Streamlit Cloud reliability.
+    The logo is intentionally small and centered.
+
+    Streamlit's native image renderer is used instead of an
+    HTML <img> element because it is substantially more
+    reliable on Streamlit Cloud.
     """
 
     st.sidebar.markdown(
@@ -293,25 +350,31 @@ def render_sidebar_brand() -> None:
         unsafe_allow_html=True,
     )
 
+    # --------------------------------------------------------
+    # Logo
+    # --------------------------------------------------------
+
     if LOGO_PATH is not None:
 
-        # The middle column physically centers the image.
         left, center, right = st.sidebar.columns(
-            [1, 2, 1]
+            [1.35, 1, 1.35]
         )
 
         with center:
 
             st.image(
                 str(LOGO_PATH),
-                width=72,
+                width=56,
             )
 
     else:
 
-        # Fallback if the logo file does not exist.
+        # ----------------------------------------------------
+        # Logo fallback
+        # ----------------------------------------------------
+
         left, center, right = st.sidebar.columns(
-            [1, 2, 1]
+            [1.35, 1, 1.35]
         )
 
         with center:
@@ -319,22 +382,27 @@ def render_sidebar_brand() -> None:
             st.markdown(
                 """
                 <div style="
-                    width:72px;
-                    height:72px;
-                    border-radius:14px;
+                    width:56px;
+                    height:56px;
+                    margin:0 auto;
+                    border-radius:12px;
                     border:1px solid rgba(128,128,128,0.25);
                     display:flex;
                     align-items:center;
                     justify-content:center;
-                    font-size:24px;
+                    font-size:20px;
                     font-weight:800;
-                    margin:auto;
+                    box-sizing:border-box;
                 ">
                     CS
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+
+    # --------------------------------------------------------
+    # Branding text
+    # --------------------------------------------------------
 
     st.sidebar.markdown(
         """
@@ -360,7 +428,7 @@ def render_sidebar_brand() -> None:
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render the application sidebar."""
+    """Render the main application navigation."""
 
     render_sidebar_brand()
 
@@ -380,6 +448,7 @@ def render_sidebar() -> str:
     )
 
     if current not in NAVIGATION:
+
         current = "Dashboard"
 
     choice = st.sidebar.radio(
@@ -396,13 +465,64 @@ def render_sidebar() -> str:
 
 
 # ============================================================
+# DATABASE
+# ============================================================
+
+def get_database() -> dict[str, Any]:
+    """
+    Load the application database once per session.
+
+    Database loading failures are displayed without preventing
+    the application shell from starting.
+    """
+
+    database = st.session_state.get(
+        "database"
+    )
+
+    if isinstance(database, dict):
+
+        return database
+
+    try:
+
+        database = load_memory()
+
+    except Exception as exc:
+
+        st.error(
+            "Unable to load the Creative Studios database."
+        )
+
+        with st.expander(
+            "Database error details"
+        ):
+
+            st.exception(exc)
+
+        database = {}
+
+    if not isinstance(database, dict):
+
+        database = {}
+
+    st.session_state.database = database
+
+    return database
+
+
+# ============================================================
 # MODULE LOADER
 # ============================================================
 
 def load_module_renderer(
     module_name: str,
-) -> Callable[[dict[str, Any]], None]:
-    """Load a module renderer only when required."""
+) -> Callable[[dict[str, Any]], Any]:
+    """
+    Dynamically import the selected module renderer.
+
+    Modules are imported only after the user selects them.
+    """
 
     if module_name not in MODULE_IMPORTS:
 
@@ -436,30 +556,33 @@ def load_module_renderer(
     if not callable(renderer):
 
         raise AttributeError(
-            f"The module '{module_path}' does not "
-            f"provide a callable '{function_name}' function."
+            f"Module '{module_path}' does not contain "
+            f"a callable '{function_name}' function."
         )
 
     return renderer
 
 
 # ============================================================
-# MODULE ERROR
+# MODULE ERROR DISPLAY
 # ============================================================
 
 def render_module_error(
     module_name: str,
     exc: Exception,
 ) -> None:
-    """Display a readable module error."""
+    """Render a controlled module error."""
 
     st.error(
         f"Unable to load the {module_name} module."
     )
 
+    st.caption(
+        "The rest of Creative Studios is still available."
+    )
+
     with st.expander(
-        "Technical details",
-        expanded=True,
+        "Technical details"
     ):
 
         st.exception(exc)
@@ -473,7 +596,7 @@ def render_module(
     choice: str,
     database: dict[str, Any],
 ) -> None:
-    """Render the selected module."""
+    """Render the selected application module."""
 
     try:
 
@@ -491,6 +614,28 @@ def render_module(
             choice,
             exc,
         )
+
+
+# ============================================================
+# APPLICATION FOOTER
+# ============================================================
+
+def render_footer() -> None:
+    """Render a small application footer."""
+
+    st.markdown(
+        """
+        <div style="
+            text-align:center;
+            opacity:0.45;
+            font-size:11px;
+            padding-top:2rem;
+        ">
+            Creative Studios · AEC Collaboration Platform
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
@@ -512,6 +657,8 @@ def main() -> None:
         choice,
         database,
     )
+
+    render_footer()
 
 
 # ============================================================
