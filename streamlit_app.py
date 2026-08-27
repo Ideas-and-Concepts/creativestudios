@@ -5,8 +5,18 @@ AEC Collaboration Platform
 Main Streamlit application.
 
 Authentication has been removed.
-Dark mode has been removed.
-Modules are loaded only when selected.
+
+Architecture and Engineering manage their own drawings.
+There is no standalone Drawings module.
+
+Top-level modules:
+    Dashboard
+    Projects
+    Documents
+    Architecture
+    Engineering
+    MEP
+    BOQ
 """
 
 from __future__ import annotations
@@ -26,165 +36,83 @@ from modules.database import load_memory
 
 BASE_DIR = Path(__file__).resolve().parent
 
-LOGO_PATH = (
-    BASE_DIR
-    / "assets"
-    / "creative_studios.png"
-)
+ASSETS_DIR = BASE_DIR / "assets"
+
+# Support the existing logo filename first, with fallbacks.
+LOGO_CANDIDATES = [
+    ASSETS_DIR / "creative_studios.png",
+    ASSETS_DIR / "creative_studios_logo.png",
+    ASSETS_DIR / "logo.png",
+]
+
+LOGO_PATH: Path | None = None
+
+for candidate in LOGO_CANDIDATES:
+    if candidate.exists():
+        LOGO_PATH = candidate
+        break
+
 
 st.set_page_config(
     page_title="Creative Studios",
-    page_icon=(
-        str(LOGO_PATH)
-        if LOGO_PATH.exists()
-        else None
-    ),
+    page_icon=str(LOGO_PATH) if LOGO_PATH else None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# CSS
+# APPLICATION CONSTANTS
 # ============================================================
 
-def inject_css() -> None:
+APP_NAME = "Creative Studios"
+APP_DESCRIPTION = "AEC Collaboration Platform"
 
-    st.markdown(
-        """
-        <style>
+NAVIGATION = [
+    "Dashboard",
+    "Projects",
+    "Documents",
+    "Architecture",
+    "Engineering",
+    "MEP",
+    "BOQ",
+]
 
-        .block-container {
-            padding-top: 1.5rem;
-            padding-bottom: 3rem;
-        }
 
-        [data-testid="stAppViewContainer"] {
-            background: #F8FAFC;
-        }
+# ============================================================
+# MODULE REGISTRY
+# ============================================================
 
-        [data-testid="stHeader"] {
-            background: transparent;
-        }
-
-        [data-testid="stSidebar"] {
-            background: #FFFFFF;
-            border-right: 1px solid #E2E8F0;
-        }
-
-        [data-testid="stSidebar"] > div:first-child {
-            padding-top: 1rem;
-        }
-
-        .cs-sidebar-brand {
-            width: 100%;
-            text-align: center;
-            margin: 0;
-            padding: 0 0 1rem 0;
-        }
-
-        [data-testid="stSidebar"]
-        [data-testid="stImage"] {
-            width: 100% !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            text-align: center !important;
-            margin: 0 auto !important;
-            padding: 0 !important;
-        }
-
-        [data-testid="stSidebar"]
-        [data-testid="stImage"] img {
-            display: block !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-            object-fit: contain !important;
-        }
-
-        .cs-sidebar-title {
-            width: 100%;
-            text-align: center !important;
-            font-size: 17px;
-            font-weight: 700;
-            line-height: 1.2;
-            margin: 7px 0 0 0;
-            color: #0F172A;
-        }
-
-        .cs-sidebar-subtitle {
-            width: 100%;
-            text-align: center !important;
-            font-size: 12px;
-            line-height: 1.4;
-            margin: 4px 0 0 0;
-            color: #64748B;
-        }
-
-        .cs-divider {
-            width: 100%;
-            height: 1px;
-            background: #E2E8F0;
-            margin: 0.75rem 0 1rem 0;
-        }
-
-        .cs-section-label {
-            color: #64748B;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 0.5rem;
-        }
-
-        [data-testid="stSidebar"]
-        div[role="radiogroup"] {
-            width: 100%;
-            gap: 0.2rem;
-        }
-
-        [data-testid="stSidebar"]
-        div[role="radiogroup"] label {
-            width: 100%;
-            box-sizing: border-box;
-            border-radius: 8px;
-            padding: 0.5rem 0.65rem;
-            cursor: pointer;
-        }
-
-        [data-testid="stSidebar"]
-        div[role="radiogroup"] label:hover {
-            background: #F1F5F9;
-        }
-
-        div.stButton > button {
-            min-height: 42px;
-            border-radius: 8px;
-            font-weight: 600;
-        }
-
-        div[data-testid="stFormSubmitButton"] button {
-            min-height: 42px;
-            border-radius: 8px;
-            font-weight: 600;
-        }
-
-        [data-testid="stMetric"] {
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
-            border-radius: 10px;
-            padding: 0.75rem;
-        }
-
-        [data-testid="stExpander"] {
-            border-radius: 10px;
-            border: 1px solid #E2E8F0;
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+MODULE_IMPORTS: dict[str, tuple[str, str]] = {
+    "Dashboard": (
+        "modules.dashboard",
+        "render_dashboard",
+    ),
+    "Projects": (
+        "modules.projects",
+        "render_projects_module",
+    ),
+    "Documents": (
+        "modules.documents",
+        "render_documents_module",
+    ),
+    "Architecture": (
+        "modules.architecture",
+        "render_architecture_module",
+    ),
+    "Engineering": (
+        "modules.engineering",
+        "render_engineering_module",
+    ),
+    "MEP": (
+        "modules.mep",
+        "render_mep_module",
+    ),
+    "BOQ": (
+        "modules.boq",
+        "render_boq_module",
+    ),
+}
 
 
 # ============================================================
@@ -192,6 +120,7 @@ def inject_css() -> None:
 # ============================================================
 
 def initialize_session_state() -> None:
+    """Initialize application session state."""
 
     defaults: dict[str, Any] = {
         "active_module": "Dashboard",
@@ -199,7 +128,6 @@ def initialize_session_state() -> None:
     }
 
     for key, value in defaults.items():
-
         if key not in st.session_state:
             st.session_state[key] = value
 
@@ -209,47 +137,311 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
+    """
+    Load the application database once per Streamlit session.
 
-    database = st.session_state.get(
-        "database"
-    )
+    The database is kept in session state so individual modules
+    can modify the same in-memory dictionary before persistence.
+    """
 
-    if not isinstance(
-        database,
-        dict,
-    ):
+    database = st.session_state.get("database")
 
+    if isinstance(database, dict):
+        return database
+
+    try:
         database = load_memory()
+    except Exception as exc:
+        st.error(
+            "Unable to load the Creative Studios database."
+        )
+        st.exception(exc)
+        database = {}
 
-        if not isinstance(
-            database,
-            dict,
-        ):
-            database = {}
+    if not isinstance(database, dict):
+        database = {}
 
-        st.session_state.database = database
+    st.session_state.database = database
 
     return database
+
+
+# ============================================================
+# GLOBAL CSS
+# ============================================================
+
+def inject_css() -> None:
+    """Inject application-wide styling."""
+
+    st.markdown(
+        """
+        <style>
+
+        /* ==================================================
+           GLOBAL
+           ================================================== */
+
+        .block-container {
+            padding-top: 1.5rem;
+            padding-bottom: 3rem;
+        }
+
+        /* ==================================================
+           SIDEBAR
+           ================================================== */
+
+        [data-testid="stSidebar"] {
+            min-width: 250px;
+            max-width: 250px;
+        }
+
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 1rem;
+        }
+
+        /*
+        Streamlit Cloud can render sidebar markdown
+        differently depending on the version. These selectors
+        intentionally cover both the normal markdown container
+        and its inner elements.
+        */
+
+        .cs-sidebar-brand {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            margin: 0;
+            padding: 0.25rem 0 1rem 0;
+        }
+
+        .cs-sidebar-logo {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            margin: 0 auto;
+        }
+
+        .cs-sidebar-logo img {
+            display: block;
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin: 0 auto;
+        }
+
+        .cs-sidebar-title {
+            width: 100%;
+            display: block;
+            text-align: center !important;
+            font-size: 18px;
+            font-weight: 750;
+            line-height: 1.25;
+            margin: 0.6rem auto 0 auto;
+        }
+
+        .cs-sidebar-subtitle {
+            width: 100%;
+            display: block;
+            text-align: center !important;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0.25rem auto 0 auto;
+            opacity: 0.70;
+        }
+
+        .cs-sidebar-divider {
+            width: 100%;
+            height: 1px;
+            margin: 0.75rem 0 1rem 0;
+            opacity: 0.18;
+        }
+
+        .cs-sidebar-section {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            opacity: 0.60;
+            margin: 0.5rem 0 0.5rem 0;
+        }
+
+        /* ==================================================
+           SIDEBAR RADIO NAVIGATION
+           ================================================== */
+
+        [data-testid="stSidebar"] div[role="radiogroup"] {
+            gap: 0.25rem;
+        }
+
+        [data-testid="stSidebar"] div[role="radiogroup"] label {
+            border-radius: 8px;
+            padding: 0.25rem 0.5rem;
+        }
+
+        [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+            background: rgba(128, 128, 128, 0.10);
+        }
+
+        /* ==================================================
+           BUTTONS
+           ================================================== */
+
+        div.stButton > button {
+            border-radius: 8px;
+            min-height: 2.5rem;
+            font-weight: 600;
+        }
+
+        div.stButton > button:hover {
+            border-color: currentColor;
+        }
+
+        /* ==================================================
+           HEADINGS
+           ================================================== */
+
+        .cs-page-title {
+            font-size: 32px;
+            font-weight: 750;
+            line-height: 1.15;
+            margin-bottom: 0.25rem;
+        }
+
+        .cs-page-subtitle {
+            font-size: 14px;
+            opacity: 0.68;
+            margin-bottom: 1.5rem;
+        }
+
+        /* ==================================================
+           CARDS
+           ================================================== */
+
+        .cs-card {
+            border: 1px solid rgba(128, 128, 128, 0.20);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .cs-card-title {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .cs-card-description {
+            font-size: 13px;
+            opacity: 0.70;
+            line-height: 1.5;
+            margin-top: 0.25rem;
+        }
+
+        /* ==================================================
+           KPI
+           ================================================== */
+
+        .cs-kpi {
+            border: 1px solid rgba(128, 128, 128, 0.20);
+            border-radius: 12px;
+            padding: 1rem;
+            min-height: 100px;
+        }
+
+        .cs-kpi-label {
+            font-size: 13px;
+            opacity: 0.65;
+        }
+
+        .cs-kpi-value {
+            font-size: 28px;
+            font-weight: 750;
+            margin-top: 0.35rem;
+        }
+
+        /* ==================================================
+           MOBILE
+           ================================================== */
+
+        @media (max-width: 768px) {
+
+            [data-testid="stSidebar"] {
+                min-width: 230px;
+                max-width: 230px;
+            }
+
+            .cs-page-title {
+                font-size: 26px;
+            }
+
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
 # SIDEBAR BRANDING
 # ============================================================
 
-def render_sidebar_logo() -> None:
+def render_sidebar_brand() -> None:
+    """
+    Render the centered Creative Studios branding.
+
+    The image is rendered through st.sidebar.image() because
+    this is more reliable on Streamlit Cloud than relying on
+    an HTML <img> tag with a local filesystem path.
+    """
 
     st.sidebar.markdown(
         '<div class="cs-sidebar-brand">',
         unsafe_allow_html=True,
     )
 
-    if LOGO_PATH.exists():
+    if LOGO_PATH is not None:
 
-        st.sidebar.image(
-            str(LOGO_PATH),
-            width=72,
+        # Center the actual Streamlit image using columns.
+        left, center, right = st.sidebar.columns(
+            [1, 2, 1]
         )
 
+        with center:
+            st.image(
+                str(LOGO_PATH),
+                width=72,
+            )
+
+    else:
+
+        # Reliable fallback when the logo file is missing.
+        st.sidebar.markdown(
+            """
+            <div class="cs-sidebar-logo">
+                <div style="
+                    width:72px;
+                    height:72px;
+                    border-radius:16px;
+                    border:1px solid rgba(128,128,128,0.25);
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:24px;
+                    font-weight:700;
+                ">
+                    CS
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # Keep the words directly underneath the logo.
     st.sidebar.markdown(
         """
         <div class="cs-sidebar-title">
@@ -270,32 +462,21 @@ def render_sidebar_logo() -> None:
 
 
 # ============================================================
-# NAVIGATION
+# SIDEBAR NAVIGATION
 # ============================================================
 
-NAVIGATION = [
-    "Dashboard",
-    "Projects",
-    "Documents",
-    "Architecture",
-    "Engineering",
-    "Drawings",
-    "BOQ",
-    "MEP",
-]
-
-
 def render_sidebar() -> str:
+    """Render the main application navigation."""
 
-    render_sidebar_logo()
+    render_sidebar_brand()
 
     st.sidebar.markdown(
-        '<div class="cs-divider"></div>',
+        '<div class="cs-sidebar-divider"></div>',
         unsafe_allow_html=True,
     )
 
     st.sidebar.markdown(
-        '<div class="cs-section-label">Navigation</div>',
+        '<div class="cs-sidebar-section">Navigation</div>',
         unsafe_allow_html=True,
     )
 
@@ -307,7 +488,7 @@ def render_sidebar() -> str:
     if current not in NAVIGATION:
         current = "Dashboard"
 
-    choice = st.sidebar.radio(
+    selected = st.sidebar.radio(
         "Go to",
         NAVIGATION,
         index=NAVIGATION.index(current),
@@ -315,60 +496,12 @@ def render_sidebar() -> str:
         label_visibility="collapsed",
     )
 
-    st.session_state.active_module = choice
+    if selected != st.session_state.get(
+        "active_module"
+    ):
+        st.session_state.active_module = selected
 
-    return choice
-
-
-# ============================================================
-# MODULE REGISTRY
-# ============================================================
-
-MODULE_IMPORTS: dict[
-    str,
-    tuple[str, str],
-] = {
-
-    "Dashboard": (
-        "modules.dashboard",
-        "render_dashboard",
-    ),
-
-    "Projects": (
-        "modules.projects",
-        "render_projects_module",
-    ),
-
-    "Documents": (
-        "modules.documents",
-        "render_documents_module",
-    ),
-
-    "Architecture": (
-        "modules.architecture",
-        "render_architecture_module",
-    ),
-
-    "Engineering": (
-        "modules.engineering",
-        "render_engineering_module",
-    ),
-
-    "Drawings": (
-        "modules.drawings",
-        "render_drawings_module",
-    ),
-
-    "BOQ": (
-        "modules.boq",
-        "render_boq_module",
-    ),
-
-    "MEP": (
-        "modules.mep",
-        "render_mep_module",
-    ),
-}
+    return selected
 
 
 # ============================================================
@@ -377,20 +510,22 @@ MODULE_IMPORTS: dict[
 
 def load_module_renderer(
     module_name: str,
-) -> Callable[
-    [dict[str, Any]],
-    None,
-]:
+) -> Callable[[dict[str, Any]], None]:
+    """
+    Dynamically import and validate a module renderer.
+
+    Modules are loaded only when selected. This prevents a
+    problem in one module from breaking application startup.
+    """
 
     if module_name not in MODULE_IMPORTS:
-
         raise KeyError(
             f"Unknown module: {module_name}"
         )
 
-    module_path, function_name = (
-        MODULE_IMPORTS[module_name]
-    )
+    module_path, function_name = MODULE_IMPORTS[
+        module_name
+    ]
 
     try:
 
@@ -401,8 +536,8 @@ def load_module_renderer(
     except Exception as exc:
 
         raise RuntimeError(
-            f"Unable to load the "
-            f"{module_name} module."
+            f"Unable to import the {module_name} module "
+            f"from '{module_path}'."
         ) from exc
 
     renderer = getattr(
@@ -414,21 +549,48 @@ def load_module_renderer(
     if not callable(renderer):
 
         raise AttributeError(
-            f"{module_path} does not contain "
-            f"a callable {function_name}."
+            f"The module '{module_path}' does not "
+            f"provide a callable '{function_name}' function."
         )
 
     return renderer
 
 
 # ============================================================
-# ROUTER
+# MODULE ERROR DISPLAY
+# ============================================================
+
+def render_module_error(
+    module_name: str,
+    exc: Exception,
+) -> None:
+    """Display a useful module error without hiding the traceback."""
+
+    st.error(
+        f"Unable to load the {module_name} module."
+    )
+
+    st.warning(
+        "The rest of Creative Studios is still available. "
+        "Check the module error below."
+    )
+
+    with st.expander(
+        "Technical details",
+        expanded=True,
+    ):
+        st.exception(exc)
+
+
+# ============================================================
+# MODULE ROUTER
 # ============================================================
 
 def render_module(
     choice: str,
     database: dict[str, Any],
 ) -> None:
+    """Render the selected application module."""
 
     try:
 
@@ -442,17 +604,31 @@ def render_module(
 
     except Exception as exc:
 
-        st.error(
-            f"Unable to render the "
-            f"{choice} module."
+        render_module_error(
+            choice,
+            exc,
         )
 
-        with st.expander(
-            "Technical details",
-            expanded=False,
-        ):
 
-            st.exception(exc)
+# ============================================================
+# FALLBACK HOME
+# ============================================================
+
+def render_application_header() -> None:
+    """Render a small application header."""
+
+    st.markdown(
+        f"""
+        <div class="cs-page-title">
+            {APP_NAME}
+        </div>
+
+        <div class="cs-page-subtitle">
+            {APP_DESCRIPTION}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
@@ -460,6 +636,7 @@ def render_module(
 # ============================================================
 
 def main() -> None:
+    """Run Creative Studios."""
 
     initialize_session_state()
 
