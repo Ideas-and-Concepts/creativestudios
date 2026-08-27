@@ -170,3 +170,18 @@ creativestudios/
 │   └── analytics_dashboard.py
 │
 └── creativestudios_db.json      # your persistent database file
+
+
+
+creativestudios/
+│
+├── streamlit_app.py
+├── creativestudios_db.json
+└── modules/
+    ├── __init__.py
+    ├── documents.py
+    ├── architecture.py
+    ├── engineering.py
+    ├── drawings.py
+    ├── mep.py
+    └── projects.py
