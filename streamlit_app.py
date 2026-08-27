@@ -11,7 +11,6 @@ Modules are loaded only when selected.
 
 from __future__ import annotations
 
-import base64
 import importlib
 from pathlib import Path
 from typing import Any, Callable
@@ -57,7 +56,7 @@ def inject_css() -> None:
         <style>
 
         /* ==================================================
-           GLOBAL APPLICATION
+           GLOBAL
            ================================================== */
 
         .block-container {
@@ -82,23 +81,19 @@ def inject_css() -> None:
             padding-top: 1rem;
         }
 
-        .cs-sidebar-brand {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            box-sizing: border-box;
-            padding: 0.25rem 0.5rem 0.75rem 0.5rem;
+        /*
+         * Center the native Streamlit image.
+         */
+        [data-testid="stSidebar"] img {
+            display: block;
+            margin-left: auto !important;
+            margin-right: auto !important;
         }
 
-        .cs-sidebar-logo {
-            display: block;
-            width: 64px;
-            height: auto;
-            margin: 0 auto 8px auto;
-            object-fit: contain;
+        .cs-sidebar-brand {
+            width: 100%;
+            text-align: center;
+            padding: 0.25rem 0 0.75rem 0;
         }
 
         .cs-sidebar-title {
@@ -205,7 +200,7 @@ def inject_css() -> None:
 
 
         /* ==================================================
-           MODULE HEADERS
+           MAIN MODULE HEADERS
            ================================================== */
 
         .cs-module-title {
@@ -270,21 +265,21 @@ def inject_css() -> None:
 
 
         /* ==================================================
+           TABS
+           ================================================== */
+
+        button[data-baseweb="tab"] {
+            font-weight: 600;
+        }
+
+
+        /* ==================================================
            INPUTS
            ================================================== */
 
         input,
         textarea {
             border-radius: 7px !important;
-        }
-
-
-        /* ==================================================
-           TABS
-           ================================================== */
-
-        button[data-baseweb="tab"] {
-            font-weight: 600;
         }
 
         </style>
@@ -342,89 +337,35 @@ def get_database() -> dict[str, Any]:
 # SIDEBAR BRANDING
 # ============================================================
 
-def _logo_data_uri() -> str | None:
-    """
-    Convert the logo to a base64 data URI.
-
-    This allows the logo to be rendered inside the same
-    HTML container as the branding text, making the entire
-    branding block reliably centered in Streamlit Cloud.
-    """
-
-    if not LOGO_PATH.exists():
-        return None
-
-    try:
-
-        encoded = base64.b64encode(
-            LOGO_PATH.read_bytes()
-        ).decode("utf-8")
-
-        suffix = LOGO_PATH.suffix.lower()
-
-        mime_types = {
-            ".png": "image/png",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".webp": "image/webp",
-            ".gif": "image/gif",
-        }
-
-        mime_type = mime_types.get(
-            suffix,
-            "image/png",
-        )
-
-        return (
-            f"data:{mime_type};base64,{encoded}"
-        )
-
-    except OSError:
-        return None
-
-
 def render_sidebar_logo() -> None:
     """
-    Render the Creative Studios branding.
+    Render the Creative Studios logo and branding.
 
-    Logo and text are deliberately rendered as one
-    centered HTML block instead of separate Streamlit
-    elements.
+    The logo uses Streamlit's native image component.
+    The image is placed inside a dedicated center column
+    to provide reliable horizontal centering.
     """
 
-    logo_uri = _logo_data_uri()
+    if LOGO_PATH.exists():
 
-    if logo_uri:
-
-        st.sidebar.markdown(
-            f"""
-            <div class="cs-sidebar-brand">
-
-                <img
-                    class="cs-sidebar-logo"
-                    src="{logo_uri}"
-                    alt="Creative Studios"
-                />
-
-                <div class="cs-sidebar-title">
-                    Creative Studios
-                </div>
-
-                <div class="cs-sidebar-subtitle">
-                    AEC Collaboration Platform
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True,
+        left, center, right = (
+            st.sidebar.columns(
+                [1, 2, 1]
+            )
         )
+
+        with center:
+
+            st.image(
+                str(LOGO_PATH),
+                width=64,
+            )
 
     else:
 
         st.sidebar.markdown(
             """
             <div class="cs-sidebar-brand">
-
                 <div class="cs-sidebar-title">
                     Creative Studios
                 </div>
@@ -432,11 +373,29 @@ def render_sidebar_logo() -> None:
                 <div class="cs-sidebar-subtitle">
                     AEC Collaboration Platform
                 </div>
-
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+        return
+
+    st.sidebar.markdown(
+        """
+        <div class="cs-sidebar-brand">
+
+            <div class="cs-sidebar-title">
+                Creative Studios
+            </div>
+
+            <div class="cs-sidebar-subtitle">
+                AEC Collaboration Platform
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
