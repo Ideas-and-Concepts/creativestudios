@@ -8,15 +8,6 @@ Authentication has been removed.
 
 Architecture and Engineering manage their own drawings.
 There is no standalone Drawings module.
-
-Top-level modules:
-    Dashboard
-    Projects
-    Documents
-    Architecture
-    Engineering
-    MEP
-    BOQ
 """
 
 from __future__ import annotations
@@ -38,7 +29,6 @@ BASE_DIR = Path(__file__).resolve().parent
 
 ASSETS_DIR = BASE_DIR / "assets"
 
-# Support the existing logo filename first, with fallbacks.
 LOGO_CANDIDATES = [
     ASSETS_DIR / "creative_studios.png",
     ASSETS_DIR / "creative_studios_logo.png",
@@ -128,6 +118,7 @@ def initialize_session_state() -> None:
     }
 
     for key, value in defaults.items():
+
         if key not in st.session_state:
             st.session_state[key] = value
 
@@ -137,28 +128,36 @@ def initialize_session_state() -> None:
 # ============================================================
 
 def get_database() -> dict[str, Any]:
-    """
-    Load the application database once per Streamlit session.
+    """Load the application database once per session."""
 
-    The database is kept in session state so individual modules
-    can modify the same in-memory dictionary before persistence.
-    """
+    database = st.session_state.get(
+        "database"
+    )
 
-    database = st.session_state.get("database")
-
-    if isinstance(database, dict):
+    if isinstance(
+        database,
+        dict,
+    ):
         return database
 
     try:
+
         database = load_memory()
+
     except Exception as exc:
+
         st.error(
             "Unable to load the Creative Studios database."
         )
+
         st.exception(exc)
+
         database = {}
 
-    if not isinstance(database, dict):
+    if not isinstance(
+        database,
+        dict,
+    ):
         database = {}
 
     st.session_state.database = database
@@ -171,20 +170,21 @@ def get_database() -> dict[str, Any]:
 # ============================================================
 
 def inject_css() -> None:
-    """Inject application-wide styling."""
+    """Apply application-wide styling."""
 
     st.markdown(
         """
         <style>
 
         /* ==================================================
-           GLOBAL
+           MAIN APPLICATION
            ================================================== */
 
         .block-container {
             padding-top: 1.5rem;
             padding-bottom: 3rem;
         }
+
 
         /* ==================================================
            SIDEBAR
@@ -199,66 +199,41 @@ def inject_css() -> None:
             padding-top: 1rem;
         }
 
-        /*
-        Streamlit Cloud can render sidebar markdown
-        differently depending on the version. These selectors
-        intentionally cover both the normal markdown container
-        and its inner elements.
-        */
+
+        /* ==================================================
+           SIDEBAR BRANDING
+           ================================================== */
 
         .cs-sidebar-brand {
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
+            text-align: center !important;
             margin: 0;
             padding: 0.25rem 0 1rem 0;
         }
 
-        .cs-sidebar-logo {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            margin: 0 auto;
-        }
-
-        .cs-sidebar-logo img {
-            display: block;
-            width: 72px;
-            height: 72px;
-            object-fit: contain;
-            margin: 0 auto;
-        }
-
         .cs-sidebar-title {
             width: 100%;
-            display: block;
             text-align: center !important;
             font-size: 18px;
             font-weight: 750;
             line-height: 1.25;
-            margin: 0.6rem auto 0 auto;
+            margin: 0.5rem 0 0 0;
         }
 
         .cs-sidebar-subtitle {
             width: 100%;
-            display: block;
             text-align: center !important;
             font-size: 12px;
             line-height: 1.4;
-            margin: 0.25rem auto 0 auto;
-            opacity: 0.70;
+            margin-top: 0.25rem;
+            opacity: 0.68;
         }
 
         .cs-sidebar-divider {
             width: 100%;
             height: 1px;
             margin: 0.75rem 0 1rem 0;
-            opacity: 0.18;
+            background: rgba(128, 128, 128, 0.20);
         }
 
         .cs-sidebar-section {
@@ -270,8 +245,9 @@ def inject_css() -> None:
             margin: 0.5rem 0 0.5rem 0;
         }
 
+
         /* ==================================================
-           SIDEBAR RADIO NAVIGATION
+           SIDEBAR NAVIGATION
            ================================================== */
 
         [data-testid="stSidebar"] div[role="radiogroup"] {
@@ -287,6 +263,7 @@ def inject_css() -> None:
             background: rgba(128, 128, 128, 0.10);
         }
 
+
         /* ==================================================
            BUTTONS
            ================================================== */
@@ -297,71 +274,6 @@ def inject_css() -> None:
             font-weight: 600;
         }
 
-        div.stButton > button:hover {
-            border-color: currentColor;
-        }
-
-        /* ==================================================
-           HEADINGS
-           ================================================== */
-
-        .cs-page-title {
-            font-size: 32px;
-            font-weight: 750;
-            line-height: 1.15;
-            margin-bottom: 0.25rem;
-        }
-
-        .cs-page-subtitle {
-            font-size: 14px;
-            opacity: 0.68;
-            margin-bottom: 1.5rem;
-        }
-
-        /* ==================================================
-           CARDS
-           ================================================== */
-
-        .cs-card {
-            border: 1px solid rgba(128, 128, 128, 0.20);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .cs-card-title {
-            font-size: 17px;
-            font-weight: 700;
-        }
-
-        .cs-card-description {
-            font-size: 13px;
-            opacity: 0.70;
-            line-height: 1.5;
-            margin-top: 0.25rem;
-        }
-
-        /* ==================================================
-           KPI
-           ================================================== */
-
-        .cs-kpi {
-            border: 1px solid rgba(128, 128, 128, 0.20);
-            border-radius: 12px;
-            padding: 1rem;
-            min-height: 100px;
-        }
-
-        .cs-kpi-label {
-            font-size: 13px;
-            opacity: 0.65;
-        }
-
-        .cs-kpi-value {
-            font-size: 28px;
-            font-weight: 750;
-            margin-top: 0.35rem;
-        }
 
         /* ==================================================
            MOBILE
@@ -372,10 +284,6 @@ def inject_css() -> None:
             [data-testid="stSidebar"] {
                 min-width: 230px;
                 max-width: 230px;
-            }
-
-            .cs-page-title {
-                font-size: 26px;
             }
 
         }
@@ -392,11 +300,11 @@ def inject_css() -> None:
 
 def render_sidebar_brand() -> None:
     """
-    Render the centered Creative Studios branding.
+    Render centered Creative Studios branding.
 
-    The image is rendered through st.sidebar.image() because
-    this is more reliable on Streamlit Cloud than relying on
-    an HTML <img> tag with a local filesystem path.
+    The actual logo is rendered with st.image() rather than
+    an HTML img tag because this is more reliable on
+    Streamlit Cloud.
     """
 
     st.sidebar.markdown(
@@ -406,12 +314,13 @@ def render_sidebar_brand() -> None:
 
     if LOGO_PATH is not None:
 
-        # Center the actual Streamlit image using columns.
+        # Three-column layout centers the real Streamlit image.
         left, center, right = st.sidebar.columns(
             [1, 2, 1]
         )
 
         with center:
+
             st.image(
                 str(LOGO_PATH),
                 width=72,
@@ -419,29 +328,35 @@ def render_sidebar_brand() -> None:
 
     else:
 
-        # Reliable fallback when the logo file is missing.
-        st.sidebar.markdown(
-            """
-            <div class="cs-sidebar-logo">
+        # Fallback if the asset is unavailable.
+        left, center, right = st.sidebar.columns(
+            [1, 2, 1]
+        )
+
+        with center:
+
+            st.markdown(
+                """
                 <div style="
                     width:72px;
                     height:72px;
-                    border-radius:16px;
+                    border-radius:14px;
                     border:1px solid rgba(128,128,128,0.25);
                     display:flex;
                     align-items:center;
                     justify-content:center;
                     font-size:24px;
-                    font-weight:700;
+                    font-weight:800;
+                    margin:auto;
                 ">
                     CS
                 </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+                """,
+                unsafe_allow_html=True,
+            )
 
-    # Keep the words directly underneath the logo.
+    # These are deliberately outside the image container so
+    # Streamlit Cloud renders them reliably.
     st.sidebar.markdown(
         """
         <div class="cs-sidebar-title">
@@ -466,7 +381,7 @@ def render_sidebar_brand() -> None:
 # ============================================================
 
 def render_sidebar() -> str:
-    """Render the main application navigation."""
+    """Render the application sidebar navigation."""
 
     render_sidebar_brand()
 
@@ -488,7 +403,7 @@ def render_sidebar() -> str:
     if current not in NAVIGATION:
         current = "Dashboard"
 
-    selected = st.sidebar.radio(
+    choice = st.sidebar.radio(
         "Go to",
         NAVIGATION,
         index=NAVIGATION.index(current),
@@ -496,12 +411,9 @@ def render_sidebar() -> str:
         label_visibility="collapsed",
     )
 
-    if selected != st.session_state.get(
-        "active_module"
-    ):
-        st.session_state.active_module = selected
+    st.session_state.active_module = choice
 
-    return selected
+    return choice
 
 
 # ============================================================
@@ -512,13 +424,13 @@ def load_module_renderer(
     module_name: str,
 ) -> Callable[[dict[str, Any]], None]:
     """
-    Dynamically import and validate a module renderer.
+    Dynamically load a module renderer.
 
-    Modules are loaded only when selected. This prevents a
-    problem in one module from breaking application startup.
+    Modules are imported only when selected.
     """
 
     if module_name not in MODULE_IMPORTS:
+
         raise KeyError(
             f"Unknown module: {module_name}"
         )
@@ -564,21 +476,17 @@ def render_module_error(
     module_name: str,
     exc: Exception,
 ) -> None:
-    """Display a useful module error without hiding the traceback."""
+    """Display a readable module error."""
 
     st.error(
         f"Unable to load the {module_name} module."
-    )
-
-    st.warning(
-        "The rest of Creative Studios is still available. "
-        "Check the module error below."
     )
 
     with st.expander(
         "Technical details",
         expanded=True,
     ):
+
         st.exception(exc)
 
 
@@ -590,7 +498,7 @@ def render_module(
     choice: str,
     database: dict[str, Any],
 ) -> None:
-    """Render the selected application module."""
+    """Render the selected module."""
 
     try:
 
@@ -608,27 +516,6 @@ def render_module(
             choice,
             exc,
         )
-
-
-# ============================================================
-# FALLBACK HOME
-# ============================================================
-
-def render_application_header() -> None:
-    """Render a small application header."""
-
-    st.markdown(
-        f"""
-        <div class="cs-page-title">
-            {APP_NAME}
-        </div>
-
-        <div class="cs-page-subtitle">
-            {APP_DESCRIPTION}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 # ============================================================
