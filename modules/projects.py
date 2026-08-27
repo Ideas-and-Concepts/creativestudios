@@ -10,18 +10,65 @@ from typing import Any
 
 import streamlit as st
 
+from modules.database import save_memory
 
-def _projects(database: dict[str, Any]) -> list[dict[str, Any]]:
-    value = database.setdefault("projects", [])
+
+def _normalize_projects(
+    database: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Normalize project records.
+
+    Supports both the current dictionary format and
+    legacy string records.
+    """
+    value = database.get("projects", [])
 
     if not isinstance(value, list):
-        database["projects"] = []
-        return database["projects"]
+        value = []
 
-    return value
+    normalized = []
+
+    for index, item in enumerate(value, start=1):
+
+        if isinstance(item, dict):
+            record = dict(item)
+
+            if not record.get("id"):
+                record["id"] = index
+
+            if not record.get("name"):
+                record["name"] = record.get(
+                    "project_name",
+                    f"Project {index}",
+                )
+
+            normalized.append(record)
+
+        elif isinstance(item, str):
+            normalized.append(
+                {
+                    "id": index,
+                    "name": item,
+                    "project_name": item,
+                    "client": "",
+                    "client_name": "",
+                    "location": "",
+                    "status": "Planning",
+                    "budget": 0.0,
+                    "estimated_budget": 0.0,
+                    "description": "",
+                    "created_at": "",
+                }
+            )
+
+    database["projects"] = normalized
+    return normalized
 
 
-def _next_id(records: list[dict[str, Any]]) -> int:
+def _next_id(
+    records: list[dict[str, Any]],
+) -> int:
     ids = []
 
     for record in records:
@@ -33,30 +80,48 @@ def _next_id(records: list[dict[str, Any]]) -> int:
     return max(ids, default=0) + 1
 
 
+def _save(
+    database: dict[str, Any],
+) -> None:
+    save_memory(database)
+
+
 def render_projects_module(
     database: dict[str, Any],
 ) -> None:
-    """Render project directory."""
+    """Render the editable project directory."""
 
     st.title("Projects")
     st.caption(
-        "Create and manage Creative Studios projects."
+        "Create, edit and manage Creative Studios projects."
     )
 
-    projects = _projects(database)
+    projects = _normalize_projects(database)
 
     tab_directory, tab_create = st.tabs(
-        ["Project Directory", "Create Project"]
+        [
+            "Project Directory",
+            "Create Project",
+        ]
     )
 
     with tab_directory:
 
         if not projects:
-            st.info("No projects have been created yet.")
+            st.info(
+                "No projects have been created yet."
+            )
         else:
-            for project in projects:
 
-                project_id = project.get("id", "")
+            for index, project in enumerate(
+                projects
+            ):
+
+                project_id = project.get(
+                    "id",
+                    index + 1,
+                )
+
                 name = project.get(
                     "name",
                     project.get(
@@ -65,56 +130,191 @@ def render_projects_module(
                     ),
                 )
 
-                status = project.get(
-                    "status",
-                    "Planning",
-                )
+                with st.expander(
+                    str(name),
+                    expanded=False,
+                ):
 
-                client = project.get(
-                    "client",
-                    project.get(
-                        "client_name",
-                        "Not specified",
-                    ),
-                )
-
-                with st.container(border=True):
-
-                    top_left, top_right = st.columns(
-                        [3, 1]
+                    st.write(
+                        f"Project ID: **{project_id}**"
                     )
 
-                    with top_left:
-                        st.subheader(str(name))
-                        st.write(
-                            f"Client: {client}"
+                    edit_key = (
+                        f"edit_project_{project_id}"
+                    )
+
+                    with st.form(edit_key):
+
+                        edited_name = st.text_input(
+                            "Project Name",
+                            value=str(
+                                name or ""
+                            ),
                         )
 
-                    with top_right:
-                        st.write(
-                            f"Status: **{status}**"
+                        edited_client = st.text_input(
+                            "Client",
+                            value=str(
+                                project.get(
+                                    "client",
+                                    project.get(
+                                        "client_name",
+                                        "",
+                                    ),
+                                )
+                                or ""
+                            ),
                         )
 
-                    details = st.columns(4)
+                        edited_location = st.text_input(
+                            "Project Location",
+                            value=str(
+                                project.get(
+                                    "location",
+                                    "",
+                                )
+                                or ""
+                            ),
+                        )
 
-                    details[0].write(
-                        f"**Project ID**  \n{project_id}"
+                        statuses = [
+                            "Planning",
+                            "Active",
+                            "On Hold",
+                            "Completed",
+                            "Cancelled",
+                        ]
+
+                        current_status = str(
+                            project.get(
+                                "status",
+                                "Planning",
+                            )
+                        )
+
+                        status_index = (
+                            statuses.index(
+                                current_status
+                            )
+                            if current_status
+                            in statuses
+                            else 0
+                        )
+
+                        edited_status = st.selectbox(
+                            "Status",
+                            statuses,
+                            index=status_index,
+                        )
+
+                        try:
+                            current_budget = float(
+                                project.get(
+                                    "estimated_budget",
+                                    project.get(
+                                        "budget",
+                                        0,
+                                    ),
+                                )
+                                or 0
+                            )
+                        except (
+                            TypeError,
+                            ValueError,
+                        ):
+                            current_budget = 0.0
+
+                        edited_budget = st.number_input(
+                            "Estimated Budget",
+                            min_value=0.0,
+                            value=current_budget,
+                            step=1000.0,
+                        )
+
+                        edited_description = st.text_area(
+                            "Description",
+                            value=str(
+                                project.get(
+                                    "description",
+                                    "",
+                                )
+                                or ""
+                            ),
+                        )
+
+                        submitted = st.form_submit_button(
+                            "Save Changes",
+                            use_container_width=True,
+                        )
+
+                    delete_key = (
+                        f"delete_project_{project_id}"
                     )
 
-                    details[1].write(
-                        f"**Location**  \n"
-                        f"{project.get('location', 'Not specified')}"
-                    )
+                    if submitted:
 
-                    details[2].write(
-                        f"**Budget**  \n"
-                        f"{project.get('budget', project.get('estimated_budget', 0))}"
-                    )
+                        if not edited_name.strip():
+                            st.error(
+                                "Project name is required."
+                            )
+                        else:
+                            project["name"] = (
+                                edited_name.strip()
+                            )
+                            project[
+                                "project_name"
+                            ] = edited_name.strip()
 
-                    details[3].write(
-                        f"**Created**  \n"
-                        f"{project.get('created_at', 'Not specified')}"
-                    )
+                            project["client"] = (
+                                edited_client.strip()
+                            )
+                            project[
+                                "client_name"
+                            ] = edited_client.strip()
+
+                            project["location"] = (
+                                edited_location.strip()
+                            )
+
+                            project["status"] = (
+                                edited_status
+                            )
+
+                            project[
+                                "budget"
+                            ] = edited_budget
+
+                            project[
+                                "estimated_budget"
+                            ] = edited_budget
+
+                            project[
+                                "description"
+                            ] = (
+                                edited_description.strip()
+                            )
+
+                            _save(database)
+
+                            st.success(
+                                "Project updated successfully."
+                            )
+
+                            st.rerun()
+
+                    if st.button(
+                        "Delete Project",
+                        key=delete_key,
+                        use_container_width=True,
+                    ):
+                        projects.remove(project)
+                        _save(database)
+
+                        st.success(
+                            "Project deleted successfully."
+                        )
+
+                        st.rerun()
 
     with tab_create:
 
@@ -124,15 +324,15 @@ def render_projects_module(
         ):
 
             name = st.text_input(
-                "Project Name",
+                "Project Name"
             )
 
             client = st.text_input(
-                "Client",
+                "Client"
             )
 
             location = st.text_input(
-                "Project Location",
+                "Project Location"
             )
 
             status = st.selectbox(
@@ -153,7 +353,7 @@ def render_projects_module(
             )
 
             description = st.text_area(
-                "Description",
+                "Description"
             )
 
             submitted = st.form_submit_button(
@@ -169,23 +369,25 @@ def render_projects_module(
                 )
                 return
 
-            project = {
-                "id": _next_id(projects),
-                "name": name.strip(),
-                "project_name": name.strip(),
-                "client": client.strip(),
-                "client_name": client.strip(),
-                "location": location.strip(),
-                "status": status,
-                "budget": budget,
-                "estimated_budget": budget,
-                "description": description.strip(),
-                "created_at": datetime.now().isoformat(
-                    timespec="seconds"
-                ),
-            }
+            projects.append(
+                {
+                    "id": _next_id(projects),
+                    "name": name.strip(),
+                    "project_name": name.strip(),
+                    "client": client.strip(),
+                    "client_name": client.strip(),
+                    "location": location.strip(),
+                    "status": status,
+                    "budget": budget,
+                    "estimated_budget": budget,
+                    "description": description.strip(),
+                    "created_at": datetime.now().isoformat(
+                        timespec="seconds"
+                    ),
+                }
+            )
 
-            projects.append(project)
+            _save(database)
 
             st.success(
                 "Project created successfully."
