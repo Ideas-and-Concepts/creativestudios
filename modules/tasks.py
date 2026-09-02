@@ -5,7 +5,15 @@ from typing import Any
 
 import streamlit as st
 
-from modules.module_utils import ensure_collection, now_iso, project_records, project_selector, save_new_record, save_updated_record
+from modules.module_utils import (
+    ensure_collection,
+    now_iso,
+    project_records,
+    project_selector,
+    remove_record,
+    save_new_record,
+    save_updated_record,
+)
 
 STATUSES = ["Not Started", "In Progress", "Blocked", "Completed", "Cancelled"]
 PRIORITIES = ["Low", "Medium", "High", "Critical"]
@@ -16,6 +24,10 @@ def _progress(record: dict[str, Any]) -> int:
         return max(0, min(100, int(record.get("progress", 0) or 0)))
     except (TypeError, ValueError):
         return 0
+
+
+def _index(options: list[str], value: Any, default: int = 0) -> int:
+    return options.index(value) if value in options else default
 
 
 def render_tasks_module(database: dict[str, Any]) -> None:
@@ -39,8 +51,8 @@ def render_tasks_module(database: dict[str, Any]) -> None:
             with st.form(f"task_edit_{rid}"):
                 title = st.text_input("Task", value=str(record.get("title", "")))
                 assignee = st.text_input("Assignee", value=str(record.get("assignee", "")))
-                priority = st.selectbox("Priority", PRIORITIES, index=PRIORITIES.index(record.get("priority", "Medium")) if record.get("priority") in PRIORITIES else 1)
-                status = st.selectbox("Status", STATUSES, index=STATUSES.index(record.get("status", "Not Started")) if record.get("status") in STATUSES else 0)
+                priority = st.selectbox("Priority", PRIORITIES, index=_index(PRIORITIES, record.get("priority"), 1))
+                status = st.selectbox("Status", STATUSES, index=_index(STATUSES, record.get("status")))
                 progress = st.slider("Progress", 0, 100, _progress(record))
                 due_date = st.text_input("Due Date", value=str(record.get("due_date", "")), placeholder="YYYY-MM-DD")
                 notes = st.text_area("Notes", value=str(record.get("notes", "")))
@@ -49,13 +61,38 @@ def render_tasks_module(database: dict[str, Any]) -> None:
                 if not title.strip():
                     st.error("Task title is required.")
                 else:
-                    save_updated_record(database, "tasks", rid, {"title": title.strip(), "assignee": assignee.strip(), "priority": priority, "status": status, "progress": progress, "due_date": due_date.strip(), "notes": notes.strip(), "updated_at": now_iso()})
-                    st.success("Task updated.")
-                    st.rerun()
+                    try:
+                        save_updated_record(
+                            database,
+                            "tasks",
+                            rid,
+                            {
+                                "project_id": project_id,
+                                "title": title.strip(),
+                                "assignee": assignee.strip(),
+                                "priority": priority,
+                                "status": status,
+                                "progress": progress,
+                                "due_date": due_date.strip(),
+                                "notes": notes.strip(),
+                                "updated_at": now_iso(),
+                            },
+                        )
+                        st.success("Task updated.")
+                        st.rerun()
+                    except Exception as exc:
+                        st.error("Unable to update the task.")
+                        with st.expander("Technical details"):
+                            st.exception(exc)
             if st.button("Delete Task", key=f"task_delete_{rid}", use_container_width=True):
-                from modules.database import delete_record
-                delete_record("tasks", rid, database)
-                st.rerun()
+                try:
+                    remove_record(database, "tasks", rid)
+                    st.success("Task deleted.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error("Unable to delete the task.")
+                    with st.expander("Technical details"):
+                        st.exception(exc)
 
     st.divider()
     with st.form("task_add", clear_on_submit=True):
@@ -71,6 +108,26 @@ def render_tasks_module(database: dict[str, Any]) -> None:
         if not title.strip():
             st.error("Task title is required.")
         else:
-            save_new_record(database, "tasks", {"project_id": project_id, "title": title.strip(), "assignee": assignee.strip(), "priority": priority, "status": status, "progress": progress, "due_date": due_date.strip(), "notes": notes.strip(), "created_at": now_iso(), "updated_at": now_iso()})
-            st.success("Task added.")
-            st.rerun()
+            try:
+                save_new_record(
+                    database,
+                    "tasks",
+                    {
+                        "project_id": project_id,
+                        "title": title.strip(),
+                        "assignee": assignee.strip(),
+                        "priority": priority,
+                        "status": status,
+                        "progress": progress,
+                        "due_date": due_date.strip(),
+                        "notes": notes.strip(),
+                        "created_at": now_iso(),
+                        "updated_at": now_iso(),
+                    },
+                )
+                st.success("Task added.")
+                st.rerun()
+            except Exception as exc:
+                st.error("Unable to add the task.")
+                with st.expander("Technical details"):
+                    st.exception(exc)
