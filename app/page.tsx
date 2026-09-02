@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type Module = { name: string; description: string; href: string };
+type Summary = { projects: number; drawings: number; boqItems: number; activeWorks: number };
 
 const defaultModules: Module[] = [
   { name: "Dashboard", description: "Project and workspace overview.", href: "/" },
@@ -25,12 +26,13 @@ const defaultModules: Module[] = [
 ];
 
 const STORAGE_KEY = "creative-studios-page-config";
+const THEME_KEY = "creative-studios-theme";
 
 export default function Home() {
   const [active, setActive] = useState("Dashboard");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [databaseReady, setDatabaseReady] = useState(false);
-  const [projectCount, setProjectCount] = useState(0);
+  const [summary, setSummary] = useState<Summary>({ projects: 0, drawings: 0, boqItems: 0, activeWorks: 0 });
   const [editingPages, setEditingPages] = useState(false);
   const [modules, setModules] = useState<Module[]>(defaultModules);
 
@@ -41,19 +43,29 @@ export default function Home() {
         const parsed = JSON.parse(saved) as Record<string, Partial<Module>>;
         setModules(defaultModules.map((item) => ({ ...item, ...(parsed[item.href] ?? {}) })));
       }
+      const savedTheme = window.localStorage.getItem(THEME_KEY);
+      if (savedTheme === "light" || savedTheme === "dark") setTheme(savedTheme);
     } catch {
       setModules(defaultModules);
     }
 
-    void fetch("/api/health")
-      .then((response) => response.json())
-      .then((data) => setDatabaseReady(Boolean(data.database)))
-      .catch(() => setDatabaseReady(false));
-
-    void fetch("/api/projects")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data) => setProjectCount(Array.isArray(data?.data) ? data.data.length : 0))
-      .catch(() => setProjectCount(0));
+    const refresh = async () => {
+      try {
+        const health = await fetch("/api/health", { cache: "no-store" });
+        const healthData = await health.json();
+        setDatabaseReady(Boolean(healthData.database));
+      } catch {
+        setDatabaseReady(false);
+      }
+      try {
+        const response = await fetch("/api/dashboard/summary", { cache: "no-store" });
+        const data = await response.json();
+        if (response.ok && data.data) setSummary(data.data);
+      } catch {
+        setSummary({ projects: 0, drawings: 0, boqItems: 0, activeWorks: 0 });
+      }
+    };
+    void refresh();
   }, []);
 
   const activeModule = useMemo(
@@ -61,14 +73,18 @@ export default function Home() {
     [active, modules],
   );
 
+  const changeTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    window.localStorage.setItem(THEME_KEY, next);
+  };
+
   const updatePage = (href: string, field: "name" | "description", value: string) => {
     setModules((current) => current.map((item) => item.href === href ? { ...item, [field]: value } : item));
   };
 
   const savePageConfig = () => {
-    const config = Object.fromEntries(
-      modules.map((item) => [item.href, { name: item.name, description: item.description }]),
-    );
+    const config = Object.fromEntries(modules.map((item) => [item.href, { name: item.name, description: item.description }]));
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     setEditingPages(false);
   };
@@ -97,23 +113,14 @@ export default function Home() {
         <div className="section-label">Workspace</div>
         <nav className="nav" aria-label="Workspace navigation">
           {modules.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={item.name === active ? "nav-item active" : "nav-item"}
-              onClick={() => setActive(item.name)}
-            >
+            <Link key={item.href} href={item.href} className={item.name === active ? "nav-item active" : "nav-item"} onClick={() => setActive(item.name)}>
               {item.name}
             </Link>
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="theme-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-            {theme === "dark" ? "Light mode" : "Dark mode"}
-          </button>
-          <button className="edit-page-button" onClick={() => setEditingPages((value) => !value)}>
-            {editingPages ? "Close page editor" : "Edit pages"}
-          </button>
+          <button className="theme-button" onClick={changeTheme}>{theme === "dark" ? "Light mode" : "Dark mode"}</button>
+          <button className="edit-page-button" onClick={() => setEditingPages((value) => !value)}>{editingPages ? "Close page editor" : "Edit pages"}</button>
         </div>
       </aside>
 
@@ -124,62 +131,34 @@ export default function Home() {
             <h1>{activeModule.name}</h1>
             <p>{activeModule.description}</p>
           </div>
-          <div className={databaseReady ? "status ready" : "status"}>
-            {databaseReady ? "Database connected" : "Database pending"}
-          </div>
+          <div className={databaseReady ? "status ready" : "status"}>{databaseReady ? "Database connected" : "Database pending"}</div>
         </header>
 
         {editingPages && (
           <section className="page-editor">
             <div className="page-editor-header">
-              <div>
-                <div className="section-label">Page editor</div>
-                <h2>Edit workspace pages</h2>
-                <p>Change page names and descriptions used by the workspace navigation.</p>
-              </div>
-              <div className="editor-actions">
-                <button className="secondary-button" onClick={resetPageConfig}>Reset</button>
-                <button className="primary-button" onClick={savePageConfig}>Save page settings</button>
-              </div>
+              <div><div className="section-label">Page editor</div><h2>Edit workspace pages</h2><p>Change navigation labels and descriptions. These settings are stored in this browser.</p></div>
+              <div className="editor-actions"><button className="secondary-button" onClick={resetPageConfig}>Reset</button><button className="primary-button" onClick={savePageConfig}>Save page settings</button></div>
             </div>
             <div className="page-editor-grid">
-              {modules.map((item) => (
-                <div className="page-editor-row" key={item.href}>
-                  <label>
-                    Page name
-                    <input value={item.name} onChange={(event) => updatePage(item.href, "name", event.target.value)} />
-                  </label>
-                  <label>
-                    Description
-                    <input value={item.description} onChange={(event) => updatePage(item.href, "description", event.target.value)} />
-                  </label>
-                </div>
-              ))}
+              {modules.map((item) => <div className="page-editor-row" key={item.href}><label>Page name<input value={item.name} onChange={(event) => updatePage(item.href, "name", event.target.value)} /></label><label>Description<input value={item.description} onChange={(event) => updatePage(item.href, "description", event.target.value)} /></label></div>)}
             </div>
           </section>
         )}
 
         <div className="hero-card">
-          <div>
-            <div className="eyebrow">AEC project workspace</div>
-            <h2>One connected workspace for the project lifecycle.</h2>
-            <p>Connect projects, architecture, engineering, drawings, BOQ, procurement, construction and cost control through a single progressive web application.</p>
-          </div>
+          <div><div className="eyebrow">AEC project workspace</div><h2>One connected workspace for the project lifecycle.</h2><p>Projects, architecture, engineering, drawings, BOQ, procurement, construction and cost control in one Streamlit-style workspace.</p></div>
         </div>
 
         <div className="kpi-grid">
-          <div className="kpi-card"><span>Projects</span><strong>{projectCount}</strong></div>
-          <div className="kpi-card"><span>Drawings</span><strong>0</strong></div>
-          <div className="kpi-card"><span>BOQ Items</span><strong>0</strong></div>
-          <div className="kpi-card"><span>Active Works</span><strong>0</strong></div>
+          <div className="kpi-card"><span>Projects</span><strong>{summary.projects}</strong></div>
+          <div className="kpi-card"><span>Drawings</span><strong>{summary.drawings}</strong></div>
+          <div className="kpi-card"><span>BOQ Items</span><strong>{summary.boqItems}</strong></div>
+          <div className="kpi-card"><span>Active Works</span><strong>{summary.activeWorks}</strong></div>
         </div>
 
         <div className="workspace-card">
-          <div>
-            <div className="section-label">Current workspace</div>
-            <h2>{activeModule.name}</h2>
-            <p>{activeModule.description}</p>
-          </div>
+          <div><div className="section-label">Quick actions</div><h2>{activeModule.name}</h2><p>{activeModule.description}</p></div>
           <div className="workflow" aria-label="Project workflow">
             {modules.slice(1, 11).map((item) => <Link key={item.href} href={item.href}>{item.name}</Link>)}
           </div>
