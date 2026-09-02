@@ -1,21 +1,13 @@
 """
 Creative Studios
 Construction Management Module
+
+Tracks construction phases per project with basic CRUD and optional Gantt chart.
 """
 
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-from fpdf import FPDF
-from pathlib import Path
-from datetime import datetime
-
+from datetime import datetime, date
 from .database import save_memory, get_collection
-
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-ASSETS_DIR = BASE_DIR / "assets"
-LOGO_PATH = ASSETS_DIR / "creative_studios.png"
 
 
 def _log_activity(database, action, details=""):
@@ -32,6 +24,7 @@ def _log_activity(database, action, details=""):
 def render_construction_module(database):
     st.header("Construction Management")
 
+    # Project selection
     projects = get_collection("projects", database)
     if not projects:
         st.warning("No projects found. Create a project first in the Projects module.")
@@ -44,14 +37,14 @@ def render_construction_module(database):
     all_phases = get_collection("construction", database)
     phases = [p for p in all_phases if p.get("project_id") == project_id]
 
-    # Create phase
+    # ==================== ADD PHASE ====================
     st.subheader("Add New Construction Phase")
     with st.form("add_phase_form", clear_on_submit=True):
         phase_name = st.text_input("Phase Name", placeholder="e.g., Foundation")
-        boq_item = st.text_input("BoQ Item Reference", placeholder="e.g., 02.01.001")
+        boq_ref = st.text_input("BoQ Reference", placeholder="e.g., 02.01.001")
         status = st.selectbox("Status", ["Pending", "In Progress", "Completed"], index=0)
-        start_date = st.date_input("Start Date")
-        end_date = st.date_input("End Date")
+        start_date = st.date_input("Start Date", value=date.today())
+        end_date = st.date_input("End Date", value=date.today())
         submitted = st.form_submit_button("Add Phase")
 
     if submitted:
@@ -62,7 +55,7 @@ def render_construction_module(database):
                 "id": len(all_phases) + 1,
                 "project_id": project_id,
                 "phase": phase_name.strip(),
-                "boq": boq_item.strip(),
+                "boq": boq_ref.strip(),
                 "status": status,
                 "start": str(start_date),
                 "end": str(end_date),
@@ -75,107 +68,56 @@ def render_construction_module(database):
             st.success(f"Phase '{phase_name}' added!")
             st.rerun()
 
-    # Manage phases
+    # ==================== LIST / EDIT / DELETE ====================
     if phases:
         st.subheader("Manage Construction Phases")
-        for i, phase in enumerate(phases):
-            with st.expander(f"Phase: {phase['phase']} ({phase['status']})"):
+        for phase in phases:
+            with st.expander(f"{phase['phase']} ({phase['status']})"):
                 col1, col2 = st.columns(2)
                 with col1:
-                    new_phase = st.text_input("Phase Name", value=phase["phase"], key=f"phase_{phase['id']}")
+                    new_phase = st.text_input("Phase Name", value=phase["phase"], key=f"pname_{phase['id']}")
                     new_boq = st.text_input("BoQ Reference", value=phase["boq"], key=f"boq_{phase['id']}")
                     status_options = ["Pending", "In Progress", "Completed"]
                     idx = status_options.index(phase["status"]) if phase["status"] in status_options else 0
                     new_status = st.selectbox("Status", status_options, index=idx, key=f"status_{phase['id']}")
                 with col2:
-                    new_start = st.date_input("Start Date", value=pd.to_datetime(phase["start"]).date(), key=f"start_{phase['id']}")
-                    new_end = st.date_input("End Date", value=pd.to_datetime(phase["end"]).date(), key=f"end_{phase['id']}")
+                    new_start = st.date_input("Start Date", value=datetime.strptime(phase["start"], "%Y-%m-%d").date() if phase.get("start") else date.today(), key=f"start_{phase['id']}")
+                    new_end = st.date_input("End Date", value=datetime.strptime(phase["end"], "%Y-%m-%d").date() if phase.get("end") else date.today(), key=f"end_{phase['id']}")
 
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("Update", key=f"update_phase_{phase['id']}"):
-                        phase["phase"] = new_phase.strip()
-                        phase["boq"] = new_boq.strip()
-                        phase["status"] = new_status
-                        phase["start"] = str(new_start)
-                        phase["end"] = str(new_end)
+                    if st.button("Update", key=f"upd_{phase['id']}"):
+                        phase.update({
+                            "phase": new_phase.strip(),
+                            "boq": new_boq.strip(),
+                            "status": new_status,
+                            "start": str(new_start),
+                            "end": str(new_end),
+                        })
                         save_memory(database)
                         _log_activity(database, "Construction phase updated", new_phase)
                         st.success("Phase updated!")
                         st.rerun()
                 with col2:
-                    if st.button("Delete", key=f"delete_phase_{phase['id']}"):
-                        all_phases = [p for p in all_phases if p.get("id") != phase["id"]]
+                    if st.button("Delete", key=f"del_{phase['id']}"):
+                        all_phases = [p for p in all_phases if p["id"] != phase["id"]]
                         database["construction"] = all_phases
                         save_memory(database)
                         _log_activity(database, "Construction phase deleted", phase["phase"])
                         st.warning("Phase deleted!")
                         st.rerun()
 
-        # Gantt chart and exports
-        st.subheader("Construction Timeline")
-        df = pd.DataFrame(phases)
-        df["start"] = pd.to_datetime(df["start"])
-        df["end"] = pd.to_datetime(df["end"])
-        fig = px.timeline(
-            df,
-            x_start="start",
-            x_end="end",
-            y="phase",
-            color="status",
-            title=f"Construction Timeline: {selected_project_name}",
-            color_discrete_map={"Pending": "gray", "In Progress": "blue", "Completed": "green"}
-        )
-        fig.update_yaxes(autorange="reversed")
-        st.plotly_chart(fig, use_container_width=True)
-
+        # Simple table
         st.subheader("Phase Summary")
-        st.dataframe(df[["phase", "boq", "status", "start", "end"]], use_container_width=True)
-
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download as CSV",
-            data=csv,
-            file_name="construction_schedule.csv",
-            mime="text/csv",
-        )
-
-        if st.button("Generate PDF Report"):
-            pdf = FPDF()
-            pdf.add_page()
-            if LOGO_PATH.exists():
-                pdf.image(str(LOGO_PATH), x=80, y=30, w=50)
-            pdf.set_font("Arial", "B", 18)
-            pdf.ln(90)
-            pdf.cell(200, 10, "Creative Studios", ln=True, align="C")
-            pdf.set_font("Arial", "I", 14)
-            pdf.cell(200, 10, "Construction Schedule Report", ln=True, align="C")
-            pdf.ln(10)
-            pdf.set_font("Arial", size=12)
-            pdf.cell(200, 10, f"Project: {selected_project_name}", ln=True, align="C")
-            pdf.cell(200, 10, f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align="C")
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, "Phase Details", ln=True, align="C")
-            pdf.ln(10)
-            pdf.set_font("Arial", "B", 10)
-            for col in ["Phase", "BoQ", "Status", "Start", "End"]:
-                pdf.cell(38, 8, col, border=1)
-            pdf.ln()
-            pdf.set_font("Arial", size=10)
-            for _, row in df.iterrows():
-                pdf.cell(38, 8, str(row["phase"]), border=1)
-                pdf.cell(38, 8, str(row["boq"]), border=1)
-                pdf.cell(38, 8, str(row["status"]), border=1)
-                pdf.cell(38, 8, str(row["start"].date()), border=1)
-                pdf.cell(38, 8, str(row["end"].date()), border=1)
-                pdf.ln()
-            pdf_bytes = pdf.output(dest="S").encode("latin-1")
-            st.download_button(
-                label="Download as PDF",
-                data=pdf_bytes,
-                file_name="construction_schedule.pdf",
-                mime="application/pdf",
-            )
+        table_data = []
+        for p in phases:
+            table_data.append({
+                "Phase": p["phase"],
+                "BoQ": p["boq"],
+                "Status": p["status"],
+                "Start": p["start"],
+                "End": p["end"],
+            })
+        st.dataframe(table_data, use_container_width=True)
     else:
         st.info("No construction phases for this project yet.")
