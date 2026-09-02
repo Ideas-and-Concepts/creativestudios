@@ -5,7 +5,16 @@ Construction Management Module
 
 import streamlit as st
 from datetime import datetime, date
-from .database import save_memory, get_collection
+from .database import save_memory
+
+
+def _get_collection(collection, db):
+    """Local helper that returns a list from the database."""
+    if collection not in db:
+        db[collection] = []
+    if not isinstance(db[collection], list):
+        db[collection] = []
+    return db[collection]
 
 
 def _log_activity(database, action, details=""):
@@ -22,7 +31,7 @@ def _log_activity(database, action, details=""):
 def render_construction_module(database):
     st.header("Construction Management")
 
-    projects = get_collection("projects", database)
+    projects = _get_collection("projects", database)
     if not projects:
         st.warning("No projects found. Create a project first in the Projects module.")
         return
@@ -31,7 +40,7 @@ def render_construction_module(database):
     selected_project_name = st.selectbox("Select Project", list(project_names.keys()))
     project_id = project_names[selected_project_name]
 
-    all_phases = get_collection("construction", database)
+    all_phases = _get_collection("construction", database)
     phases = [p for p in all_phases if p.get("project_id") == project_id]
 
     # Add phase
