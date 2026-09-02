@@ -44,6 +44,11 @@ export default function Home() {
     [active],
   );
 
+  const selectModule = (name: string) => {
+    setActive(name);
+    if (name === "Projects") window.location.href = "/projects";
+  };
+
   return (
     <main className={theme === "light" ? "app light" : "app"}>
       <aside className="sidebar">
@@ -61,7 +66,7 @@ export default function Home() {
             <button
               key={item.name}
               className={item.name === active ? "nav-item active" : "nav-item"}
-              onClick={() => setActive(item.name)}
+              onClick={() => selectModule(item.name)}
             >
               {item.name}
             </button>
