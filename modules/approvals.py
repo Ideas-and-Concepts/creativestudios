@@ -5,9 +5,21 @@ from typing import Any
 
 import streamlit as st
 
-from modules.module_utils import ensure_collection, now_iso, project_records, project_selector, save_new_record, save_updated_record
+from modules.module_utils import (
+    ensure_collection,
+    now_iso,
+    project_records,
+    project_selector,
+    remove_record,
+    save_new_record,
+    save_updated_record,
+)
 
 STATUSES = ["Pending", "In Review", "Approved", "Rejected", "Cancelled"]
+
+
+def _index(options: list[str], value: Any) -> int:
+    return options.index(value) if value in options else 0
 
 
 def render_approvals_module(database: dict[str, Any]) -> None:
@@ -33,20 +45,44 @@ def render_approvals_module(database: dict[str, Any]) -> None:
                 title = st.text_input("Title", value=str(record.get("title", "")))
                 requested_by = st.text_input("Requested By", value=str(record.get("requested_by", "")))
                 approver = st.text_input("Approver", value=str(record.get("approver", "")))
-                status = st.selectbox("Status", STATUSES, index=STATUSES.index(record.get("status", "Pending")) if record.get("status") in STATUSES else 0)
+                status = st.selectbox("Status", STATUSES, index=_index(STATUSES, record.get("status")))
                 comments = st.text_area("Comments", value=str(record.get("comments", "")))
                 submitted = st.form_submit_button("Save Changes", use_container_width=True)
             if submitted:
                 if not number.strip() or not title.strip():
                     st.error("Approval Number and Title are required.")
                 else:
-                    save_updated_record(database, "approvals", rid, {"approval_number": number.strip(), "title": title.strip(), "requested_by": requested_by.strip(), "approver": approver.strip(), "status": status, "comments": comments.strip(), "updated_at": now_iso()})
-                    st.success("Approval updated.")
-                    st.rerun()
+                    try:
+                        save_updated_record(
+                            database,
+                            "approvals",
+                            rid,
+                            {
+                                "project_id": project_id,
+                                "approval_number": number.strip(),
+                                "title": title.strip(),
+                                "requested_by": requested_by.strip(),
+                                "approver": approver.strip(),
+                                "status": status,
+                                "comments": comments.strip(),
+                                "updated_at": now_iso(),
+                            },
+                        )
+                        st.success("Approval updated.")
+                        st.rerun()
+                    except Exception as exc:
+                        st.error("Unable to update the approval.")
+                        with st.expander("Technical details"):
+                            st.exception(exc)
             if st.button("Delete Approval", key=f"approval_delete_{rid}", use_container_width=True):
-                from modules.database import delete_record
-                delete_record("approvals", rid, database)
-                st.rerun()
+                try:
+                    remove_record(database, "approvals", rid)
+                    st.success("Approval deleted.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error("Unable to delete the approval.")
+                    with st.expander("Technical details"):
+                        st.exception(exc)
 
     st.divider()
     with st.form("approval_add", clear_on_submit=True):
@@ -61,6 +97,25 @@ def render_approvals_module(database: dict[str, Any]) -> None:
         if not number.strip() or not title.strip():
             st.error("Approval Number and Title are required.")
         else:
-            save_new_record(database, "approvals", {"project_id": project_id, "approval_number": number.strip(), "title": title.strip(), "requested_by": requested_by.strip(), "approver": approver.strip(), "status": status, "comments": comments.strip(), "created_at": now_iso(), "updated_at": now_iso()})
-            st.success("Approval added.")
-            st.rerun()
+            try:
+                save_new_record(
+                    database,
+                    "approvals",
+                    {
+                        "project_id": project_id,
+                        "approval_number": number.strip(),
+                        "title": title.strip(),
+                        "requested_by": requested_by.strip(),
+                        "approver": approver.strip(),
+                        "status": status,
+                        "comments": comments.strip(),
+                        "created_at": now_iso(),
+                        "updated_at": now_iso(),
+                    },
+                )
+                st.success("Approval added.")
+                st.rerun()
+            except Exception as exc:
+                st.error("Unable to add the approval.")
+                with st.expander("Technical details"):
+                    st.exception(exc)
