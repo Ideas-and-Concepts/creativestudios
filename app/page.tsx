@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const modules = [
   { name: "Dashboard", description: "Project and workspace overview." },
@@ -19,6 +19,12 @@ const logoUrl = "https://raw.githubusercontent.com/Ideas-and-Concepts/creativest
 export default function Home() {
   const [active, setActive] = useState("Dashboard");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    }
+  }, []);
 
   const activeModule = useMemo(
     () => modules.find((item) => item.name === active) ?? modules[0],
@@ -89,7 +95,7 @@ export default function Home() {
           <div>
             <h2>{activeModule.name} workspace</h2>
             <p>
-              The new PWA foundation is in place. Data services will be connected
+              The PWA foundation is in place. Data services will be connected
               to PostgreSQL in the next migration stage.
             </p>
           </div>
