@@ -24,11 +24,29 @@ function moduleName(request: Request): ModuleName | null {
   return value && value in tables ? value : null;
 }
 
+function validId(value: unknown) {
+  return typeof value === "string" && z.string().uuid().safeParse(value).success;
+}
+
+async function parseBody(request: Request, module: ModuleName) {
+  return schemas[module].safeParse(await request.json().catch(() => null));
+}
+
+function normalizeValues(module: ModuleName, values: Record<string, unknown>) {
+  const normalized = { ...values } as Record<string, unknown>;
+  if (module === "architecture") { normalized.status ??= "planned"; normalized.progress ??= 0; }
+  if (module === "tasks") { normalized.status ??= "open"; normalized.priority ??= "normal"; if (normalized.dueDate) normalized.dueDate = new Date(String(normalized.dueDate)); }
+  if (module === "rfis") normalized.status ??= "open";
+  if (module === "approvals") normalized.status ??= "pending";
+  if (module === "documents") normalized.isApproved ??= false;
+  return normalized;
+}
+
 export async function GET(request: Request) {
   const module = moduleName(request);
   if (!module) return NextResponse.json({ error: "Unsupported workspace module." }, { status: 400 });
   const projectId = new URL(request.url).searchParams.get("projectId");
-  if (projectId && !z.string().uuid().safeParse(projectId).success) return NextResponse.json({ error: "Invalid project id." }, { status: 400 });
+  if (projectId && !validId(projectId)) return NextResponse.json({ error: "Invalid project id." }, { status: 400 });
   try {
     const table = tables[module] as any;
     const rows = projectId
@@ -44,20 +62,50 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const module = moduleName(request);
   if (!module) return NextResponse.json({ error: "Unsupported workspace module." }, { status: 400 });
-  const parsed = schemas[module].safeParse(await request.json().catch(() => null));
+  const parsed = await parseBody(request, module);
   if (!parsed.success) return NextResponse.json({ error: "Invalid record data.", issues: parsed.error.flatten() }, { status: 400 });
   try {
     const table = tables[module] as any;
-    const values: any = { ...parsed.data };
-    if (module === "architecture") { values.status ??= "planned"; values.progress ??= 0; }
-    if (module === "tasks") { values.status ??= "open"; values.priority ??= "normal"; if (values.dueDate) values.dueDate = new Date(values.dueDate); }
-    if (module === "rfis") values.status ??= "open";
-    if (module === "approvals") values.status ??= "pending";
-    if (module === "documents") { values.isApproved ??= false; }
+    const values = normalizeValues(module, parsed.data as Record<string, unknown>);
     const [row] = await getDb().insert(table).values(values).returning();
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (error) {
     console.error(`POST /api/workspace?module=${module} failed`, error);
     return NextResponse.json({ error: "Unable to create record." }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  const module = moduleName(request);
+  const id = new URL(request.url).searchParams.get("id");
+  if (!module) return NextResponse.json({ error: "Unsupported workspace module." }, { status: 400 });
+  if (!validId(id)) return NextResponse.json({ error: "Invalid record id." }, { status: 400 });
+  const parsed = await parseBody(request, module);
+  if (!parsed.success) return NextResponse.json({ error: "Invalid record data.", issues: parsed.error.flatten() }, { status: 400 });
+  try {
+    const table = tables[module] as any;
+    const values = normalizeValues(module, parsed.data as Record<string, unknown>);
+    const [row] = await getDb().update(table).set({ ...values, updatedAt: new Date() }).where(eq(table.id, id)).returning();
+    if (!row) return NextResponse.json({ error: "Record not found." }, { status: 404 });
+    return NextResponse.json({ data: row });
+  } catch (error) {
+    console.error(`PATCH /api/workspace?module=${module}&id=${id} failed`, error);
+    return NextResponse.json({ error: "Unable to update record." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const module = moduleName(request);
+  const id = new URL(request.url).searchParams.get("id");
+  if (!module) return NextResponse.json({ error: "Unsupported workspace module." }, { status: 400 });
+  if (!validId(id)) return NextResponse.json({ error: "Invalid record id." }, { status: 400 });
+  try {
+    const table = tables[module] as any;
+    const [row] = await getDb().delete(table).where(eq(table.id, id)).returning({ id: table.id });
+    if (!row) return NextResponse.json({ error: "Record not found." }, { status: 404 });
+    return NextResponse.json({ data: row });
+  } catch (error) {
+    console.error(`DELETE /api/workspace?module=${module}&id=${id} failed`, error);
+    return NextResponse.json({ error: "Unable to delete record." }, { status: 500 });
   }
 }
