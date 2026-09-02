@@ -1,36 +1,92 @@
 """
 Creative Studios
-Documents Module
+Documents Module (self-contained)
 """
 
+import json
 import streamlit as st
 from pathlib import Path
 from datetime import datetime
-from .database import (
-    get_collection,
-    add_record,
-    update_record,
-    delete_record,
-    next_id,
-    save_memory,
-)
 
-DOCUMENT_STATUSES = ["Draft", "Under Review", "Approved", "Superseded", "Archived"]
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+DB_FILE = BASE_DIR / "creativestudios_db.json"
 STORAGE_DIR = BASE_DIR / "storage" / "documents"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+DOCUMENT_STATUSES = ["Draft", "Under Review", "Approved", "Superseded", "Archived"]
 
 
-def _log_activity(database, action, details=""):
+def _load_db():
+    if DB_FILE.exists():
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"documents": [], "document_versions": [], "activity_log": []}
+
+
+def _save_db(db):
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(db, f, indent=2, default=str)
+
+
+def _get_collection(collection, db):
+    if collection not in db:
+        db[collection] = []
+    if not isinstance(db[collection], list):
+        db[collection] = []
+    return db[collection]
+
+
+def _next_id(collection, db):
+    records = _get_collection(collection, db)
+    highest = 0
+    for rec in records:
+        if isinstance(rec, dict) and "id" in rec:
+            try:
+                highest = max(highest, int(rec["id"]))
+            except (ValueError, TypeError):
+                pass
+    return highest + 1
+
+
+def _add_record(collection, record, db):
+    records = _get_collection(collection, db)
+    record = dict(record)
+    if "id" not in record or record["id"] is None:
+        record["id"] = _next_id(collection, db)
+    records.append(record)
+    _save_db(db)
+    return record
+
+
+def _update_record(collection, record_id, updates, db):
+    records = _get_collection(collection, db)
+    for idx, rec in enumerate(records):
+        if str(rec.get("id")) == str(record_id):
+            rec.update(updates)
+            _save_db(db)
+            return rec
+    return None
+
+
+def _delete_record(collection, record_id, db):
+    records = _get_collection(collection, db)
+    for idx, rec in enumerate(records):
+        if str(rec.get("id")) == str(record_id):
+            records.pop(idx)
+            _save_db(db)
+            return True
+    return False
+
+
+def _log_activity(db, action, details=""):
     entry = {
         "timestamp": datetime.now().isoformat(),
         "action": action,
         "details": details,
         "user": "System",
     }
-    database.setdefault("activity_log", []).append(entry)
-    save_memory(database)
+    _get_collection("activity_log", db).append(entry)
+    _save_db(db)
 
 
 def _save_uploaded_file(uploaded_file, document_id, version):
@@ -46,10 +102,11 @@ def _save_uploaded_file(uploaded_file, document_id, version):
 
 def render_documents_module(database):
     st.header("Documents")
+    db = database
 
-    documents = get_collection("documents", database)
+    documents = _get_collection("documents", db)
 
-    # Upload new document or new version
+    # Upload form
     with st.expander("New Document", expanded=False):
         with st.form("document_upload_form", clear_on_submit=True):
             title = st.text_input("Document Title")
@@ -72,24 +129,19 @@ def render_documents_module(database):
                     doc_id = existing["id"]
                     file_path = _save_uploaded_file(uploaded_file, doc_id, new_version)
                     version_record = {
-                        "id": next_id("document_versions", database),
+                        "id": _next_id("document_versions", db),
                         "document_id": doc_id,
                         "version": new_version,
                         "file_path": file_path,
                         "uploaded_at": datetime.now().isoformat(),
                         "version_note": version_note,
                     }
-                    add_record("document_versions", version_record, database)
-                    update_record(
-                        "documents",
-                        doc_id,
-                        {"version": new_version, "file_path": file_path, "status": status},
-                        database,
-                    )
-                    _log_activity(database, "Document version uploaded", f"{title} v{new_version}")
+                    _add_record("document_versions", version_record, db)
+                    _update_record("documents", doc_id, {"version": new_version, "file_path": file_path, "status": status}, db)
+                    _log_activity(db, "Document version uploaded", f"{title} v{new_version}")
                     st.success(f"Version {new_version} uploaded for '{title}'.")
                 else:
-                    doc_id = next_id("documents", database)
+                    doc_id = _next_id("documents", db)
                     file_path = _save_uploaded_file(uploaded_file, doc_id, 1)
                     document = {
                         "id": doc_id,
@@ -101,21 +153,21 @@ def render_documents_module(database):
                         "file_path": file_path,
                         "created_at": datetime.now().isoformat(),
                     }
-                    add_record("documents", document, database)
+                    _add_record("documents", document, db)
                     version_record = {
-                        "id": next_id("document_versions", database),
+                        "id": _next_id("document_versions", db),
                         "document_id": doc_id,
                         "version": 1,
                         "file_path": file_path,
                         "uploaded_at": datetime.now().isoformat(),
                         "version_note": version_note,
                     }
-                    add_record("document_versions", version_record, database)
-                    _log_activity(database, "Document uploaded", title)
+                    _add_record("document_versions", version_record, db)
+                    _log_activity(db, "Document uploaded", title)
                     st.success(f"Document '{title}' uploaded.")
                 st.rerun()
 
-    # Document list
+    # List documents
     if not documents:
         st.info("No documents found.")
         return
@@ -139,7 +191,7 @@ def render_documents_module(database):
                             mime="application/octet-stream",
                         )
 
-            versions = [v for v in get_collection("document_versions", database) if v.get("document_id") == doc["id"]]
+            versions = [v for v in _get_collection("document_versions", db) if v.get("document_id") == doc["id"]]
             if versions:
                 st.markdown("**Version History:**")
                 for v in sorted(versions, key=lambda x: x["version"], reverse=True):
@@ -165,8 +217,8 @@ def render_documents_module(database):
                         fpath = BASE_DIR / doc["file_path"]
                         if fpath.exists():
                             fpath.unlink()
-                    delete_record("documents", doc["id"], database)
-                    _log_activity(database, "Document deleted", doc.get("title", ""))
+                    _delete_record("documents", doc["id"], db)
+                    _log_activity(db, "Document deleted", doc.get("title", ""))
                     st.success("Document deleted.")
                     st.rerun()
 
@@ -185,7 +237,7 @@ def render_documents_module(database):
                 update = st.form_submit_button("Update Document")
 
             if update:
-                update_record(
+                _update_record(
                     "documents",
                     doc_id,
                     {
@@ -194,9 +246,9 @@ def render_documents_module(database):
                         "discipline": discipline.strip(),
                         "status": status,
                     },
-                    database,
+                    db,
                 )
-                _log_activity(database, "Document updated", title)
+                _log_activity(db, "Document updated", title)
                 st.success("Document updated.")
                 del st.session_state["edit_doc_id"]
                 st.rerun()
