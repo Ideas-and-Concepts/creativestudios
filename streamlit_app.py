@@ -117,7 +117,7 @@ def initialize_session_state() -> None:
 
 
 # ============================================================
-# GLOBAL CSS
+# GLOBAL CSS (Improved UI)
 # ============================================================
 
 def inject_css() -> None:
@@ -125,100 +125,121 @@ def inject_css() -> None:
         """
         <style>
         /* ==================================================
-           MAIN CONTENT
+           GLOBAL
            ================================================== */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        html, body, [class*="css"] {
+            font-family: 'Inter', sans-serif;
+        }
+
         .block-container {
-            padding-top: 1.5rem;
+            padding-top: 1.75rem;
             padding-bottom: 3rem;
+            max-width: 1200px;
         }
 
         /* ==================================================
-           SIDEBAR
+           SIDEBAR - Modern dark theme
            ================================================== */
         [data-testid="stSidebar"] {
-            min-width: 250px;
-            max-width: 250px;
-        }
-        [data-testid="stSidebar"] > div:first-child {
-            padding-top: 0.75rem;
+            min-width: 260px;
+            max-width: 260px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            border-right: 1px solid rgba(148, 163, 184, 0.1);
         }
 
-        /* ==================================================
-           SIDEBAR BRANDING
-           ================================================== */
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 1rem;
+        }
+
+        /* Sidebar brand */
         .cs-sidebar-brand {
-            width: 100%;
             text-align: center;
-            padding: 0;
-            margin: 0;
+            margin-bottom: 0.5rem;
         }
         .cs-sidebar-title {
-            width: 100%;
-            text-align: center;
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 700;
-            line-height: 1.25;
-            margin: 0.35rem 0 0 0;
-            padding: 0;
+            color: #f8fafc;
+            letter-spacing: -0.02em;
+            margin-top: 0.4rem;
         }
         .cs-sidebar-subtitle {
-            width: 100%;
-            text-align: center;
             font-size: 11px;
-            line-height: 1.35;
-            margin: 0.15rem 0 0 0;
-            padding: 0;
-            opacity: 0.65;
+            color: #94a3b8;
+            margin-top: 0.1rem;
+            letter-spacing: 0.03em;
         }
 
-        /* ==================================================
-           SIDEBAR DIVIDER
-           ================================================== */
         .cs-sidebar-divider {
-            width: 100%;
             height: 1px;
-            margin: 0.75rem 0 0.9rem 0;
-            background: rgba(128, 128, 128, 0.20);
+            background: rgba(148, 163, 184, 0.15);
+            margin: 1rem 0 0.8rem 0;
         }
 
-        /* ==================================================
-           NAVIGATION LABEL
-           ================================================== */
         .cs-sidebar-section {
             font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            opacity: 0.60;
-            margin: 0.5rem 0 0.45rem 0;
+            color: #94a3b8;
+            margin: 0.8rem 0 0.5rem 0;
         }
 
-        /* ==================================================
-           RADIO NAVIGATION
-           ================================================== */
+        /* Navigation radio */
         [data-testid="stSidebar"] div[role="radiogroup"] {
-            gap: 0.2rem;
+            gap: 0.15rem;
         }
+
         [data-testid="stSidebar"] div[role="radiogroup"] label {
             border-radius: 8px;
-            padding: 0.2rem 0.45rem;
-        }
-        [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-            background: rgba(128, 128, 128, 0.10);
+            padding: 0.3rem 0.6rem;
+            transition: all 0.2s ease;
         }
 
-        /* ==================================================
-           BUTTONS
-           ================================================== */
+        [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+            background: rgba(148, 163, 184, 0.1);
+        }
+
+        /* Buttons */
         div.stButton > button {
             border-radius: 8px;
             min-height: 2.4rem;
             font-weight: 600;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            transition: all 0.2s ease;
         }
 
-        /* ==================================================
-           MOBILE
-           ================================================== */
+        div.stButton > button:hover {
+            border-color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Main headings */
+        h1, h2, h3 {
+            color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+
+        /* Cards (if used in modules) */
+        .cs-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 1rem;
+        }
+
+        /* Search page */
+        .search-highlight {
+            background-color: #fef08a;
+            padding: 0 0.2rem;
+            border-radius: 3px;
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
             [data-testid="stSidebar"] {
                 min-width: 230px;
@@ -254,21 +275,84 @@ def log_activity(database, action: str, details: str = ""):
 
 
 # ============================================================
-# DATABASE BACKUP (Download only)
+# SIDEBAR BRAND
 # ============================================================
 
-def render_backup_restore(database):
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Database Backup")
+def render_sidebar_brand() -> None:
+    if LOGO_PATH is not None:
+        logo_base64 = _get_logo_base64()
+        logo_html = f"""
+        <div style="display:flex; justify-content:center; align-items:center; width:100%; margin:0; padding:0;">
+            <img src="data:image/png;base64,{logo_base64}" width="56" alt="Creative Studios Logo" style="display:block;">
+        </div>
+        """
+        st.sidebar.markdown(logo_html, unsafe_allow_html=True)
+    else:
+        st.sidebar.markdown(
+            """
+            <div style="display:flex; justify-content:center; align-items:center; width:100%; margin:0; padding:0;">
+                <div style="width:56px;height:56px;border-radius:12px;border:1px solid rgba(148,163,184,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#f8fafc;background:#1e293b;">CS</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    db_json = json.dumps(database, indent=2, default=str)
-    st.sidebar.download_button(
-        label="Download Backup",
-        data=db_json,
-        file_name=f"creativestudios_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-        mime="application/json",
-        use_container_width=True,
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-title">Creative Studios</div>',
+        unsafe_allow_html=True,
     )
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-subtitle">AEC Collaboration Platform</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# SIDEBAR NAVIGATION
+# ============================================================
+
+def render_sidebar() -> str:
+    render_sidebar_brand()
+    st.sidebar.markdown('<div class="cs-sidebar-divider"></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="cs-sidebar-section">Navigation</div>', unsafe_allow_html=True)
+
+    current = st.session_state.get("active_module", "Dashboard")
+    if current not in NAVIGATION:
+        current = "Dashboard"
+
+    # Include Search as an option
+    nav_with_search = NAVIGATION + ["Search"]
+    choice = st.sidebar.radio(
+        "Go to",
+        nav_with_search,
+        index=nav_with_search.index(current) if current in nav_with_search else 0,
+        key="module_navigation",
+        label_visibility="collapsed",
+    )
+
+    st.session_state.active_module = choice
+    return choice
+
+
+# ============================================================
+# DATABASE
+# ============================================================
+
+def get_database() -> dict[str, Any]:
+    database = st.session_state.get("database")
+    if isinstance(database, dict):
+        return database
+    try:
+        database = load_memory()
+    except Exception as exc:
+        st.error("Unable to load the Creative Studios database.")
+        with st.expander("Database error details"):
+            st.exception(exc)
+        database = {}
+    if not isinstance(database, dict):
+        database = {}
+    st.session_state.database = database
+    return database
 
 
 # ============================================================
@@ -276,7 +360,7 @@ def render_backup_restore(database):
 # ============================================================
 
 def render_global_search(database):
-    st.title("Global Search")
+    st.title("🔍 Global Search")
     query = st.text_input("Search across all modules", placeholder="Enter keyword...")
 
     if query:
@@ -310,124 +394,6 @@ def render_global_search(database):
                     st.json(data)
         else:
             st.info("No results found.")
-
-
-# ============================================================
-# SIDEBAR BRAND
-# ============================================================
-
-def render_sidebar_brand() -> None:
-    if LOGO_PATH is not None:
-        logo_base64 = _get_logo_base64()
-        logo_html = f"""
-        <div style="
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-        ">
-            <img src="data:image/png;base64,{logo_base64}" 
-                 width="56" 
-                 alt="Creative Studios Logo"
-                 style="display: block;">
-        </div>
-        """
-        st.sidebar.markdown(logo_html, unsafe_allow_html=True)
-    else:
-        st.sidebar.markdown(
-            """
-            <div style="
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                width: 100%;
-                margin: 0;
-                padding: 0;
-            ">
-                <div style="
-                    width:56px;
-                    height:56px;
-                    border-radius:12px;
-                    border:1px solid rgba(128,128,128,0.25);
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    font-size:20px;
-                    font-weight:800;
-                    box-sizing:border-box;
-                ">
-                    CS
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-title">Creative Studios</div>',
-        unsafe_allow_html=True,
-    )
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-subtitle">AEC Collaboration Platform</div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# SIDEBAR NAVIGATION
-# ============================================================
-
-def render_sidebar() -> str:
-    render_sidebar_brand()
-
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-divider"></div>',
-        unsafe_allow_html=True,
-    )
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-section">Navigation</div>',
-        unsafe_allow_html=True,
-    )
-
-    current = st.session_state.get("active_module", "Dashboard")
-    if current not in NAVIGATION:
-        current = "Dashboard"
-
-    # Add "Search" as an extra option
-    nav_with_search = NAVIGATION + ["Search"]
-    choice = st.sidebar.radio(
-        "Go to",
-        nav_with_search,
-        index=nav_with_search.index(current) if current in nav_with_search else 0,
-        key="module_navigation",
-        label_visibility="collapsed",
-    )
-
-    st.session_state.active_module = choice
-    return choice
-
-
-# ============================================================
-# DATABASE
-# ============================================================
-
-def get_database() -> dict[str, Any]:
-    database = st.session_state.get("database")
-    if isinstance(database, dict):
-        return database
-    try:
-        database = load_memory()
-    except Exception as exc:
-        st.error("Unable to load the Creative Studios database.")
-        with st.expander("Database error details"):
-            st.exception(exc)
-        database = {}
-    if not isinstance(database, dict):
-        database = {}
-    st.session_state.database = database
-    return database
 
 
 # ============================================================
@@ -471,12 +437,7 @@ def render_module(choice: str, database: dict[str, Any]) -> None:
 def render_footer() -> None:
     st.markdown(
         """
-        <div style="
-            text-align:center;
-            opacity:0.45;
-            font-size:11px;
-            padding-top:2rem;
-        ">
+        <div style="text-align:center;opacity:0.5;font-size:11px;padding-top:2rem;color:#64748b;">
             Creative Studios · AEC Collaboration Platform
         </div>
         """,
@@ -492,7 +453,6 @@ def main() -> None:
     initialize_session_state()
     inject_css()
     database = get_database()
-    render_backup_restore(database)
 
     choice = render_sidebar()
 
