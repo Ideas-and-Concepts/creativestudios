@@ -1,7 +1,15 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from fpdf import FPDF
+from pathlib import Path
+from datetime import datetime
 from .database import save_memory
+
+# Locate logo
+BASE_DIR = Path(__file__).resolve().parent.parent
+ASSETS_DIR = BASE_DIR / "assets"
+LOGO_PATH = ASSETS_DIR / "creative_studios.png"
 
 def render_construction_module(database):
     st.header("Construction Management")
@@ -86,4 +94,50 @@ def render_construction_module(database):
                 data=csv,
                 file_name="construction_schedule.csv",
                 mime="text/csv",
+            )
+
+            # --- Export to PDF with Cover Page ---
+            pdf = FPDF()
+            pdf.add_page()
+
+            # Cover page
+            if LOGO_PATH.exists():
+                pdf.image(str(LOGO_PATH), x=80, y=30, w=50)
+            pdf.set_font("Arial", "B", 18)
+            pdf.ln(90)
+            pdf.cell(200, 10, "Creative Studios", ln=True, align="C")
+            pdf.set_font("Arial", "I", 14)
+            pdf.cell(200, 10, "Construction Schedule Report", ln=True, align="C")
+            pdf.ln(10)
+            pdf.set_font("Arial", size=12)
+            pdf.cell(200, 10, f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align="C")
+
+            # New page for table
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(200, 10, "Phase Details", ln=True, align="C")
+            pdf.ln(10)
+
+            # Table header
+            pdf.set_font("Arial", "B", 10)
+            for col in ["Phase", "BoQ", "Status", "Start", "End"]:
+                pdf.cell(38, 8, col, border=1)
+            pdf.ln()
+
+            # Table rows
+            pdf.set_font("Arial", size=10)
+            for _, row in df.iterrows():
+                pdf.cell(38, 8, str(row["phase"]), border=1)
+                pdf.cell(38, 8, str(row["boq"]), border=1)
+                pdf.cell(38, 8, str(row["status"]), border=1)
+                pdf.cell(38, 8, str(row["start"].date()), border=1)
+                pdf.cell(38, 8, str(row["end"].date()), border=1)
+                pdf.ln()
+
+            pdf_bytes = pdf.output(dest="S").encode("latin-1")
+            st.download_button(
+                label="Download Construction Schedule as PDF",
+                data=pdf_bytes,
+                file_name="construction_schedule.pdf",
+                mime="application/pdf",
             )
