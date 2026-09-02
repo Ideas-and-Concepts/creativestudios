@@ -1,144 +1,67 @@
-"""
-Creative Studios
-Construction Management Module (self-contained)
-"""
-
-import json
+"""Creative Studios Construction Management Module."""
+from __future__ import annotations
+from datetime import date, datetime
+from typing import Any
 import streamlit as st
-from datetime import datetime, date
-from pathlib import Path
+from modules.database import next_id, save_memory
+from modules.project_context import filter_project_records, project_label, project_options
+
+STATUSES = ["Pending", "In Progress", "Completed", "On Hold"]
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_FILE = BASE_DIR / "creativestudios_db.json"
+def _normalize(database: dict[str, Any]) -> list[dict[str, Any]]:
+    raw = database.get("construction", []); records: list[dict[str, Any]] = []
+    if not isinstance(raw, list): raw = []
+    for index, item in enumerate(raw, 1):
+        if isinstance(item, dict):
+            r = dict(item); r.setdefault("id", index); r.setdefault("project_id", None); records.append(r)
+    database["construction"] = records
+    return records
 
 
-def _load_db():
-    if DB_FILE.exists():
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"projects": [], "construction": [], "activity_log": []}
-
-
-def _save_db(db):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(db, f, indent=2, default=str)
-
-
-def _get_collection(collection, db):
-    if collection not in db:
-        db[collection] = []
-    if not isinstance(db[collection], list):
-        db[collection] = []
-    return db[collection]
-
-
-def _log_activity(db, action, details=""):
-    entry = {
-        "timestamp": datetime.now().isoformat(),
-        "action": action,
-        "details": details,
-        "user": "System",
-    }
-    _get_collection("activity_log", db).append(entry)
-    _save_db(db)
-
-
-def render_construction_module(database):
-    st.header("Construction Management")
-    db = database
-
-    projects = _get_collection("projects", db)
+def render_construction_module(database: dict[str, Any]) -> None:
+    st.title("Construction")
+    st.caption("Execute project work against BOQ items using the shared Project ID.")
+    records = _normalize(database); projects = project_options(database)
     if not projects:
-        st.warning("No projects found. Create a project first in the Projects module.")
-        return
+        st.warning("Create a project first in Projects."); return
+    labels = [project_label(p) for p in projects]
+    selected = st.selectbox("Project", labels, key="construction_project")
+    project_id = int(projects[labels.index(selected)]["id"])
+    project_records = filter_project_records(records, project_id)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Work Phases", len(project_records)); c2.metric("In Progress", sum(r.get("status") == "In Progress" for r in project_records)); c3.metric("Completed", sum(r.get("status") == "Completed" for r in project_records))
 
-    project_names = {p.get("name", f"Project {p.get('id')}"): p.get("id") for p in projects}
-    selected_project_name = st.selectbox("Select Project", list(project_names.keys()))
-    project_id = project_names[selected_project_name]
+    for record in list(project_records):
+        rid = record.get("id")
+        with st.expander(f"{record.get('phase', 'Construction Phase')} | {record.get('status', 'Pending')}"):
+            with st.form(f"construction_edit_{rid}"):
+                phase = st.text_input("Phase", value=str(record.get("phase", "")))
+                boq = st.text_input("BOQ Reference", value=str(record.get("boq_reference", "")))
+                status = st.selectbox("Status", STATUSES, index=STATUSES.index(record.get("status", "Pending")) if record.get("status", "Pending") in STATUSES else 0)
+                progress = st.number_input("Progress %", min_value=0.0, max_value=100.0, value=float(record.get("progress", 0) or 0))
+                start = st.date_input("Start Date", value=datetime.fromisoformat(record["start"]).date() if record.get("start") else date.today())
+                end = st.date_input("End Date", value=datetime.fromisoformat(record["end"]).date() if record.get("end") else date.today())
+                notes = st.text_area("Notes", value=str(record.get("notes", "")))
+                save = st.form_submit_button("Save Changes", use_container_width=True)
+            if save:
+                record.update({"phase": phase.strip(), "boq_reference": boq.strip(), "status": status, "progress": progress, "start": str(start), "end": str(end), "notes": notes.strip()})
+                save_memory(database); st.success("Construction phase updated."); st.rerun()
+            if st.button("Delete Phase", key=f"construction_delete_{rid}", use_container_width=True):
+                records.remove(record); save_memory(database); st.rerun()
 
-    all_phases = _get_collection("construction", db)
-    phases = [p for p in all_phases if p.get("project_id") == project_id]
-
-    # Add phase
-    st.subheader("Add New Construction Phase")
-    with st.form("add_phase_form", clear_on_submit=True):
-        phase_name = st.text_input("Phase Name", placeholder="e.g., Foundation")
-        boq_ref = st.text_input("BoQ Reference", placeholder="e.g., 02.01.001")
-        status = st.selectbox("Status", ["Pending", "In Progress", "Completed"], index=0)
-        start_date = st.date_input("Start Date", value=date.today())
-        end_date = st.date_input("End Date", value=date.today())
-        submitted = st.form_submit_button("Add Phase")
-
+    st.divider()
+    with st.form("construction_add", clear_on_submit=True):
+        phase = st.text_input("Phase", placeholder="Foundation, Structure, Roofing, Finishes...")
+        boq = st.text_input("BOQ Reference")
+        status = st.selectbox("Status", STATUSES)
+        progress = st.number_input("Progress %", min_value=0.0, max_value=100.0, value=0.0)
+        start = st.date_input("Start Date", value=date.today())
+        end = st.date_input("End Date", value=date.today())
+        notes = st.text_area("Notes")
+        submitted = st.form_submit_button("Add Construction Phase", use_container_width=True)
     if submitted:
-        if not phase_name.strip():
-            st.error("Phase name is required.")
+        if not phase.strip(): st.error("Phase is required.")
         else:
-            new_phase = {
-                "id": len(all_phases) + 1,
-                "project_id": project_id,
-                "phase": phase_name.strip(),
-                "boq": boq_ref.strip(),
-                "status": status,
-                "start": str(start_date),
-                "end": str(end_date),
-                "created_at": datetime.now().isoformat(),
-            }
-            all_phases.append(new_phase)
-            db["construction"] = all_phases
-            _save_db(db)
-            _log_activity(db, "Construction phase added", phase_name)
-            st.success(f"Phase '{phase_name}' added!")
-            st.rerun()
-
-    if phases:
-        st.subheader("Manage Construction Phases")
-        for phase in phases:
-            with st.expander(f"{phase['phase']} ({phase['status']})"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    new_phase = st.text_input("Phase Name", value=phase["phase"], key=f"pname_{phase['id']}")
-                    new_boq = st.text_input("BoQ Reference", value=phase["boq"], key=f"boq_{phase['id']}")
-                    status_options = ["Pending", "In Progress", "Completed"]
-                    idx = status_options.index(phase["status"]) if phase["status"] in status_options else 0
-                    new_status = st.selectbox("Status", status_options, index=idx, key=f"status_{phase['id']}")
-                with col2:
-                    new_start = st.date_input("Start Date", value=datetime.strptime(phase["start"], "%Y-%m-%d").date() if phase.get("start") else date.today(), key=f"start_{phase['id']}")
-                    new_end = st.date_input("End Date", value=datetime.strptime(phase["end"], "%Y-%m-%d").date() if phase.get("end") else date.today(), key=f"end_{phase['id']}")
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("Update", key=f"upd_{phase['id']}"):
-                        phase.update({
-                            "phase": new_phase.strip(),
-                            "boq": new_boq.strip(),
-                            "status": new_status,
-                            "start": str(new_start),
-                            "end": str(new_end),
-                        })
-                        _save_db(db)
-                        _log_activity(db, "Construction phase updated", new_phase)
-                        st.success("Phase updated!")
-                        st.rerun()
-                with col2:
-                    if st.button("Delete", key=f"del_{phase['id']}"):
-                        all_phases = [p for p in all_phases if p["id"] != phase["id"]]
-                        db["construction"] = all_phases
-                        _save_db(db)
-                        _log_activity(db, "Construction phase deleted", phase["phase"])
-                        st.warning("Phase deleted!")
-                        st.rerun()
-
-        st.subheader("Phase Summary")
-        table_data = []
-        for p in phases:
-            table_data.append({
-                "Phase": p["phase"],
-                "BoQ": p["boq"],
-                "Status": p["status"],
-                "Start": p["start"],
-                "End": p["end"],
-            })
-        st.dataframe(table_data, use_container_width=True)
-    else:
-        st.info("No construction phases for this project yet.")
+            records.append({"id": next_id("construction", database), "project_id": project_id, "phase": phase.strip(), "boq_reference": boq.strip(), "status": status, "progress": progress, "start": str(start), "end": str(end), "notes": notes.strip(), "created_at": datetime.now().isoformat(timespec="seconds")})
+            save_memory(database); st.success("Construction phase added."); st.rerun()
