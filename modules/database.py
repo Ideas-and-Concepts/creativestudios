@@ -1,314 +1,247 @@
 """
 Creative Studios
-Database Persistence
+AEC Collaboration Platform
 
-JSON-based application database with safe initialization
-and automatic default administrator creation.
+JSON Database Layer
 """
 
 from __future__ import annotations
 
-import hashlib
+import copy
 import json
+import os
+import tempfile
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 
-# ============================================================
-# PATHS
-# ============================================================
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 DB_FILE = BASE_DIR / "creativestudios_db.json"
 
 
-# ============================================================
-# DEFAULT DATABASE STRUCTURE
-# ============================================================
-
-DEFAULT_COLLECTIONS: dict[str, list[Any]] = {
+DEFAULT_DATABASE: dict[str, Any] = {
     "users": [],
     "projects": [],
     "documents": [],
-    "architecture": [],
-    "engineering": [],
     "drawings": [],
-    "mep": [],
+    "rfis": [],
+    "tasks": [],
+    "teams": [],
+    "site_logs": [],
+    "site_log_workforce": [],
+    "site_log_equipment": [],
+    "site_log_materials": [],
+    "site_log_activities": [],
+    "site_log_issues": [],
+    "site_log_instructions": [],
+    "construction": [],
+    "activity_log": [],
+    "settings": {},
+    "document_versions": [],
+    "boq": [],
 }
 
 
-# ============================================================
-# DEFAULT ADMINISTRATOR
-# ============================================================
-
-DEFAULT_ADMIN_USERNAME = "admin"
-DEFAULT_ADMIN_PASSWORD = "admin123"
-
-
-def _hash_password(password: str) -> str:
-    """Create a SHA-256 password hash."""
-
-    return hashlib.sha256(
-        password.encode("utf-8")
-    ).hexdigest()
+def _json_default(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Path):
+        return str(value)
+    return str(value)
 
 
-def _default_admin() -> dict[str, Any]:
-    """Return the default administrator record."""
-
-    return {
-        "id": 1,
-        "username": DEFAULT_ADMIN_USERNAME,
-        "password": _hash_password(
-            DEFAULT_ADMIN_PASSWORD
-        ),
-        "full_name": "System Administrator",
-        "role": "Administrator",
-        "active": True,
-    }
-
-
-# ============================================================
-# DATABASE NORMALIZATION
-# ============================================================
-
-def _normalize_database(
-    data: Any,
-) -> dict[str, Any]:
-    """
-    Ensure the database is a dictionary and contains all
-    expected collections.
-
-    Existing data is preserved.
-    """
-
+def _normalize_database(data: Any) -> dict[str, Any]:
     if not isinstance(data, dict):
         data = {}
 
-    for collection_name, default_value in DEFAULT_COLLECTIONS.items():
+    normalized = copy.deepcopy(DEFAULT_DATABASE)
+    for key, value in data.items():
+        normalized[key] = value
 
-        if collection_name not in data:
-            data[collection_name] = list(
-                default_value
-            )
+    list_collections = [
+        "users", "projects", "documents", "drawings", "rfis", "tasks", "teams",
+        "site_logs", "site_log_workforce", "site_log_equipment", "site_log_materials",
+        "site_log_activities", "site_log_issues", "site_log_instructions",
+        "construction", "activity_log", "document_versions", "boq",
+    ]
 
-        elif not isinstance(
-            data[collection_name],
-            list,
-        ):
-            data[collection_name] = list(
-                default_value
-            )
+    for collection in list_collections:
+        if not isinstance(normalized.get(collection), list):
+            normalized[collection] = []
 
-    return data
+    if not isinstance(normalized.get("settings"), dict):
+        normalized["settings"] = {}
 
+    return normalized
 
-# ============================================================
-# ADMIN INITIALIZATION
-# ============================================================
-
-def _ensure_default_admin(
-    database: dict[str, Any],
-) -> bool:
-    """
-    Ensure that an administrator account exists.
-
-    Returns True when the database was modified.
-    """
-
-    users = database.get(
-        "users",
-        [],
-    )
-
-    if not isinstance(users, list):
-        users = []
-        database["users"] = users
-
-    # --------------------------------------------------------
-    # Check whether an administrator already exists.
-    # --------------------------------------------------------
-
-    for user in users:
-
-        if not isinstance(user, dict):
-            continue
-
-        username = str(
-            user.get(
-                "username",
-                "",
-            )
-            or ""
-        ).strip().lower()
-
-        if username == DEFAULT_ADMIN_USERNAME.lower():
-
-            changed = False
-
-            # Repair missing fields without overwriting
-            # an existing password.
-            if not user.get("full_name"):
-                user["full_name"] = "System Administrator"
-                changed = True
-
-            if not user.get("role"):
-                user["role"] = "Administrator"
-                changed = True
-
-            if "active" not in user:
-                user["active"] = True
-                changed = True
-
-            return changed
-
-    # --------------------------------------------------------
-    # No administrator exists.
-    # --------------------------------------------------------
-
-    users.append(
-        _default_admin()
-    )
-
-    return True
-
-
-# ============================================================
-# LOAD DATABASE
-# ============================================================
 
 def load_memory() -> dict[str, Any]:
-    """
-    Load the Creative Studios database.
-
-    If the database does not exist, it is created with the
-    required collections and a default administrator.
-
-    Existing database records are preserved.
-    """
-
-    database: dict[str, Any]
-
-    if not DB_FILE.exists():
-
-        database = _normalize_database({})
-
-        _ensure_default_admin(
-            database
-        )
-
-        save_memory(
-            database
-        )
-
-        return database
-
     try:
+        DB_FILE.parent.mkdir(parents=True, exist_ok=True)
+        if not DB_FILE.exists():
+            database = copy.deepcopy(DEFAULT_DATABASE)
+            save_memory(database)
+            return database
 
-        with DB_FILE.open(
-            "r",
-            encoding="utf-8",
-        ) as file:
-
+        with DB_FILE.open("r", encoding="utf-8") as file:
             data = json.load(file)
 
-    except (
-        json.JSONDecodeError,
-        OSError,
-    ):
+        return _normalize_database(data)
+    except json.JSONDecodeError:
+        try:
+            backup = DB_FILE.with_suffix(".corrupt.json")
+            if DB_FILE.exists():
+                DB_FILE.replace(backup)
+        except Exception:
+            pass
 
-        # Do not crash the application because of an invalid
-        # or unreadable JSON database.
-        database = _normalize_database({})
-
-        _ensure_default_admin(
-            database
-        )
-
-        save_memory(
-            database
-        )
-
+        database = copy.deepcopy(DEFAULT_DATABASE)
+        try:
+            save_memory(database)
+        except Exception:
+            pass
         return database
-
-    database = _normalize_database(
-        data
-    )
-
-    changed = _ensure_default_admin(
-        database
-    )
-
-    if changed:
-        save_memory(
-            database
-        )
-
-    return database
+    except Exception:
+        return copy.deepcopy(DEFAULT_DATABASE)
 
 
-# ============================================================
-# SAVE DATABASE
-# ============================================================
-
-def save_memory(
-    database: dict[str, Any],
-) -> None:
-    """
-    Persist the application database safely.
-
-    Data is written to a temporary file first and then
-    atomically replaced into the final database file.
-    """
-
-    if not isinstance(
-        database,
-        dict,
-    ):
-        raise TypeError(
-            "database must be a dictionary"
-        )
-
-    database = _normalize_database(
-        database
-    )
-
-    DB_FILE.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    temporary_file = DB_FILE.with_suffix(
-        ".tmp"
-    )
+def save_memory(db: dict[str, Any]) -> bool:
+    database = _normalize_database(db)
+    DB_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
 
     try:
-
-        with temporary_file.open(
-            "w",
+        with tempfile.NamedTemporaryFile(
+            mode="w",
             encoding="utf-8",
-        ) as file:
+            suffix=".tmp",
+            prefix="creativestudios_",
+            dir=DB_FILE.parent,
+            delete=False,
+        ) as temporary:
+            json.dump(database, temporary, indent=2, ensure_ascii=False, default=_json_default)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_path = Path(temporary.name)
 
-            json.dump(
-                database,
-                file,
-                indent=4,
-                ensure_ascii=False,
-            )
-
-            file.flush()
-
-        temporary_file.replace(
-            DB_FILE
-        )
-
-    finally:
-
-        if temporary_file.exists():
-
+        os.replace(temporary_path, DB_FILE)
+        return True
+    except Exception:
+        if temporary_path is not None and temporary_path.exists():
             try:
-                temporary_file.unlink()
-
-            except OSError:
+                temporary_path.unlink()
+            except Exception:
                 pass
+        return False
+
+
+def _ensure_collection(db: dict[str, Any], collection: str) -> list[dict[str, Any]]:
+    if not isinstance(db, dict):
+        raise TypeError("Database must be a dictionary.")
+    if collection not in db:
+        db[collection] = []
+    if not isinstance(db[collection], list):
+        db[collection] = []
+    return db[collection]
+
+
+def get_collection(collection: str, db: dict[str, Any]) -> list[dict[str, Any]]:
+    return _ensure_collection(db, collection)
+
+
+def next_id(collection: str, db: dict[str, Any]) -> int:
+    records = _ensure_collection(db, collection)
+    highest = 0
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        try:
+            value = int(record.get("id"))
+            highest = max(highest, value)
+        except (TypeError, ValueError):
+            continue
+    return highest + 1
+
+
+def add_record(collection: str, record: dict[str, Any], db: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        raise TypeError("Record must be a dictionary.")
+    records = _ensure_collection(db, collection)
+    new_record = copy.deepcopy(record)
+    if new_record.get("id") is None:
+        new_record["id"] = next_id(collection, db)
+    records.append(new_record)
+    if not save_memory(db):
+        records.pop()
+        raise IOError("Unable to save the database.")
+    return new_record
+
+
+def get_record(collection: str, record_id: Any, db: dict[str, Any]) -> dict[str, Any] | None:
+    records = _ensure_collection(db, collection)
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("id")) == str(record_id):
+            return record
+    return None
+
+
+def update_record(collection: str, record_id: Any, updates: dict[str, Any], db: dict[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(updates, dict):
+        raise TypeError("Updates must be a dictionary.")
+    records = _ensure_collection(db, collection)
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("id")) != str(record_id):
+            continue
+        original = copy.deepcopy(record)
+        updated = copy.deepcopy(record)
+        updated.update(copy.deepcopy(updates))
+        records[index] = updated
+        if not save_memory(db):
+            records[index] = original
+            raise IOError("Unable to save the database.")
+        return updated
+    return None
+
+
+def delete_record(collection: str, record_id: Any, db: dict[str, Any]) -> bool:
+    records = _ensure_collection(db, collection)
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("id")) != str(record_id):
+            continue
+        deleted = records.pop(index)
+        if not save_memory(db):
+            records.insert(index, deleted)
+            raise IOError("Unable to save the database.")
+        return True
+    return False
+
+
+def get_records(collection: str, db: dict[str, Any]) -> list[dict[str, Any]]:
+    return [record for record in _ensure_collection(db, collection) if isinstance(record, dict)]
+
+
+def initialize_database() -> dict[str, Any]:
+    db = load_memory()
+    save_memory(db)
+    return db
+
+
+def load_database() -> dict[str, Any]:
+    return load_memory()
+
+
+def save_database(db: dict[str, Any]) -> bool:
+    return save_memory(db)
+
+
+def get_all(collection: str, db: dict[str, Any]) -> list[dict[str, Any]]:
+    return get_records(collection, db)
