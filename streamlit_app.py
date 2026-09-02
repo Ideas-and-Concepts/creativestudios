@@ -2,12 +2,9 @@
 
 The production application is the Next.js PWA. This Streamlit application is
 kept as a lightweight legacy/admin workspace for the existing Python modules.
-It intentionally does not store Neon credentials or attempt to manage the
-production PostgreSQL schema.
 """
 from __future__ import annotations
 
-import html
 import importlib
 import os
 from pathlib import Path
@@ -23,56 +20,10 @@ ASSETS_DIR = BASE_DIR / "assets"
 DEFAULT_PWA_URL = "https://creativestudios-app.vercel.app/"
 AI_PWA_URL = "https://creativestudios-ai.vercel.app/"
 
-
-def get_pwa_url() -> str:
-    """Return a valid external PWA URL from Streamlit configuration."""
-    configured_url = os.getenv("CREATIVE_STUDIOS_PWA_URL", "").strip()
-    candidate = configured_url or DEFAULT_PWA_URL
-    parsed = urlparse(candidate)
-    if parsed.scheme in {"http", "https"} and parsed.netloc:
-        return candidate
-    return DEFAULT_PWA_URL
-
-
-PWA_URL = get_pwa_url()
-
-LOGO_PATH = next(
-    (
-        path
-        for path in (
-            ASSETS_DIR / "creative_studios.png",
-            ASSETS_DIR / "creative_studios_logo.png",
-            ASSETS_DIR / "logo.png",
-        )
-        if path.exists()
-    ),
-    None,
-)
-
-st.set_page_config(
-    page_title="Creative Studios",
-    page_icon=str(LOGO_PATH) if LOGO_PATH else "CS",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
 NAVIGATION = [
-    "Dashboard",
-    "Projects",
-    "Documents",
-    "Architecture",
-    "Engineering",
-    "Drawings",
-    "MEP",
-    "BOQ",
-    "Procurement",
-    "Construction",
-    "Cost Control",
-    "Tasks",
-    "RFIs",
-    "Approvals",
-    "Reports",
-    "Settings",
+    "Dashboard", "Projects", "Documents", "Architecture", "Engineering",
+    "Drawings", "MEP", "BOQ", "Procurement", "Construction", "Cost Control",
+    "Tasks", "RFIs", "Approvals", "Reports", "Settings",
 ]
 
 MODULE_IMPORTS: dict[str, tuple[str, str]] = {
@@ -84,6 +35,7 @@ MODULE_IMPORTS: dict[str, tuple[str, str]] = {
     "Drawings": ("modules.drawings", "render_drawings_module"),
     "MEP": ("modules.mep", "render_mep_module"),
     "BOQ": ("modules.boq", "render_boq_module"),
+    "Procurement": ("modules.procurement", "render_procurement_module"),
     "Construction": ("modules.construction", "render_construction_module"),
     "Cost Control": ("modules.cost_control", "render_cost_control_module"),
     "Tasks": ("modules.tasks", "render_tasks_module"),
@@ -93,9 +45,35 @@ MODULE_IMPORTS: dict[str, tuple[str, str]] = {
     "Settings": ("modules.settings", "render_settings_module"),
 }
 
+LOGO_PATH = next(
+    (
+        path for path in (
+            ASSETS_DIR / "creative_studios.png",
+            ASSETS_DIR / "creative_studios_logo.png",
+            ASSETS_DIR / "logo.png",
+        ) if path.exists()
+    ),
+    None,
+)
+
+st.set_page_config(
+    page_title="Creative Studios",
+    page_icon=str(LOGO_PATH) if LOGO_PATH else "CS",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
+def get_pwa_url() -> str:
+    candidate = os.getenv("CREATIVE_STUDIOS_PWA_URL", "").strip() or DEFAULT_PWA_URL
+    parsed = urlparse(candidate)
+    return candidate if parsed.scheme in {"http", "https"} and parsed.netloc else DEFAULT_PWA_URL
+
+
+PWA_URL = get_pwa_url()
+
 
 def initialize_session_state() -> None:
-    """Initialize Streamlit state before any state-dependent rendering."""
     if "active_module" not in st.session_state:
         st.session_state.active_module = "Dashboard"
     if "navigation" not in st.session_state:
@@ -110,17 +88,20 @@ def inject_css() -> None:
         <style>
         .block-container { max-width: 1280px; padding-top: 1.5rem; padding-bottom: 3rem; }
         [data-testid="stSidebar"] { min-width: 250px; max-width: 250px; }
-        .cs-sidebar-title { font-size: 18px; font-weight: 700; text-align: center; margin-top: .4rem; }
-        .cs-sidebar-subtitle { font-size: 11px; opacity: .7; text-align: center; margin-top: .1rem; }
-        .cs-sidebar-divider { height: 1px; background: rgba(127,127,127,.25); margin: 1rem 0 .8rem; }
-        .cs-sidebar-section { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; opacity: .65; text-align: center; margin: .8rem 0 .5rem; }
-        .cs-sidebar-status { font-size: 11px; text-align: center; opacity: .72; margin-top: .7rem; }
-        .cs-pwa-link { display: block; width: 100%; box-sizing: border-box; text-align: center; text-decoration: none !important; font-weight: 600; padding: .55rem .75rem; border: 1px solid rgba(127,127,127,.35); border-radius: 8px; margin: .4rem 0 .8rem; }
+        .cs-brand { text-align: center; }
+        .cs-brand-title { font-size: 18px; font-weight: 700; margin-top: .35rem; }
+        .cs-brand-subtitle { font-size: 11px; opacity: .68; margin-top: .1rem; }
+        .cs-divider { height: 1px; background: rgba(127,127,127,.24); margin: 1rem 0; }
+        .cs-section { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; opacity: .62; margin: .7rem 0 .45rem; }
+        .cs-sidebar-note { font-size: 11px; text-align: center; opacity: .62; line-height: 1.5; margin-top: .7rem; }
+        .cs-native-link { display:block; text-decoration:none !important; padding:.48rem .7rem; margin:.25rem 0; border-radius:7px; color:inherit !important; font-size:13px; }
+        .cs-native-link:hover { background: rgba(127,127,127,.12); }
+        .cs-pwa-link { display:block; text-decoration:none !important; padding:.5rem .7rem; margin:.25rem 0; border:1px solid rgba(127,127,127,.3); border-radius:7px; color:inherit !important; font-size:13px; text-align:left; }
         .cs-pwa-link:hover { background: rgba(127,127,127,.12); }
-        .cs-pwa-link-secondary { font-size: 11px; opacity: .8; }
-        .cs-footer { text-align: center; opacity: .5; font-size: 11px; padding-top: 2rem; }
-        [data-testid="stSidebar"] div[role="radiogroup"] label { width: 100%; text-align: center; border-radius: 8px; padding: .3rem .6rem; }
-        [data-testid="stSidebar"] div[role="radiogroup"] label:hover { background: rgba(127,127,127,.12); }
+        [data-testid="stSidebar"] div[role="radiogroup"] { gap: 2px; }
+        [data-testid="stSidebar"] div[role="radiogroup"] label { width:100%; border-radius:7px; padding:.35rem .65rem; }
+        [data-testid="stSidebar"] div[role="radiogroup"] label:hover { background:rgba(127,127,127,.12); }
+        .cs-footer { text-align:center; opacity:.48; font-size:11px; padding-top:2rem; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -128,16 +109,9 @@ def inject_css() -> None:
 
 
 def render_pwa_links() -> None:
-    safe_primary = html.escape(PWA_URL, quote=True)
-    safe_ai = html.escape(AI_PWA_URL, quote=True)
-    st.sidebar.markdown(
-        f'<a class="cs-pwa-link" href="{safe_primary}" target="_blank" rel="noopener noreferrer">Open Production PWA</a>',
-        unsafe_allow_html=True,
-    )
-    st.sidebar.markdown(
-        f'<a class="cs-pwa-link cs-pwa-link-secondary" href="{safe_ai}" target="_blank" rel="noopener noreferrer">Open Creative Studios AI</a>',
-        unsafe_allow_html=True,
-    )
+    # Streamlit Cloud-style external navigation: compact, full-width links.
+    st.sidebar.markdown(f'<a class="cs-pwa-link" href="{PWA_URL}" target="_blank" rel="noopener noreferrer">Creative Studios PWA</a>', unsafe_allow_html=True)
+    st.sidebar.markdown(f'<a class="cs-pwa-link" href="{AI_PWA_URL}" target="_blank" rel="noopener noreferrer">Creative Studios AI</a>', unsafe_allow_html=True)
 
 
 def get_database() -> dict[str, Any]:
@@ -150,31 +124,29 @@ def get_database() -> dict[str, Any]:
 
 def render_sidebar() -> str:
     if LOGO_PATH:
-        st.sidebar.image(str(LOGO_PATH), width=56)
-    st.sidebar.markdown('<div class="cs-sidebar-title">Creative Studios</div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="cs-sidebar-subtitle">AEC Collaboration Platform</div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="cs-sidebar-divider"></div>', unsafe_allow_html=True)
+        st.sidebar.image(str(LOGO_PATH), width=54)
+    st.sidebar.markdown('<div class="cs-brand"><div class="cs-brand-title">Creative Studios</div><div class="cs-brand-subtitle">AEC Collaboration Platform</div></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
     render_pwa_links()
-    st.sidebar.markdown('<div class="cs-sidebar-section">Workspace</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="cs-section">Workspace</div>', unsafe_allow_html=True)
 
     current = st.session_state.get("active_module", "Dashboard")
     if current not in NAVIGATION:
         current = "Dashboard"
-        st.session_state.active_module = current
-    if st.session_state.get("navigation") not in NAVIGATION:
-        st.session_state.navigation = current
+    st.session_state.active_module = current
+    st.session_state.navigation = current
 
-    choice = st.sidebar.radio("Go to", NAVIGATION, key="navigation", label_visibility="collapsed")
+    choice = st.sidebar.radio("Workspace", NAVIGATION, key="navigation", label_visibility="collapsed")
     st.session_state.active_module = choice
-    st.sidebar.markdown('<div class="cs-sidebar-divider"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="cs-sidebar-status">Legacy Python workspace<br>Production data layer: Neon PostgreSQL</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="cs-sidebar-note">Edit records directly inside each module.<br>Production data layer: Neon PostgreSQL.</div>', unsafe_allow_html=True)
     return choice
 
 
 def load_module_renderer(name: str) -> Callable[[dict[str, Any]], Any] | None:
-    if name not in MODULE_IMPORTS:
+    module_path, function_name = MODULE_IMPORTS.get(name, ("", ""))
+    if not module_path:
         return None
-    module_path, function_name = MODULE_IMPORTS[name]
     module = importlib.import_module(module_path)
     renderer = getattr(module, function_name, None)
     if not callable(renderer):
@@ -198,9 +170,8 @@ def render_module(name: str, database: dict[str, Any]) -> None:
 def main() -> None:
     initialize_session_state()
     inject_css()
-    database = get_database()
     choice = render_sidebar()
-    render_module(choice, database)
+    render_module(choice, get_database())
     st.markdown('<div class="cs-footer">Creative Studios · AEC Collaboration Platform · Legacy Streamlit Workspace</div>', unsafe_allow_html=True)
 
 
