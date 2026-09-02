@@ -1,8 +1,8 @@
 """Creative Studios Streamlit workspace.
 
-This remains the Streamlit-compatible workspace while the Next.js PWA is the
-primary production interface. Both can use the same Neon-backed workspace
-state when DATABASE_URL is configured.
+Streamlit remains the compatible workspace interface while the Next.js PWA is
+the primary production interface. Both use the shared workspace database when
+DATABASE_URL is configured.
 """
 from __future__ import annotations
 
@@ -47,11 +47,15 @@ MODULE_IMPORTS: dict[str, tuple[str, str]] = {
 }
 
 LOGO_PATH = next(
-    (path for path in (
-        ASSETS_DIR / "creative_studios.png",
-        ASSETS_DIR / "creative_studios_logo.png",
-        ASSETS_DIR / "logo.png",
-    ) if path.exists()),
+    (
+        path
+        for path in (
+            ASSETS_DIR / "creative_studios.png",
+            ASSETS_DIR / "creative_studios_logo.png",
+            ASSETS_DIR / "logo.png",
+        )
+        if path.exists()
+    ),
     None,
 )
 
@@ -135,10 +139,16 @@ def render_sidebar() -> str:
     current = st.session_state.get("active_module", "Dashboard")
     if current not in NAVIGATION:
         current = "Dashboard"
-    st.session_state.active_module = current
-    st.session_state.navigation = current
+    if st.session_state.get("navigation") not in NAVIGATION:
+        st.session_state.navigation = current
 
-    choice = st.sidebar.radio("Workspace", NAVIGATION, key="navigation", label_visibility="collapsed")
+    choice = st.sidebar.radio(
+        "Workspace",
+        NAVIGATION,
+        index=NAVIGATION.index(st.session_state.navigation),
+        key="navigation",
+        label_visibility="collapsed",
+    )
     st.session_state.active_module = choice
 
     col1, col2 = st.sidebar.columns(2)
@@ -151,11 +161,14 @@ def render_sidebar() -> str:
             st.rerun()
 
     st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
-    backend = database_backend()
-    backend_label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
+    try:
+        backend = database_backend()
+        backend_label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
+    except Exception:
+        backend_label = "Database unavailable"
     st.sidebar.caption(f"Data layer: {backend_label}")
     st.sidebar.markdown(
-        '<div class="cs-sidebar-note">Create, edit and delete records directly inside each module. Changes are persisted through the shared database layer.</div>',
+        '<div class="cs-sidebar-note">Create, edit and delete records directly inside each module. Changes use the shared database layer.</div>',
         unsafe_allow_html=True,
     )
     return choice
@@ -190,7 +203,10 @@ def main() -> None:
     inject_css()
     choice = render_sidebar()
     render_module(choice, get_database())
-    st.markdown('<div class="cs-footer">Creative Studios · AEC Collaboration Platform · Shared workspace</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="cs-footer">Creative Studios · AEC Collaboration Platform · Shared workspace</div>',
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":
