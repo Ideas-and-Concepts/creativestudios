@@ -433,3 +433,81 @@ Creative Studios
     ├── Windows
     ├── Finishes
     └── Other Construction Elements
+
+
+                         PROJECT
+                            │
+                      PROJECT ID
+                            │
+          ┌─────────────────┼─────────────────┐
+          │                 │                 │
+     ARCHITECTURE       ENGINEERING          MEP
+          │                 │                 │
+          └────────────┬────┴───────┬─────────┘
+                       │             │
+                    DRAWINGS       DESIGN DATA
+                       │
+                       ▼
+                      BOQ
+                       │
+             ┌─────────┼─────────┐
+             │         │         │
+        PROCUREMENT CONSTRUCTION COST CONTROL
+             │         │         │
+             └─────────┴─────────┘
+                       │
+                    PROJECT
+
+
+creativestudios/
+│
+├── .github/
+│   └── workflows/
+│       ├── deploy-fly.yml
+│       └── deploy.yml
+│
+├── .devcontainer/
+├── .streamlit/
+│   └── config.toml
+│
+├── assets/
+│   └── creative_studios.png
+│
+├── checks/
+│   ├── check_app.py
+│   ├── check_branding.py
+│   ├── check_database_import.py
+│   ├── check_documents.py
+│   ├── check_imports.py
+│   └── check_streamlit_import.py
+│
+├── modules/
+│   ├── __init__.py
+│   ├── architecture.py
+│   ├── boq.py
+│   ├── construction.py
+│   ├── dashboard.py
+│   ├── database.py
+│   ├── document_storage.py
+│   ├── documents.py
+│   ├── engineering.py
+│   ├── mep.py
+│   └── projects.py
+│
+├── streamlit/
+│   └── config.toml
+│
+├── tests/
+│   ├── test_branding.py
+│   ├── test_branding_asset.py
+│   ├── test_database_contract.py
+│   └── test_shared_db_identity.py
+│
+├── creativestudios_db.json
+├── Dockerfile
+├── fly.toml
+├── Procfile
+├── README.md
+├── NOTES
+├── requirements.txt
+└── streamlit_app.py
