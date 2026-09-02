@@ -6,24 +6,37 @@ const modules = [
   { name: "Dashboard", description: "Project and workspace overview." },
   { name: "Projects", description: "Manage projects, phases and project status." },
   { name: "Documents", description: "Central project documentation and records." },
-  { name: "Architecture", description: "Architectural design and construction information." },
-  { name: "Engineering", description: "Structural, civil and technical engineering work." },
+  { name: "Architecture", description: "Architectural works and construction information." },
+  { name: "Engineering", description: "Structural, civil and technical engineering works." },
   { name: "Drawings", description: "Architectural and structural drawing registers." },
   { name: "BOQ", description: "Bill of Quantities and construction cost items." },
   { name: "MEP", description: "Mechanical, electrical and plumbing coordination." },
-  { name: "Construction", description: "Construction activities and site information." },
+  { name: "Procurement", description: "Materials, suppliers and purchasing workflow." },
+  { name: "Construction", description: "Construction activities, progress and site records." },
+  { name: "Cost Control", description: "Project budgets, commitments and actual costs." },
+  { name: "Tasks", description: "Assignments, deadlines and project actions." },
+  { name: "RFIs", description: "Requests for information and responses." },
+  { name: "Approvals", description: "Controlled review and approval workflow." },
+  { name: "Reports", description: "Project, progress and commercial reporting." },
+  { name: "Settings", description: "Workspace configuration and administration." },
 ];
-
-const logoUrl = "https://raw.githubusercontent.com/Ideas-and-Concepts/creativestudios/main/assets/creative_studios.png";
 
 export default function Home() {
   const [active, setActive] = useState("Dashboard");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [databaseReady, setDatabaseReady] = useState(false);
+  const [projectCount, setProjectCount] = useState(0);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
-    }
+    void fetch("/api/health")
+      .then((response) => response.json())
+      .then((data) => setDatabaseReady(Boolean(data.database)))
+      .catch(() => setDatabaseReady(false));
+
+    void fetch("/api/projects")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => setProjectCount(Array.isArray(data?.data) ? data.data.length : 0))
+      .catch(() => setProjectCount(0));
   }, []);
 
   const activeModule = useMemo(
@@ -35,7 +48,7 @@ export default function Home() {
     <main className={theme === "light" ? "app light" : "app"}>
       <aside className="sidebar">
         <div className="brand">
-          <img src={logoUrl} alt="Creative Studios" className="logo" />
+          <img src="/assets/creative_studios.png" alt="Creative Studios" className="logo" />
           <div className="brand-title">Creative Studios</div>
           <div className="brand-subtitle">AEC Collaboration Platform</div>
         </div>
@@ -73,19 +86,24 @@ export default function Home() {
             <h1>{activeModule.name}</h1>
             <p>{activeModule.description}</p>
           </div>
-          <div className="status">Workspace ready</div>
+          <div className={databaseReady ? "status ready" : "status"}>
+            {databaseReady ? "Database connected" : "Database pending"}
+          </div>
         </header>
 
         <div className="hero-card">
-          <h2>Creative Studios Workspace</h2>
-          <p>
-            Manage projects, documents, drawings, BOQ and construction information
-            from one connected AEC workspace.
-          </p>
+          <div>
+            <div className="eyebrow">AEC project workspace</div>
+            <h2>One connected workspace for the project lifecycle.</h2>
+            <p>
+              Connect projects, architecture, engineering, drawings, BOQ, procurement,
+              construction and cost control through a single progressive web application.
+            </p>
+          </div>
         </div>
 
         <div className="kpi-grid">
-          <div className="kpi-card"><span>Projects</span><strong>0</strong></div>
+          <div className="kpi-card"><span>Projects</span><strong>{projectCount}</strong></div>
           <div className="kpi-card"><span>Drawings</span><strong>0</strong></div>
           <div className="kpi-card"><span>BOQ Items</span><strong>0</strong></div>
           <div className="kpi-card"><span>Active Works</span><strong>0</strong></div>
@@ -93,15 +111,15 @@ export default function Home() {
 
         <div className="workspace-card">
           <div>
-            <h2>{activeModule.name} workspace</h2>
+            <div className="section-label">Current workspace</div>
+            <h2>{activeModule.name}</h2>
             <p>
-              The PWA foundation is in place. Data services will be connected
-              to PostgreSQL in the next migration stage.
+              Module navigation is live. The next implementation stage connects each
+              module to the shared PostgreSQL data model and project relationships.
             </p>
           </div>
-          <div className="workflow">
-            <span>Projects</span><span>Architecture</span><span>Engineering</span>
-            <span>Drawings</span><span>BOQ</span><span>Construction</span>
+          <div className="workflow" aria-label="Project workflow">
+            {modules.slice(1, 11).map((item) => <span key={item.name}>{item.name}</span>)}
           </div>
         </div>
       </section>
