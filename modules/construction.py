@@ -1,28 +1,54 @@
 """
 Creative Studios
-Construction Management Module
+Construction Management Module (self-contained)
 """
 
+import json
 import streamlit as st
 from datetime import datetime, date
-from .database import save_memory, get_collection
+from pathlib import Path
 
 
-def _log_activity(database, action, details=""):
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_FILE = BASE_DIR / "creativestudios_db.json"
+
+
+def _load_db():
+    if DB_FILE.exists():
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"projects": [], "construction": [], "activity_log": []}
+
+
+def _save_db(db):
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(db, f, indent=2, default=str)
+
+
+def _get_collection(collection, db):
+    if collection not in db:
+        db[collection] = []
+    if not isinstance(db[collection], list):
+        db[collection] = []
+    return db[collection]
+
+
+def _log_activity(db, action, details=""):
     entry = {
         "timestamp": datetime.now().isoformat(),
         "action": action,
         "details": details,
         "user": "System",
     }
-    database.setdefault("activity_log", []).append(entry)
-    save_memory(database)
+    _get_collection("activity_log", db).append(entry)
+    _save_db(db)
 
 
 def render_construction_module(database):
     st.header("Construction Management")
+    db = database
 
-    projects = get_collection("projects", database)
+    projects = _get_collection("projects", db)
     if not projects:
         st.warning("No projects found. Create a project first in the Projects module.")
         return
@@ -31,7 +57,7 @@ def render_construction_module(database):
     selected_project_name = st.selectbox("Select Project", list(project_names.keys()))
     project_id = project_names[selected_project_name]
 
-    all_phases = get_collection("construction", database)
+    all_phases = _get_collection("construction", db)
     phases = [p for p in all_phases if p.get("project_id") == project_id]
 
     # Add phase
@@ -59,9 +85,9 @@ def render_construction_module(database):
                 "created_at": datetime.now().isoformat(),
             }
             all_phases.append(new_phase)
-            database["construction"] = all_phases
-            save_memory(database)
-            _log_activity(database, "Construction phase added", phase_name)
+            db["construction"] = all_phases
+            _save_db(db)
+            _log_activity(db, "Construction phase added", phase_name)
             st.success(f"Phase '{phase_name}' added!")
             st.rerun()
 
@@ -90,16 +116,16 @@ def render_construction_module(database):
                             "start": str(new_start),
                             "end": str(new_end),
                         })
-                        save_memory(database)
-                        _log_activity(database, "Construction phase updated", new_phase)
+                        _save_db(db)
+                        _log_activity(db, "Construction phase updated", new_phase)
                         st.success("Phase updated!")
                         st.rerun()
                 with col2:
                     if st.button("Delete", key=f"del_{phase['id']}"):
                         all_phases = [p for p in all_phases if p["id"] != phase["id"]]
-                        database["construction"] = all_phases
-                        save_memory(database)
-                        _log_activity(database, "Construction phase deleted", phase["phase"])
+                        db["construction"] = all_phases
+                        _save_db(db)
+                        _log_activity(db, "Construction phase deleted", phase["phase"])
                         st.warning("Phase deleted!")
                         st.rerun()
 
