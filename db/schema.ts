@@ -240,6 +240,19 @@ export const approvals = pgTable("approvals", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const costControl = pgTable("cost_control", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  costCode: text("cost_code").notNull(),
+  description: text("description").notNull(),
+  costType: text("cost_type").notNull(),
+  amount: decimal("amount", { precision: 16, scale: 2 }).default("0").notNull(),
+  status: text("status").default("draft").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
