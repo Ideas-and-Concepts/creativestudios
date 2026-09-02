@@ -7,7 +7,6 @@ import streamlit as st
 from pathlib import Path
 from datetime import datetime
 from .database import (
-    get_collection,
     add_record,
     update_record,
     delete_record,
@@ -20,6 +19,15 @@ DOCUMENT_STATUSES = ["Draft", "Under Review", "Approved", "Superseded", "Archive
 BASE_DIR = Path(__file__).resolve().parent.parent
 STORAGE_DIR = BASE_DIR / "storage" / "documents"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _get_collection(collection, db):
+    """Local helper that returns a list from the database."""
+    if collection not in db:
+        db[collection] = []
+    if not isinstance(db[collection], list):
+        db[collection] = []
+    return db[collection]
 
 
 def _log_activity(database, action, details=""):
@@ -47,7 +55,7 @@ def _save_uploaded_file(uploaded_file, document_id, version):
 def render_documents_module(database):
     st.header("Documents")
 
-    documents = get_collection("documents", database)
+    documents = _get_collection("documents", database)
 
     # Upload new document or new version
     with st.expander("New Document", expanded=False):
@@ -139,7 +147,7 @@ def render_documents_module(database):
                             mime="application/octet-stream",
                         )
 
-            versions = [v for v in get_collection("document_versions", database) if v.get("document_id") == doc["id"]]
+            versions = [v for v in _get_collection("document_versions", database) if v.get("document_id") == doc["id"]]
             if versions:
                 st.markdown("**Version History:**")
                 for v in sorted(versions, key=lambda x: x["version"], reverse=True):
