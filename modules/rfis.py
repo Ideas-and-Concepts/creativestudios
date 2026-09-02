@@ -5,10 +5,22 @@ from typing import Any
 
 import streamlit as st
 
-from modules.module_utils import ensure_collection, now_iso, project_records, project_selector, save_new_record, save_updated_record
+from modules.module_utils import (
+    ensure_collection,
+    now_iso,
+    project_records,
+    project_selector,
+    remove_record,
+    save_new_record,
+    save_updated_record,
+)
 
 STATUSES = ["Open", "Under Review", "Answered", "Closed", "Cancelled"]
 PRIORITIES = ["Low", "Medium", "High", "Critical"]
+
+
+def _index(options: list[str], value: Any, default: int = 0) -> int:
+    return options.index(value) if value in options else default
 
 
 def render_rfis_module(database: dict[str, Any]) -> None:
@@ -33,8 +45,8 @@ def render_rfis_module(database: dict[str, Any]) -> None:
                 number = st.text_input("RFI Number", value=str(record.get("rfi_number", "")))
                 subject = st.text_input("Subject", value=str(record.get("subject", "")))
                 raised_by = st.text_input("Raised By", value=str(record.get("raised_by", "")))
-                priority = st.selectbox("Priority", PRIORITIES, index=PRIORITIES.index(record.get("priority", "Medium")) if record.get("priority") in PRIORITIES else 1)
-                status = st.selectbox("Status", STATUSES, index=STATUSES.index(record.get("status", "Open")) if record.get("status") in STATUSES else 0)
+                priority = st.selectbox("Priority", PRIORITIES, index=_index(PRIORITIES, record.get("priority"), 1))
+                status = st.selectbox("Status", STATUSES, index=_index(STATUSES, record.get("status")))
                 question = st.text_area("Question", value=str(record.get("question", "")))
                 response = st.text_area("Response", value=str(record.get("response", "")))
                 notes = st.text_area("Notes", value=str(record.get("notes", "")))
@@ -43,13 +55,39 @@ def render_rfis_module(database: dict[str, Any]) -> None:
                 if not number.strip() or not subject.strip() or not question.strip():
                     st.error("RFI Number, Subject and Question are required.")
                 else:
-                    save_updated_record(database, "rfis", rid, {"rfi_number": number.strip(), "subject": subject.strip(), "raised_by": raised_by.strip(), "priority": priority, "status": status, "question": question.strip(), "response": response.strip(), "notes": notes.strip(), "updated_at": now_iso()})
-                    st.success("RFI updated.")
-                    st.rerun()
+                    try:
+                        save_updated_record(
+                            database,
+                            "rfis",
+                            rid,
+                            {
+                                "project_id": project_id,
+                                "rfi_number": number.strip(),
+                                "subject": subject.strip(),
+                                "raised_by": raised_by.strip(),
+                                "priority": priority,
+                                "status": status,
+                                "question": question.strip(),
+                                "response": response.strip(),
+                                "notes": notes.strip(),
+                                "updated_at": now_iso(),
+                            },
+                        )
+                        st.success("RFI updated.")
+                        st.rerun()
+                    except Exception as exc:
+                        st.error("Unable to update the RFI.")
+                        with st.expander("Technical details"):
+                            st.exception(exc)
             if st.button("Delete RFI", key=f"rfi_delete_{rid}", use_container_width=True):
-                from modules.database import delete_record
-                delete_record("rfis", rid, database)
-                st.rerun()
+                try:
+                    remove_record(database, "rfis", rid)
+                    st.success("RFI deleted.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error("Unable to delete the RFI.")
+                    with st.expander("Technical details"):
+                        st.exception(exc)
 
     st.divider()
     with st.form("rfi_add", clear_on_submit=True):
@@ -66,6 +104,27 @@ def render_rfis_module(database: dict[str, Any]) -> None:
         if not number.strip() or not subject.strip() or not question.strip():
             st.error("RFI Number, Subject and Question are required.")
         else:
-            save_new_record(database, "rfis", {"project_id": project_id, "rfi_number": number.strip(), "subject": subject.strip(), "raised_by": raised_by.strip(), "priority": priority, "status": status, "question": question.strip(), "response": response.strip(), "notes": notes.strip(), "created_at": now_iso(), "updated_at": now_iso()})
-            st.success("RFI added.")
-            st.rerun()
+            try:
+                save_new_record(
+                    database,
+                    "rfis",
+                    {
+                        "project_id": project_id,
+                        "rfi_number": number.strip(),
+                        "subject": subject.strip(),
+                        "raised_by": raised_by.strip(),
+                        "priority": priority,
+                        "status": status,
+                        "question": question.strip(),
+                        "response": response.strip(),
+                        "notes": notes.strip(),
+                        "created_at": now_iso(),
+                        "updated_at": now_iso(),
+                    },
+                )
+                st.success("RFI added.")
+                st.rerun()
+            except Exception as exc:
+                st.error("Unable to add the RFI.")
+                with st.expander("Technical details"):
+                    st.exception(exc)
