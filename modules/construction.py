@@ -1,8 +1,6 @@
 """
 Creative Studios
 Construction Management Module
-
-Tracks construction phases per project with basic CRUD.
 """
 
 import streamlit as st
@@ -24,7 +22,6 @@ def _log_activity(database, action, details=""):
 def render_construction_module(database):
     st.header("Construction Management")
 
-    # Project selection
     projects = get_collection("projects", database)
     if not projects:
         st.warning("No projects found. Create a project first in the Projects module.")
@@ -68,7 +65,6 @@ def render_construction_module(database):
             st.success(f"Phase '{phase_name}' added!")
             st.rerun()
 
-    # Manage phases
     if phases:
         st.subheader("Manage Construction Phases")
         for phase in phases:
@@ -107,7 +103,6 @@ def render_construction_module(database):
                         st.warning("Phase deleted!")
                         st.rerun()
 
-        # Simple table
         st.subheader("Phase Summary")
         table_data = []
         for p in phases:
