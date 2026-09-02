@@ -1,8 +1,6 @@
 """
 Creative Studios
 Documents Module
-
-Supports document upload, metadata, and basic versioning.
 """
 
 import streamlit as st
@@ -16,7 +14,6 @@ from .database import (
     next_id,
     save_memory,
 )
-
 
 DOCUMENT_STATUSES = ["Draft", "Under Review", "Approved", "Superseded", "Archived"]
 
@@ -37,7 +34,6 @@ def _log_activity(database, action, details=""):
 
 
 def _save_uploaded_file(uploaded_file, document_id, version):
-    """Save uploaded file to storage directory and return relative path."""
     if uploaded_file is None:
         return ""
     file_ext = Path(uploaded_file.name).suffix
@@ -70,15 +66,11 @@ def render_documents_module(database):
             elif uploaded_file is None:
                 st.error("Please select a file.")
             else:
-                # Check if document with same title exists (versioning)
                 existing = next((d for d in documents if d.get("title", "").lower() == title.lower()), None)
                 if existing:
-                    # Create new version
                     new_version = existing.get("version", 1) + 1
                     doc_id = existing["id"]
                     file_path = _save_uploaded_file(uploaded_file, doc_id, new_version)
-
-                    # Add version record
                     version_record = {
                         "id": next_id("document_versions", database),
                         "document_id": doc_id,
@@ -88,8 +80,6 @@ def render_documents_module(database):
                         "version_note": version_note,
                     }
                     add_record("document_versions", version_record, database)
-
-                    # Update main document record
                     update_record(
                         "documents",
                         doc_id,
@@ -99,7 +89,6 @@ def render_documents_module(database):
                     _log_activity(database, "Document version uploaded", f"{title} v{new_version}")
                     st.success(f"Version {new_version} uploaded for '{title}'.")
                 else:
-                    # New document
                     doc_id = next_id("documents", database)
                     file_path = _save_uploaded_file(uploaded_file, doc_id, 1)
                     document = {
@@ -113,8 +102,6 @@ def render_documents_module(database):
                         "created_at": datetime.now().isoformat(),
                     }
                     add_record("documents", document, database)
-
-                    # Add initial version record
                     version_record = {
                         "id": next_id("document_versions", database),
                         "document_id": doc_id,
@@ -141,7 +128,6 @@ def render_documents_module(database):
             st.write(f"**Status:** {doc.get('status', 'N/A')}")
             st.write(f"**File:** {doc.get('file_path', 'N/A')}")
 
-            # Download current version
             if doc.get("file_path"):
                 file_path = BASE_DIR / doc["file_path"]
                 if file_path.exists():
@@ -153,7 +139,6 @@ def render_documents_module(database):
                             mime="application/octet-stream",
                         )
 
-            # Version history
             versions = [v for v in get_collection("document_versions", database) if v.get("document_id") == doc["id"]]
             if versions:
                 st.markdown("**Version History:**")
@@ -170,14 +155,12 @@ def render_documents_module(database):
                                     key=f"download_{v['id']}",
                                 )
 
-            # Edit and Delete
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Edit", key=f"edit_doc_{doc['id']}"):
                     st.session_state["edit_doc_id"] = doc["id"]
             with col2:
                 if st.button("Delete", key=f"del_doc_{doc['id']}"):
-                    # Delete file from storage
                     if doc.get("file_path"):
                         fpath = BASE_DIR / doc["file_path"]
                         if fpath.exists():
@@ -187,7 +170,7 @@ def render_documents_module(database):
                     st.success("Document deleted.")
                     st.rerun()
 
-    # Edit form (if requested)
+    # Edit form
     if "edit_doc_id" in st.session_state:
         doc_id = st.session_state["edit_doc_id"]
         doc = next((d for d in documents if d["id"] == doc_id), None)
