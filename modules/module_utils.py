@@ -6,7 +6,7 @@ from typing import Any
 
 import streamlit as st
 
-from modules.database import add_record, delete_record, get_records, update_record
+from modules.database import add_record, delete_record, update_record
 from modules.project_context import project_label, project_options
 
 
@@ -60,7 +60,7 @@ def save_new_record(database: dict[str, Any], collection: str, record: dict[str,
 
 
 def save_updated_record(database: dict[str, Any], collection: str, record_id: Any, updates: dict[str, Any]) -> bool:
-    return update_record(collection, record_id, updates) is not None
+    return update_record(collection, record_id, updates, database) is not None
 
 
 def remove_record(database: dict[str, Any], collection: str, record_id: Any) -> bool:
