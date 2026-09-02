@@ -59,7 +59,7 @@ def _add_record(collection, record, db):
 def _update_record(collection, record_id, updates, db):
     records = _get_collection(collection, db)
     for idx, rec in enumerate(records):
-        if str(rec.get("id")) == str(record_id):
+        if isinstance(rec, dict) and str(rec.get("id")) == str(record_id):
             rec.update(updates)
             _save_db(db)
             return rec
@@ -69,7 +69,7 @@ def _update_record(collection, record_id, updates, db):
 def _delete_record(collection, record_id, db):
     records = _get_collection(collection, db)
     for idx, rec in enumerate(records):
-        if str(rec.get("id")) == str(record_id):
+        if isinstance(rec, dict) and str(rec.get("id")) == str(record_id):
             records.pop(idx)
             _save_db(db)
             return True
@@ -89,7 +89,7 @@ def _log_activity(db, action, details=""):
 
 def render_projects_module(database):
     st.header("Projects")
-    db = database  # database passed from main
+    db = database
 
     projects = _get_collection("projects", db)
 
@@ -123,13 +123,15 @@ def render_projects_module(database):
                 st.success(f"Project '{name}' created.")
                 st.rerun()
 
-    # List projects
-    if not projects:
+    # List projects: filter only dicts
+    valid_projects = [p for p in projects if isinstance(p, dict)]
+    if not valid_projects:
         st.info("No projects found. Create one above.")
         return
 
     st.subheader("Existing Projects")
-    for project in projects:
+    for idx, project in enumerate(valid_projects):
+        pid = project.get("id")
         with st.expander(f"{project.get('name', 'Unnamed')} ({project.get('status', 'N/A')})"):
             st.write(f"**Client:** {project.get('client', 'N/A')}")
             st.write(f"**Location:** {project.get('location', 'N/A')}")
@@ -139,21 +141,21 @@ def render_projects_module(database):
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Edit", key=f"edit_{project['id']}"):
-                    st.session_state["edit_project_id"] = project["id"]
+                if st.button("Edit", key=f"edit_{pid}_{idx}"):
+                    st.session_state["edit_project_id"] = pid
             with col2:
-                if st.button("Delete", key=f"del_{project['id']}"):
-                    _delete_record("projects", project["id"], db)
+                if st.button("Delete", key=f"del_{pid}_{idx}"):
+                    _delete_record("projects", pid, db)
                     _log_activity(db, "Project deleted", project.get("name", ""))
                     st.success("Project deleted.")
                     st.rerun()
 
     # Edit form
     if "edit_project_id" in st.session_state:
-        pid = st.session_state["edit_project_id"]
-        project = next((p for p in projects if p["id"] == pid), None)
+        edit_pid = st.session_state["edit_project_id"]
+        project = next((p for p in valid_projects if p.get("id") == edit_pid), None)
         if project:
-            st.subheader(f"Edit Project: {project['name']}")
+            st.subheader(f"Edit Project: {project.get('name', '')}")
             with st.form("edit_project_form"):
                 name = st.text_input("Name", value=project.get("name", ""))
                 client = st.text_input("Client", value=project.get("client", ""))
@@ -167,7 +169,7 @@ def render_projects_module(database):
             if update:
                 _update_record(
                     "projects",
-                    pid,
+                    edit_pid,
                     {
                         "name": name.strip(),
                         "client": client.strip(),
