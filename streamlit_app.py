@@ -7,10 +7,12 @@ production PostgreSQL schema.
 """
 from __future__ import annotations
 
+import html
 import importlib
 import os
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 import streamlit as st
 
@@ -18,10 +20,22 @@ from modules.database import load_memory
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
-PWA_URL = os.getenv(
-    "CREATIVE_STUDIOS_PWA_URL",
-    "https://creativestudios-rho.vercel.app/",
-)
+DEFAULT_PWA_URL = "https://creativestudios-rho.vercel.app/"
+
+
+def get_pwa_url() -> str:
+    """Return a valid external PWA URL from Streamlit configuration."""
+    configured_url = os.getenv("CREATIVE_STUDIOS_PWA_URL", "").strip()
+    candidate = configured_url or DEFAULT_PWA_URL
+    parsed = urlparse(candidate)
+
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        return candidate
+
+    return DEFAULT_PWA_URL
+
+
+PWA_URL = get_pwa_url()
 
 LOGO_PATH = next(
     (
@@ -43,10 +57,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# The Python workspace exposes only modules that have a real Streamlit
-# renderer. Modules that are part of the production PWA but do not yet have a
-# Python renderer are shown as planned/production-only instead of failing at
-# import time.
 NAVIGATION = [
     "Dashboard",
     "Projects",
@@ -155,6 +165,23 @@ def inject_css() -> None:
             margin-top: .7rem;
         }
 
+        .cs-pwa-link {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            text-decoration: none !important;
+            font-weight: 600;
+            padding: .55rem .75rem;
+            border: 1px solid rgba(127,127,127,.35);
+            border-radius: 8px;
+            margin: .4rem 0 .8rem;
+        }
+
+        .cs-pwa-link:hover {
+            background: rgba(127,127,127,.12);
+        }
+
         .cs-footer {
             text-align: center;
             opacity: .5;
@@ -174,6 +201,16 @@ def inject_css() -> None:
         }
         </style>
         """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_pwa_link() -> None:
+    """Render a browser-native external link to the production PWA."""
+    safe_url = html.escape(PWA_URL, quote=True)
+    st.sidebar.markdown(
+        f'<a class="cs-pwa-link" href="{safe_url}" target="_blank" '
+        'rel="noopener noreferrer">Open Production PWA</a>',
         unsafe_allow_html=True,
     )
 
@@ -205,7 +242,7 @@ def render_sidebar() -> str:
         unsafe_allow_html=True,
     )
 
-    st.sidebar.link_button("Open Production PWA", PWA_URL, use_container_width=True)
+    render_pwa_link()
 
     st.sidebar.markdown(
         '<div class="cs-sidebar-section">Workspace</div>',
@@ -233,14 +270,19 @@ def render_sidebar() -> str:
         unsafe_allow_html=True,
     )
     st.sidebar.markdown(
-        '<div class="cs-sidebar-status">Legacy Python workspace<br>Production data layer: Neon PostgreSQL</div>',
+        '<div class="cs-sidebar-status">'
+        "Legacy Python workspace<br>"
+        "Production data layer: Neon PostgreSQL"
+        "</div>",
         unsafe_allow_html=True,
     )
 
     return choice
 
 
-def load_module_renderer(name: str) -> Callable[[dict[str, Any]], Any] | None:
+def load_module_renderer(
+    name: str,
+) -> Callable[[dict[str, Any]], Any] | None:
     """Load a Streamlit renderer when one exists."""
     if name not in MODULE_IMPORTS:
         return None
@@ -248,10 +290,12 @@ def load_module_renderer(name: str) -> Callable[[dict[str, Any]], Any] | None:
     module_path, function_name = MODULE_IMPORTS[name]
     module = importlib.import_module(module_path)
     renderer = getattr(module, function_name, None)
+
     if not callable(renderer):
         raise TypeError(
             f"{module_path}.{function_name} is missing or is not callable."
         )
+
     return renderer
 
 
@@ -265,15 +309,21 @@ def render_production_only_module(name: str) -> None:
         "This legacy Streamlit shell does not duplicate the production module."
     )
 
-    st.link_button("Open Production PWA", PWA_URL, use_container_width=False)
-
-    st.markdown("### Production architecture")
-    st.write(
-        "Next.js PWA → API routes → Drizzle ORM → Neon PostgreSQL"
+    safe_url = html.escape(PWA_URL, quote=True)
+    st.markdown(
+        f'<a class="cs-pwa-link" href="{safe_url}" target="_blank" '
+        'rel="noopener noreferrer">Open Production PWA</a>',
+        unsafe_allow_html=True,
     )
 
+    st.markdown("### Production architecture")
+    st.write("Next.js PWA → API routes → Drizzle ORM → Neon PostgreSQL")
 
-def render_module(name: str, database: dict[str, Any]) -> None:
+
+def render_module(
+    name: str,
+    database: dict[str, Any],
+) -> None:
     """Render a Python module safely, or route to its production PWA page."""
     if name in PRODUCTION_ONLY_MODULES:
         render_production_only_module(name)
@@ -301,7 +351,8 @@ def main() -> None:
 
     st.markdown(
         '<div class="cs-footer">'
-        "Creative Studios · AEC Collaboration Platform · Legacy Streamlit Workspace"
+        "Creative Studios · AEC Collaboration Platform · "
+        "Legacy Streamlit Workspace"
         "</div>",
         unsafe_allow_html=True,
     )
