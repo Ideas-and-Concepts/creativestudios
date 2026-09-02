@@ -2,7 +2,7 @@
 Creative Studios
 Construction Management Module
 
-Tracks construction phases per project with basic CRUD and optional Gantt chart.
+Tracks construction phases per project with basic CRUD.
 """
 
 import streamlit as st
@@ -37,7 +37,7 @@ def render_construction_module(database):
     all_phases = get_collection("construction", database)
     phases = [p for p in all_phases if p.get("project_id") == project_id]
 
-    # ==================== ADD PHASE ====================
+    # Add phase
     st.subheader("Add New Construction Phase")
     with st.form("add_phase_form", clear_on_submit=True):
         phase_name = st.text_input("Phase Name", placeholder="e.g., Foundation")
@@ -68,7 +68,7 @@ def render_construction_module(database):
             st.success(f"Phase '{phase_name}' added!")
             st.rerun()
 
-    # ==================== LIST / EDIT / DELETE ====================
+    # Manage phases
     if phases:
         st.subheader("Manage Construction Phases")
         for phase in phases:
