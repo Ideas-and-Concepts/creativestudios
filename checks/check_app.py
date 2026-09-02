@@ -23,6 +23,7 @@ WORKSPACE_MODULES = [
     ("drawings", "render_drawings_module"),
     ("boq", "render_boq_module"),
     ("mep", "render_mep_module"),
+    ("procurement", "render_procurement_module"),
     ("construction", "render_construction_module"),
     ("cost_control", "render_cost_control_module"),
     ("tasks", "render_tasks_module"),
@@ -80,16 +81,21 @@ def main() -> int:
             print(f"MISSING COLLECTION: {collection}")
             return 1
 
-    try:
-        for module_name, renderer_name in WORKSPACE_MODULES:
+    failures = []
+    for module_name, renderer_name in WORKSPACE_MODULES:
+        try:
             module = importlib.import_module(f"modules.{module_name}")
             renderer = getattr(module, renderer_name, None)
             if not callable(renderer):
-                print(f"MISSING RENDERER: modules.{module_name}.{renderer_name}")
-                return 1
-            print(f"PASS: modules.{module_name}")
-    except Exception as exc:
-        print(f"MODULE IMPORT FAILED: {type(exc).__name__}: {exc}")
+                failures.append(f"MISSING RENDERER: modules.{module_name}.{renderer_name}")
+            else:
+                print(f"PASS: modules.{module_name}.{renderer_name}")
+        except Exception as exc:
+            failures.append(f"MODULE IMPORT FAILED: modules.{module_name}: {type(exc).__name__}: {exc}")
+
+    if failures:
+        for failure in failures:
+            print(failure)
         return 1
 
     print("PASS: database contract")
