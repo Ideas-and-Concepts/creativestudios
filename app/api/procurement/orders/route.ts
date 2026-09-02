@@ -1,0 +1,140 @@
+import { NextRequest, NextResponse } from "next/server";
+import { desc, eq } from "drizzle-orm";
+import { z } from "zod";
+
+import { getDb } from "../../../../db";
+import { boqItems, projects, purchaseOrderItems, purchaseOrders, suppliers } from "../../../../db/schema";
+
+export const runtime = "nodejs";
+
+const statuses = ["draft", "requested", "approved", "ordered", "partially_received", "received", "cancelled"] as const;
+
+const itemSchema = z.object({
+  boqItemId: z.string().uuid().nullable().optional(),
+  description: z.string().trim().min(1).max(2000),
+  quantity: z.number().positive().max(100000000),
+  unit: z.string().trim().min(1).max(30),
+  unitRate: z.number().min(0).max(1000000000),
+});
+
+const orderSchema = z.object({
+  projectId: z.string().uuid(),
+  supplierId: z.string().uuid(),
+  poNumber: z.string().trim().min(1).max(80),
+  status: z.enum(statuses).default("draft"),
+  orderDate: z.string().datetime({ offset: true }).nullable().optional(),
+  expectedDeliveryDate: z.string().datetime({ offset: true }).nullable().optional(),
+  taxRate: z.number().min(0).max(100).default(0),
+  notes: z.string().trim().max(4000).nullable().optional(),
+  items: z.array(itemSchema).min(1).max(500),
+});
+
+function decimal(value: number, scale: number) {
+  return Number(value.toFixed(scale));
+}
+
+export async function GET(request: NextRequest) {
+  const projectId = request.nextUrl.searchParams.get("projectId");
+  if (projectId && !z.string().uuid().safeParse(projectId).success) {
+    return NextResponse.json({ error: "Invalid project ID." }, { status: 400 });
+  }
+
+  try {
+    const db = getDb();
+    const orders = await db.select({
+      id: purchaseOrders.id,
+      projectId: purchaseOrders.projectId,
+      projectCode: projects.code,
+      projectName: projects.name,
+      supplierId: purchaseOrders.supplierId,
+      supplierCode: suppliers.code,
+      supplierName: suppliers.name,
+      poNumber: purchaseOrders.poNumber,
+      status: purchaseOrders.status,
+      orderDate: purchaseOrders.orderDate,
+      expectedDeliveryDate: purchaseOrders.expectedDeliveryDate,
+      subtotal: purchaseOrders.subtotal,
+      taxAmount: purchaseOrders.taxAmount,
+      totalAmount: purchaseOrders.totalAmount,
+      notes: purchaseOrders.notes,
+      createdAt: purchaseOrders.createdAt,
+      updatedAt: purchaseOrders.updatedAt,
+    })
+      .from(purchaseOrders)
+      .innerJoin(projects, eq(purchaseOrders.projectId, projects.id))
+      .innerJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .where(projectId ? eq(purchaseOrders.projectId, projectId) : undefined)
+      .orderBy(desc(purchaseOrders.createdAt));
+
+    const items = await db.select().from(purchaseOrderItems);
+    const data = orders.map((order) => ({
+      ...order,
+      items: items.filter((item) => item.purchaseOrderId === order.id),
+    }));
+
+    return NextResponse.json({ data });
+  } catch (error) {
+    console.error("GET /api/procurement/orders failed", error);
+    return NextResponse.json({ error: "Database unavailable. Configure DATABASE_URL and ensure the procurement tables exist." }, { status: 503 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = orderSchema.parse(await request.json());
+    const db = getDb();
+
+    const [project] = await db.select({ id: projects.id }).from(projects).where(eq(projects.id, body.projectId)).limit(1);
+    if (!project) return NextResponse.json({ error: "Project not found." }, { status: 400 });
+
+    const [supplier] = await db.select({ id: suppliers.id, isActive: suppliers.isActive }).from(suppliers).where(eq(suppliers.id, body.supplierId)).limit(1);
+    if (!supplier) return NextResponse.json({ error: "Supplier not found." }, { status: 400 });
+    if (!supplier.isActive) return NextResponse.json({ error: "The selected supplier is inactive." }, { status: 400 });
+
+    for (const item of body.items) {
+      if (item.boqItemId) {
+        const [boq] = await db.select({ id: boqItems.id, projectId: boqItems.projectId }).from(boqItems).where(eq(boqItems.id, item.boqItemId)).limit(1);
+        if (!boq) return NextResponse.json({ error: `BOQ item ${item.boqItemId} was not found.` }, { status: 400 });
+        if (boq.projectId !== body.projectId) return NextResponse.json({ error: "Every linked BOQ item must belong to the selected project." }, { status: 400 });
+      }
+    }
+
+    const subtotal = decimal(body.items.reduce((sum, item) => sum + item.quantity * item.unitRate, 0), 2);
+    const taxAmount = decimal(subtotal * (body.taxRate / 100), 2);
+    const totalAmount = decimal(subtotal + taxAmount, 2);
+
+    const [order] = await db.insert(purchaseOrders).values({
+      projectId: body.projectId,
+      supplierId: body.supplierId,
+      poNumber: body.poNumber,
+      status: body.status,
+      orderDate: body.orderDate ? new Date(body.orderDate) : null,
+      expectedDeliveryDate: body.expectedDeliveryDate ? new Date(body.expectedDeliveryDate) : null,
+      subtotal: subtotal.toFixed(2),
+      taxAmount: taxAmount.toFixed(2),
+      totalAmount: totalAmount.toFixed(2),
+      notes: body.notes?.trim() || null,
+    }).returning();
+
+    try {
+      await db.insert(purchaseOrderItems).values(body.items.map((item) => ({
+        purchaseOrderId: order.id,
+        boqItemId: item.boqItemId ?? null,
+        description: item.description,
+        quantity: item.quantity.toFixed(3),
+        unit: item.unit,
+        unitRate: item.unitRate.toFixed(2),
+        amount: decimal(item.quantity * item.unitRate, 2).toFixed(2),
+      })));
+    } catch (itemError) {
+      await db.delete(purchaseOrders).where(eq(purchaseOrders.id, order.id));
+      throw itemError;
+    }
+
+    return NextResponse.json({ data: order }, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid purchase order data.", details: error.flatten() }, { status: 400 });
+    console.error("POST /api/procurement/orders failed", error);
+    return NextResponse.json({ error: "Unable to create purchase order. The PO number may already exist." }, { status: 409 });
+  }
+}
