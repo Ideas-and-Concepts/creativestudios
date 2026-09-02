@@ -61,7 +61,7 @@ def _add_record(collection, record, db):
 def _update_record(collection, record_id, updates, db):
     records = _get_collection(collection, db)
     for idx, rec in enumerate(records):
-        if str(rec.get("id")) == str(record_id):
+        if isinstance(rec, dict) and str(rec.get("id")) == str(record_id):
             rec.update(updates)
             _save_db(db)
             return rec
@@ -71,7 +71,7 @@ def _update_record(collection, record_id, updates, db):
 def _delete_record(collection, record_id, db):
     records = _get_collection(collection, db)
     for idx, rec in enumerate(records):
-        if str(rec.get("id")) == str(record_id):
+        if isinstance(rec, dict) and str(rec.get("id")) == str(record_id):
             records.pop(idx)
             _save_db(db)
             return True
@@ -123,7 +123,7 @@ def render_documents_module(database):
             elif uploaded_file is None:
                 st.error("Please select a file.")
             else:
-                existing = next((d for d in documents if d.get("title", "").lower() == title.lower()), None)
+                existing = next((d for d in documents if isinstance(d, dict) and d.get("title", "").lower() == title.lower()), None)
                 if existing:
                     new_version = existing.get("version", 1) + 1
                     doc_id = existing["id"]
@@ -167,13 +167,15 @@ def render_documents_module(database):
                     st.success(f"Document '{title}' uploaded.")
                 st.rerun()
 
-    # List documents
-    if not documents:
+    # List documents: filter only dicts
+    valid_documents = [d for d in documents if isinstance(d, dict)]
+    if not valid_documents:
         st.info("No documents found.")
         return
 
     st.subheader("Document Library")
-    for doc in documents:
+    for idx, doc in enumerate(valid_documents):
+        doc_id = doc.get("id")
         with st.expander(f"{doc.get('title', 'Untitled')} (v{doc.get('version', 1)})"):
             st.write(f"**Project:** {doc.get('project', 'N/A')}")
             st.write(f"**Discipline:** {doc.get('discipline', 'N/A')}")
@@ -191,7 +193,7 @@ def render_documents_module(database):
                             mime="application/octet-stream",
                         )
 
-            versions = [v for v in _get_collection("document_versions", db) if v.get("document_id") == doc["id"]]
+            versions = [v for v in _get_collection("document_versions", db) if isinstance(v, dict) and v.get("document_id") == doc_id]
             if versions:
                 st.markdown("**Version History:**")
                 for v in sorted(versions, key=lambda x: x["version"], reverse=True):
@@ -204,30 +206,30 @@ def render_documents_module(database):
                                     label=f"Download v{v['version']}",
                                     data=f,
                                     file_name=fpath.name,
-                                    key=f"download_{v['id']}",
+                                    key=f"download_{v['id']}_{idx}",
                                 )
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Edit", key=f"edit_doc_{doc['id']}"):
-                    st.session_state["edit_doc_id"] = doc["id"]
+                if st.button("Edit", key=f"edit_doc_{doc_id}_{idx}"):
+                    st.session_state["edit_doc_id"] = doc_id
             with col2:
-                if st.button("Delete", key=f"del_doc_{doc['id']}"):
+                if st.button("Delete", key=f"del_doc_{doc_id}_{idx}"):
                     if doc.get("file_path"):
                         fpath = BASE_DIR / doc["file_path"]
                         if fpath.exists():
                             fpath.unlink()
-                    _delete_record("documents", doc["id"], db)
+                    _delete_record("documents", doc_id, db)
                     _log_activity(db, "Document deleted", doc.get("title", ""))
                     st.success("Document deleted.")
                     st.rerun()
 
     # Edit form
     if "edit_doc_id" in st.session_state:
-        doc_id = st.session_state["edit_doc_id"]
-        doc = next((d for d in documents if d["id"] == doc_id), None)
+        edit_doc_id = st.session_state["edit_doc_id"]
+        doc = next((d for d in valid_documents if d.get("id") == edit_doc_id), None)
         if doc:
-            st.subheader(f"Edit Document: {doc['title']}")
+            st.subheader(f"Edit Document: {doc.get('title', '')}")
             with st.form("edit_doc_form"):
                 title = st.text_input("Title", value=doc.get("title", ""))
                 project = st.text_input("Project", value=doc.get("project", ""))
@@ -239,7 +241,7 @@ def render_documents_module(database):
             if update:
                 _update_record(
                     "documents",
-                    doc_id,
+                    edit_doc_id,
                     {
                         "title": title.strip(),
                         "project": project.strip(),
