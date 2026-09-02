@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 
 import { getDb } from "../../../../db";
 import { suppliers } from "../../../../db/schema";
@@ -11,7 +11,7 @@ const supplierSchema = z.object({
   code: z.string().trim().min(1).max(50),
   name: z.string().trim().min(1).max(200),
   contactName: z.string().trim().max(160).nullable().optional(),
-  email: z.string().trim().email().max(320).nullable().optional(),
+  email: z.preprocess((value) => typeof value === "string" && !value.trim() ? null : value, z.string().trim().email().max(320).nullable().optional()),
   phone: z.string().trim().max(60).nullable().optional(),
   address: z.string().trim().max(500).nullable().optional(),
   taxNumber: z.string().trim().max(100).nullable().optional(),
@@ -54,9 +54,7 @@ export async function POST(request: NextRequest) {
     }).returning();
     return NextResponse.json({ data: supplier }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid supplier data.", details: error.flatten() }, { status: 400 });
-    }
+    if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid supplier data.", details: error.flatten() }, { status: 400 });
     console.error("POST /api/procurement/suppliers failed", error);
     return NextResponse.json({ error: "Unable to create supplier. The supplier code may already exist." }, { status: 409 });
   }
