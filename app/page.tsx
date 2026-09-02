@@ -7,6 +7,10 @@ type Module = { name: string; description: string; href: string; group: string }
 type Summary = { projects: number; drawings: number; boqItems: number; activeWorks: number };
 type WorkspaceState = { pageConfig?: Record<string, Partial<Module>>; theme?: "dark" | "light"; settings?: Record<string, unknown> };
 
+const PRODUCTION_PWA_URL = "https://creativestudios-app.vercel.app/";
+const CREATIVE_STUDIOS_AI_URL = "https://creativestudios-ai.vercel.app/";
+const STREAMLIT_CLOUD_URL = "https://creativestudios.streamlit.app/";
+
 const defaultModules: Module[] = [
   { name: "Dashboard", description: "Project and workspace overview.", href: "/", group: "Workspace" },
   { name: "Projects", description: "Manage projects, phases and project status.", href: "/projects", group: "Workspace" },
@@ -115,7 +119,11 @@ export default function Home() {
     <aside className={mobileOpen ? "sidebar mobile-open" : "sidebar"}>
       <div className="brand"><img src="/assets/creative_studios.png" alt="Creative Studios" className="logo" /><div className="brand-title">Creative Studios</div><div className="brand-subtitle">AEC Collaboration Platform</div></div>
       <div className="divider" />
-      <div className="sidebar-links"><a className="streamlit-link primary" href="https://creativestudios-app.vercel.app/" target="_blank" rel="noreferrer">Open Production PWA</a><a className="streamlit-link" href="https://creativestudios-ai.vercel.app/" target="_blank" rel="noreferrer">Creative Studios AI</a></div>
+      <div className="sidebar-links">
+        <a className="streamlit-link primary" href={PRODUCTION_PWA_URL} target="_blank" rel="noreferrer">Open Production PWA</a>
+        <a className="streamlit-link" href={CREATIVE_STUDIOS_AI_URL} target="_blank" rel="noreferrer">Open Creative Studios AI</a>
+        <a className="streamlit-link" href={STREAMLIT_CLOUD_URL} target="_blank" rel="noreferrer">Open Streamlit Cloud</a>
+      </div>
       <div className="divider" />
       <nav className="nav" aria-label="Workspace navigation">
         {grouped.map(({ group, items }) => <div key={group}><div className="section-label">{group}</div>{items.map((item) => <Link key={item.href} href={item.href} className={item.name === active ? "nav-item active" : "nav-item"} onClick={() => navigate(item.name)}>{item.name}</Link>)}</div>)}
