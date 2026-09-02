@@ -1,39 +1,99 @@
 """
 Creative Studios
-Projects Module
+Projects Module (self-contained)
 """
 
+import json
 import streamlit as st
+from pathlib import Path
 from datetime import datetime
-from .database import (
-    get_collection,
-    add_record,
-    update_record,
-    delete_record,
-    next_id,
-    save_memory,
-)
 
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_FILE = BASE_DIR / "creativestudios_db.json"
 PROJECT_STATUSES = ["Planning", "Active", "On Hold", "Completed", "Cancelled"]
 
 
-def _log_activity(database, action, details=""):
+def _load_db():
+    if DB_FILE.exists():
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"projects": [], "documents": [], "construction": [], "activity_log": []}
+
+
+def _save_db(db):
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(db, f, indent=2, default=str)
+
+
+def _get_collection(collection, db):
+    if collection not in db:
+        db[collection] = []
+    if not isinstance(db[collection], list):
+        db[collection] = []
+    return db[collection]
+
+
+def _next_id(collection, db):
+    records = _get_collection(collection, db)
+    highest = 0
+    for rec in records:
+        if isinstance(rec, dict) and "id" in rec:
+            try:
+                highest = max(highest, int(rec["id"]))
+            except (ValueError, TypeError):
+                pass
+    return highest + 1
+
+
+def _add_record(collection, record, db):
+    records = _get_collection(collection, db)
+    record = dict(record)
+    if "id" not in record or record["id"] is None:
+        record["id"] = _next_id(collection, db)
+    records.append(record)
+    _save_db(db)
+    return record
+
+
+def _update_record(collection, record_id, updates, db):
+    records = _get_collection(collection, db)
+    for idx, rec in enumerate(records):
+        if str(rec.get("id")) == str(record_id):
+            rec.update(updates)
+            _save_db(db)
+            return rec
+    return None
+
+
+def _delete_record(collection, record_id, db):
+    records = _get_collection(collection, db)
+    for idx, rec in enumerate(records):
+        if str(rec.get("id")) == str(record_id):
+            records.pop(idx)
+            _save_db(db)
+            return True
+    return False
+
+
+def _log_activity(db, action, details=""):
     entry = {
         "timestamp": datetime.now().isoformat(),
         "action": action,
         "details": details,
         "user": "System",
     }
-    database.setdefault("activity_log", []).append(entry)
-    save_memory(database)
+    _get_collection("activity_log", db).append(entry)
+    _save_db(db)
 
 
 def render_projects_module(database):
     st.header("Projects")
+    db = database  # database passed from main
 
-    projects = get_collection("projects", database)
+    projects = _get_collection("projects", db)
 
-    # Create project
+    # Create project form
     with st.expander("New Project", expanded=False):
         with st.form("create_project_form", clear_on_submit=True):
             name = st.text_input("Project Name")
@@ -49,7 +109,7 @@ def render_projects_module(database):
                 st.error("Project name is required.")
             else:
                 project = {
-                    "id": next_id("projects", database),
+                    "id": _next_id("projects", db),
                     "name": name.strip(),
                     "client": client.strip(),
                     "location": location.strip(),
@@ -58,8 +118,8 @@ def render_projects_module(database):
                     "description": description.strip(),
                     "created_at": datetime.now().isoformat(),
                 }
-                add_record("projects", project, database)
-                _log_activity(database, "Project created", name)
+                _add_record("projects", project, db)
+                _log_activity(db, "Project created", name)
                 st.success(f"Project '{name}' created.")
                 st.rerun()
 
@@ -83,8 +143,8 @@ def render_projects_module(database):
                     st.session_state["edit_project_id"] = project["id"]
             with col2:
                 if st.button("Delete", key=f"del_{project['id']}"):
-                    delete_record("projects", project["id"], database)
-                    _log_activity(database, "Project deleted", project.get("name", ""))
+                    _delete_record("projects", project["id"], db)
+                    _log_activity(db, "Project deleted", project.get("name", ""))
                     st.success("Project deleted.")
                     st.rerun()
 
@@ -105,7 +165,7 @@ def render_projects_module(database):
                 update = st.form_submit_button("Update Project")
 
             if update:
-                update_record(
+                _update_record(
                     "projects",
                     pid,
                     {
@@ -116,9 +176,9 @@ def render_projects_module(database):
                         "estimated_budget": budget,
                         "description": description.strip(),
                     },
-                    database,
+                    db,
                 )
-                _log_activity(database, "Project updated", name)
+                _log_activity(db, "Project updated", name)
                 st.success("Project updated.")
                 del st.session_state["edit_project_id"]
                 st.rerun()
