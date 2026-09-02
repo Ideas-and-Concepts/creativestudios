@@ -1,8 +1,6 @@
 """
 Creative Studios
 Projects Module
-
-Supports project management with basic CRUD.
 """
 
 import streamlit as st
@@ -15,7 +13,6 @@ from .database import (
     next_id,
     save_memory,
 )
-
 
 PROJECT_STATUSES = ["Planning", "Active", "On Hold", "Completed", "Cancelled"]
 
@@ -45,7 +42,6 @@ def render_projects_module(database):
             status = st.selectbox("Status", PROJECT_STATUSES, index=0)
             estimated_budget = st.number_input("Estimated Budget", min_value=0.0, step=1000.0)
             description = st.text_area("Description")
-
             submitted = st.form_submit_button("Create Project")
 
         if submitted:
@@ -67,7 +63,7 @@ def render_projects_module(database):
                 st.success(f"Project '{name}' created.")
                 st.rerun()
 
-    # Project list
+    # List projects
     if not projects:
         st.info("No projects found. Create one above.")
         return
@@ -81,7 +77,6 @@ def render_projects_module(database):
             if project.get("description"):
                 st.write(f"**Description:** {project['description'][:200]}")
 
-            # Edit and Delete buttons
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Edit", key=f"edit_{project['id']}"):
@@ -93,7 +88,7 @@ def render_projects_module(database):
                     st.success("Project deleted.")
                     st.rerun()
 
-    # Edit form (if requested)
+    # Edit form
     if "edit_project_id" in st.session_state:
         pid = st.session_state["edit_project_id"]
         project = next((p for p in projects if p["id"] == pid), None)
