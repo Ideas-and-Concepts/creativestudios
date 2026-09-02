@@ -12,6 +12,7 @@
     "@neondatabase/serverless": "latest",
     "class-variance-authority": "latest",
     "clsx": "latest",
+    "dotenv": "latest",
     "drizzle-orm": "latest",
     "lucide-react": "latest",
     "next": "latest",
