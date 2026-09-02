@@ -2,7 +2,7 @@
 Creative Studios
 JSON Database Layer
 
-Provides required functions for modules.
+Provides all required functions for the application.
 """
 
 import copy
@@ -19,12 +19,20 @@ DB_FILE = BASE_DIR / "creativestudios_db.json"
 
 
 DEFAULT_DATABASE: dict[str, Any] = {
+    "users": [],
     "projects": [],
     "documents": [],
     "drawings": [],
     "rfis": [],
     "tasks": [],
     "teams": [],
+    "site_logs": [],
+    "site_log_workforce": [],
+    "site_log_equipment": [],
+    "site_log_materials": [],
+    "site_log_activities": [],
+    "site_log_issues": [],
+    "site_log_instructions": [],
     "construction": [],
     "activity_log": [],
     "document_versions": [],
@@ -101,6 +109,8 @@ def save_memory(db: dict[str, Any]) -> bool:
 
 
 def _ensure_collection(db: dict[str, Any], collection: str) -> list[dict[str, Any]]:
+    if not isinstance(db, dict):
+        raise TypeError("Database must be a dictionary.")
     if collection not in db:
         db[collection] = []
     if not isinstance(db[collection], list):
@@ -127,23 +137,42 @@ def next_id(collection: str, db: dict[str, Any]) -> int:
 
 
 def add_record(collection: str, record: dict[str, Any], db: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        raise TypeError("Record must be a dictionary.")
     records = _ensure_collection(db, collection)
     new_record = copy.deepcopy(record)
     if new_record.get("id") is None:
         new_record["id"] = next_id(collection, db)
     records.append(new_record)
-    save_memory(db)
+    if not save_memory(db):
+        records.pop()
+        raise IOError("Unable to save the database.")
     return new_record
 
 
+def get_record(collection: str, record_id: Any, db: dict[str, Any]) -> dict[str, Any] | None:
+    records = _ensure_collection(db, collection)
+    for record in records:
+        if isinstance(record, dict) and str(record.get("id")) == str(record_id):
+            return record
+    return None
+
+
 def update_record(collection: str, record_id: Any, updates: dict[str, Any], db: dict[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(updates, dict):
+        raise TypeError("Updates must be a dictionary.")
     records = _ensure_collection(db, collection)
     for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            continue
         if str(record.get("id")) == str(record_id):
+            original = copy.deepcopy(record)
             updated = copy.deepcopy(record)
             updated.update(copy.deepcopy(updates))
             records[index] = updated
-            save_memory(db)
+            if not save_memory(db):
+                records[index] = original
+                raise IOError("Unable to save the database.")
             return updated
     return None
 
@@ -151,8 +180,16 @@ def update_record(collection: str, record_id: Any, updates: dict[str, Any], db: 
 def delete_record(collection: str, record_id: Any, db: dict[str, Any]) -> bool:
     records = _ensure_collection(db, collection)
     for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            continue
         if str(record.get("id")) == str(record_id):
-            records.pop(index)
-            save_memory(db)
+            deleted = records.pop(index)
+            if not save_memory(db):
+                records.insert(index, deleted)
+                raise IOError("Unable to save the database.")
             return True
     return False
+
+
+def get_records(collection: str, db: dict[str, Any]) -> list[dict[str, Any]]:
+    return [record for record in _ensure_collection(db, collection) if isinstance(record, dict)]
