@@ -138,7 +138,7 @@ def inject_css() -> None:
         }
 
         /* ==================================================
-           SIDEBAR - Blue gradient background
+           SIDEBAR - Blue gradient
            ================================================== */
         [data-testid="stSidebar"] {
             min-width: 260px;
@@ -407,11 +407,14 @@ def render_global_search(database):
 
 
 # ============================================================
-# MODULE LOADER with GRACEFUL FALLBACK
+# MODULE LOADER (with graceful fallback)
 # ============================================================
 
 def load_module_renderer(module_name: str) -> Callable[[dict[str, Any]], Any]:
-    """Load the selected module renderer, or return a fallback that shows an error."""
+    """
+    Load the selected module renderer, or return a fallback that shows an error.
+    This version avoids closure bugs by capturing error messages as strings.
+    """
     if module_name not in MODULE_IMPORTS:
         return lambda db: st.error(f"Unknown module: {module_name}")
 
@@ -423,14 +426,18 @@ def load_module_renderer(module_name: str) -> Callable[[dict[str, Any]], Any]:
         if callable(renderer):
             return renderer
         else:
-            return lambda db: st.error(f"Module '{module_path}' does not contain a callable '{function_name}'.")
-    except Exception as exc:
-        # Return a fallback renderer that shows the error, but does not crash the app
-        def fallback(db):
-            st.error(f"Unable to load the {module_name} module.")
+            # Return a fallback that displays a clear message
+            return lambda db, path=module_path, func=function_name: st.error(
+                f"Module '{path}' does not contain a callable '{func}'."
+            )
+    except Exception as import_error:
+        # Capture the error message as a string to avoid free-variable issues
+        error_message = str(import_error)
+
+        def fallback(db, msg=error_message, name=module_name):
+            st.error(f"Unable to load the {name} module: {msg}")
             st.caption("The Creative Studios application is still running.")
-            with st.expander("Technical details"):
-                st.exception(exc)
+
         return fallback
 
 
