@@ -59,6 +59,18 @@ def render_construction_module(database):
         if not df.empty:
             df["start"] = pd.to_datetime(df["start"])
             df["end"] = pd.to_datetime(df["end"])
-            fig = px.timeline(df, x_start="start", x_end="end", y="phase", color="status", title="Construction Phases Timeline")
+            fig = px.timeline(
+                df,
+                x_start="start",
+                x_end="end",
+                y="phase",
+                color="status",
+                title="Construction Phases Timeline",
+                color_discrete_map={
+                    "Pending": "gray",
+                    "In Progress": "blue",
+                    "Completed": "green",
+                }
+            )
             fig.update_yaxes(autorange="reversed")  # Gantt style
             st.plotly_chart(fig, use_container_width=True)
