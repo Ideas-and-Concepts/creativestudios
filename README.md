@@ -1,818 +1,158 @@
-Creative Studios
+# Creative Studios
 
-AEC Collaboration Platform
+## AEC Collaboration Platform
 
-Creative Studios is an integrated Architecture, Engineering and Construction (AEC) collaboration platform designed to manage project information, technical design, drawings, construction quantities and project documentation from a single workspace.
+Creative Studios is an integrated Architecture, Engineering and Construction workspace for managing projects, technical design information, drawings, BOQ, procurement, construction activities, documents, RFIs, approvals and project reporting.
 
-The platform is being developed as a practical construction-management system with a focus on connecting design information to actual construction activities.
+The repository now contains two coordinated interfaces:
 
----
+- **Next.js PWA** for the primary production workspace on Vercel.
+- **Streamlit workspace** for the legacy/admin interface and Streamlit Cloud compatibility.
 
-Overview
+Both interfaces are designed around the same project lifecycle and can use the same Neon PostgreSQL-backed workspace state.
 
-Creative Studios provides a centralized workspace for:
+## Project lifecycle
 
-- Project management
-- Architecture
-- Engineering
-- Architectural drawings
-- Structural drawings
-- Bill of Quantities
-- Documents
-- MEP coordination
-- Construction information
-- Future procurement integration
-- Future cost-control integration
+`Projects → Architecture / Engineering → Drawings → BOQ → Procurement → Construction → Cost Control`
 
-The platform is designed around a connected construction information workflow rather than isolated modules.
+Supporting workflows include:
 
----
+`Documents · MEP · Tasks · RFIs · Approvals · Reports · Settings`
 
-Core Workflow
+## Modules
 
-PROJECT
-   |
-   +----------------------+
-   |                      |
-   v                      v
-ARCHITECTURE          ENGINEERING
-   |                      |
-   |                      |
-   v                      v
-ARCHITECTURAL         STRUCTURAL /
-DRAWINGS              ENGINEERING
-   |                   DRAWINGS
-   |                      |
-   +----------+-----------+
-              |
-              v
-             BOQ
-              |
-              v
-         PROCUREMENT
-              |
-              v
-         CONSTRUCTION
-              |
-              v
-         COST CONTROL
+1. Dashboard
+2. Projects
+3. Documents
+4. Architecture
+5. Engineering
+6. Drawings
+7. MEP
+8. BOQ
+9. Procurement
+10. Construction
+11. Cost Control
+12. Tasks
+13. RFIs
+14. Approvals
+15. Reports
+16. Settings
 
-The objective is to progressively connect project design information with quantities, procurement and construction costs.
+The Streamlit application registers all 16 modules and loads their renderer lazily so one broken module does not prevent the navigation shell from starting.
 
----
+## Production database
 
-Current Modules
+The production data architecture uses **Neon PostgreSQL**.
 
-Dashboard
+The Next.js application connects through Drizzle ORM and `@neondatabase/serverless` using:
 
-The Dashboard provides a high-level view of the Creative Studios workspace.
+`DATABASE_URL`
 
-Typical information includes:
+The Streamlit application uses `psycopg` and the same `DATABASE_URL` when available. Its shared workspace state is stored in the Neon `workspace_state` table as JSONB, while the relational AEC tables remain available to the PWA.
 
-- Project counts
-- Current project status
-- Activity summaries
-- Construction information
-- Module navigation
+The Streamlit database layer retains `creativestudios_db.json` as an offline/local fallback. It is not the intended production shared store when Neon is configured.
 
----
+Never commit a real database password or connection string to GitHub.
 
-Projects
+## Neon schema
 
-The Projects module is the parent context for project information.
+The relational production schema includes:
 
-Projects are intended to provide the common reference used by:
+- projects
+- architecture_works
+- engineering_works
+- drawings
+- mep_works
+- boq_items
+- suppliers
+- purchase_orders
+- purchase_order_items
+- construction_activities
+- documents
+- tasks
+- rfis
+- approvals
+- audit_logs
+- workspace_state
 
-- Architecture
-- Engineering
-- Drawings
-- BOQ
-- Documents
-- MEP
-- Procurement
-- Construction
-- Cost control
+Migration files are stored under `db/migrations/`.
 
-A project should eventually act as the central object connecting all construction information.
+## Next.js PWA
 
----
+The PWA is implemented with:
 
-Architecture
+- Next.js App Router
+- React
+- TypeScript
+- Drizzle ORM
+- Neon PostgreSQL
+- Zod validation
+- responsive CSS
+- light/dark presentation
+- installable PWA assets
 
-The Architecture module manages architectural design and construction information.
+Existing production CRUD areas include Projects, Engineering, Drawings, BOQ, MEP, Procurement and Construction.
 
-Architectural work can include:
+The dashboard health endpoint performs a real database query rather than checking only whether an environment variable exists. The dashboard KPI endpoint reads live project, drawing, BOQ and active-work counts.
 
-- Floor planning
-- Walls
-- Doors
-- Windows
-- Rooms
-- Roofs
-- Finishes
-- Partitions
-- Architectural design stages
-- Design documentation
-- Architectural notes
+## Streamlit workspace
 
-Typical design stages include:
+Run locally:
 
-Concept
-   |
-Schematic Design
-   |
-Design Development
-   |
-Construction Documentation
-   |
-Issued
-
-Architecture records are editable and persisted through the application database.
-
----
-
-Engineering
-
-The Engineering module manages engineering and structural construction information.
-
-Engineering elements include:
-
-- Foundations
-- Columns
-- Beams
-- Slabs
-- Structural walls
-- Staircases
-- Lintels
-- Reinforcement
-- Formwork
-- Structural concrete
-- Civil works
-- Infrastructure
-- Geotechnical works
-- Transportation works
-- Environmental works
-
-Engineering records can be associated with projects and managed throughout their design lifecycle.
-
----
-
-Drawings
-
-The Drawings module manages the project's technical drawing register.
-
-Drawings are divided into two primary construction disciplines:
-
-DRAWINGS
-   |
-   +-- Architectural Drawings
-   |
-   +-- Structural Drawings
-
-Additional engineering drawing disciplines may include:
-
-- Civil
-- Electrical
-- Mechanical
-- Plumbing
-- Other
-
-Drawing information can include:
-
-- Drawing number
-- Drawing title
-- Project
-- Discipline
-- Revision
-- Scale
-- Status
-- Creation date
-
-Typical drawing statuses include:
-
-Draft
-   |
-In Review
-   |
-Approved
-   |
-Issued
-   |
-Superseded
-
----
-
-Bill of Quantities
-
-The BOQ module provides the construction quantity and pricing register.
-
-It is designed around actual construction elements rather than a generic product catalogue.
-
-Construction Elements
-
-Preliminaries
-
-- Site establishment
-- Mobilisation
-- Demobilisation
-- Setting out
-- Temporary works
-- Health and safety
-- Site supervision
-
-Substructure
-
-- Excavation
-- Backfilling
-- Blinding concrete
-- Pad foundations
-- Strip foundations
-- Raft foundations
-- Ground beams
-- Foundation walls
-- Damp proofing
-
-Structural
-
-- Columns
-- Beams
-- Slabs
-- Structural walls
-- Staircases
-- Lintels
-- Reinforcement
-- Formwork
-- Structural concrete
-
-Walls
-
-- External walls
-- Internal walls
-- Block walls
-- Brick walls
-- Partition walls
-- Retaining walls
-- Parapets
-
-Openings
-
-- Doors
-- Windows
-- Louvers
-- Glazed screens
-- Roller shutters
-- Fire doors
-
-Roofing
-
-- Roof structures
-- Roof coverings
-- Roof trusses
-- Roof sheets
-- Roof tiles
-- Gutters
-- Downpipes
-- Roof insulation
-
-Architectural Finishes
-
-- Plaster
-- Rendering
-- Screed
-- Floor tiling
-- Wall tiling
-- Ceilings
-- Painting
-- Floor finishes
-- Skirting
-- Cladding
-
-Civil Works
-
-- Earthworks
-- Roads
-- Drainage
-- Kerbs
-- Pavements
-- Concrete works
-- Stormwater drainage
-- Manholes
-
-Electrical
-
-- Lighting points
-- Socket outlets
-- Switches
-- Distribution boards
-- Cables
-- Conduits
-- Electrical panels
-- Earthing
-
-Mechanical
-
-- Air conditioning
-- Ventilation
-- Mechanical equipment
-- Ductwork
-- Pumps
-- Fire protection
-
-Plumbing
-
-- Water pipes
-- Drainage pipes
-- Water tanks
-- Pumps
-- Water closets
-- Wash-hand basins
-- Sinks
-- Showers
-- Floor drains
-
-External Works
-
-- Paving
-- Landscaping
-- Boundary walls
-- Fencing
-- Gates
-- External drainage
-- External lighting
-- Parking areas
-
----
-
-BOQ Data Structure
-
-A BOQ item contains construction and commercial information such as:
-
-Item Number
-Project
-Category
-Construction Element
-Description
-Specification
-Unit
-Quantity
-Rate
-Amount
-Status
-Notes
-
-The line amount is calculated automatically:
-
-Amount = Quantity × Rate
-
-The BOQ can therefore become the foundation for future project cost control.
-
----
-
-BOQ Status
-
-BOQ items can progress through:
-
-Draft
-   |
-Measured
-   |
-Priced
-   |
-Approved
-   |
-Issued
-
-This provides a foundation for controlling quantities and commercial information throughout the project lifecycle.
-
----
-
-Documents
-
-The Documents module is intended to provide a central document repository for project records.
-
-Documents may eventually include:
-
-- Contracts
-- Specifications
-- Reports
-- Drawings
-- Correspondence
-- RFIs
-- Approvals
-- Method statements
-- Inspection records
-- Certificates
-- Project photographs
-- Commercial documents
-
----
-
-MEP
-
-The MEP module provides a dedicated area for mechanical, electrical and plumbing information.
-
-The module is intended to support:
-
-- Mechanical systems
-- Electrical systems
-- Plumbing systems
-- Building services
-- Equipment
-- Services coordination
-
-MEP information will eventually connect with drawings, BOQ items and procurement.
-
----
-
-Data Persistence
-
-Creative Studios currently uses a lightweight JSON-based persistence layer.
-
-The database module provides:
-
-load_memory()
-save_memory(database)
-
-The application database is stored as:
-
-creativestudios_db.json
-
-The database structure is intentionally simple during the current development stage.
-
-This allows rapid development while keeping the application independent of a database server.
-
-A relational database can be introduced later when the project's data relationships require it.
-
----
-
-Application Architecture
-
-The application uses a modular Streamlit architecture.
-
-The main application is:
-
-streamlit_app.py
-
-Modules are stored in:
-
-modules/
-
-Current module structure:
-
-modules/
-├── __init__.py
-├── database.py
-├── dashboard.py
-├── projects.py
-├── documents.py
-├── architecture.py
-├── engineering.py
-├── drawings.py
-├── boq.py
-└── mep.py
-
-The main application uses lazy module loading.
-
-Instead of importing every module when the application starts, the selected module is loaded dynamically.
-
-Conceptually:
-
-importlib.import_module(...)
-
-This reduces the impact of errors in unrelated modules and keeps the application architecture modular.
-
----
-
-Navigation
-
-The current application navigation is:
-
-Dashboard
-Projects
-Documents
-Architecture
-Engineering
-Drawings
-BOQ
-MEP
-
-The application also supports:
-
-- Dark mode
-- Light mode
-- Responsive Streamlit layout
-- Sidebar branding
-- Creative Studios logo
-- Editable records
-- Persistent records
-
-Authentication has currently been removed from the Streamlit application.
-
----
-
-Branding
-
-The application is branded as:
-
-Creative Studios
-
-Subtitle:
-
-AEC Collaboration Platform
-
-The primary logo asset is expected at:
-
-assets/creative_studios.png
-
-The application uses a restrained professional interface designed for architecture, engineering and construction workflows.
-
----
-
-Design Principles
-
-Creative Studios follows several core principles.
-
-1. Construction First
-
-The system is designed around real construction workflows rather than generic business software.
-
-2. Modular Architecture
-
-Each major AEC discipline is implemented as an independent module.
-
-3. Editable Information
-
-Users should be able to create, update and remove project records directly from the interface.
-
-4. Persistent Data
-
-Changes made through the application should be persisted through the database layer.
-
-5. Cross-Module Integration
-
-Information should progressively move through the construction lifecycle.
-
-For example:
-
-Architectural Design
-        ↓
-Architectural Drawing
-        ↓
-BOQ Item
-        ↓
-Procurement Requirement
-        ↓
-Construction Activity
-        ↓
-Cost
-
-And:
-
-Structural Design
-        ↓
-Structural Drawing
-        ↓
-Structural BOQ
-        ↓
-Materials
-        ↓
-Construction
-        ↓
-Cost Control
-
----
-
-Development Roadmap
-
-Phase 1 — Core Workspace
-
-- Dashboard
-- Projects
-- Documents
-- Architecture
-- Engineering
-- Drawings
-- BOQ
-- MEP
-
-Phase 2 — Construction Integration
-
-Planned improvements:
-
-- Shared project IDs
-- Cross-module project selection
-- Architecture-to-drawing relationships
-- Engineering-to-drawing relationships
-- Drawing-to-BOQ relationships
-- BOQ item references
-- Construction elements
-- Quantity tracking
-
-Phase 3 — Procurement
-
-Planned workflow:
-
-Approved BOQ
-      ↓
-Material Requirement
-      ↓
-Purchase Request
-      ↓
-Purchase Order
-      ↓
-Supplier
-      ↓
-Goods Received
-      ↓
-Warehouse
-
-Phase 4 — Construction Management
-
-Planned functionality:
-
-- Site activities
-- Work packages
-- Daily site records
-- Labour
-- Equipment
-- Materials
-- Inspections
-- RFIs
-- Approvals
-- Progress tracking
-
-Phase 5 — Cost Control
-
-Planned functionality:
-
-- BOQ budget
-- Committed costs
-- Actual costs
-- Variations
-- Payment certificates
-- Project cost reports
-- Budget versus actual
-- Cost forecasting
-
-Phase 6 — Advanced AEC Platform
-
-Future functionality may include:
-
-- BIM integration
-- Drawing viewer
-- Document version control
-- RFI workflows
-- Approval workflows
-- Project scheduling
-- Site reporting
-- Procurement automation
-- Financial integration
-- AI-assisted project analysis
-
----
-
-Installation
-
-Clone the repository:
-
-git clone <repository-url>
-cd creativestudios
-
-Install dependencies:
-
+```bash
 pip install -r requirements.txt
-
-Run the application:
-
 streamlit run streamlit_app.py
+```
 
-The application should then be available through the Streamlit server URL.
+The Streamlit navigation provides:
 
----
+- compact Streamlit Cloud-style sidebar navigation
+- production PWA and AI workspace links
+- refresh controls
+- Neon/local data-layer indicator
+- direct create, edit and delete controls inside modules
+- shared database object passed to every registered renderer
 
-Requirements
+The shared database helper has regression coverage for create, update and delete persistence.
 
-The application currently relies primarily on:
+## Environment variables
 
-- Python
-- Streamlit
+Copy `.env.example` for local development and configure:
 
-Additional dependencies may be added as modules evolve.
+```text
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/neondb?sslmode=require
+```
 
----
+For Streamlit Cloud, configure `DATABASE_URL` as a secret. For Vercel, configure it as a private Project Environment Variable for the required deployment environments.
 
-Project Structure
+Do not store secrets in source control.
 
-A typical repository structure is:
+## Vercel
 
-creativestudios/
-│
-├── streamlit_app.py
-├── requirements.txt
-├── README.md
-├── creativestudios_db.json
-│
-├── assets/
-│   └── creative_studios.png
-│
-└── modules/
-    ├── __init__.py
-    ├── database.py
-    ├── dashboard.py
-    ├── projects.py
-    ├── documents.py
-    ├── architecture.py
-    ├── engineering.py
-    ├── drawings.py
-    ├── boq.py
-    └── mep.py
+The intended production repository is:
 
----
+`Ideas-and-Concepts/creativestudios`
 
-Data Model Direction
+The production PWA and AI application links are kept in the workspace navigation. Vercel project configuration must point to this repository and must have the rotated Neon `DATABASE_URL` configured privately before production deployment.
 
-The long-term data model is intended to evolve toward:
+## Development checks
 
-Project
-  |
-  +-- Architecture
-  |      |
-  |      +-- Architectural Elements
-  |      +-- Architectural Drawings
-  |
-  +-- Engineering
-  |      |
-  |      +-- Structural Elements
-  |      +-- Structural Drawings
-  |
-  +-- BOQ
-  |      |
-  |      +-- Construction Items
-  |      +-- Quantities
-  |      +-- Rates
-  |      +-- Costs
-  |
-  +-- Documents
-  |
-  +-- MEP
-  |
-  +-- Procurement
-  |
-  +-- Construction
-  |
-  +-- Cost Control
+The repository contains checks for:
 
-This structure is intended to prevent the platform from becoming a collection of disconnected forms.
+- application imports
+- Streamlit imports
+- database contract
+- branding assets
+- document module structure
+- shared database identity
+- module database helper persistence
 
----
+Before production release, run the Python checks and a Next.js production build in CI.
 
-Contributing
+## Security
 
-Development should preserve the modular architecture.
+If a database password has ever been pasted into chat, an issue, a commit, a log or another public location, rotate it immediately and use the replacement value only as a private deployment secret.
 
-When adding a new module:
+## License
 
-1. Create the module under "modules/".
-2. Provide a clearly defined renderer function.
-3. Use the shared database layer.
-4. Normalize legacy records where necessary.
-5. Keep records editable.
-6. Avoid introducing unnecessary dependencies.
-7. Register the module in "streamlit_app.py".
-8. Test the module independently before integrating it with other modules.
-
----
-
-Development Philosophy
-
-Creative Studios is being developed incrementally.
-
-The priority is:
-
-Working
-    ↓
-Consistent
-    ↓
-Integrated
-    ↓
-Reliable
-    ↓
-Scalable
-
-New functionality should build on the existing construction information model rather than repeatedly replacing working components.
-
----
-
-License
-
-License information should be added according to the project's ownership and distribution requirements.
-
----
-
-Creative Studios
-
-AEC Collaboration Platform
-
-Architecture. Engineering. Construction.
-
-A unified workspace for turning project information into coordinated construction work.
+See `LICENSE` for project licensing terms.
