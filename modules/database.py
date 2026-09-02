@@ -37,9 +37,9 @@ DEFAULT_DATABASE: dict[str, Any] = {
     "site_log_instructions": [],
     "construction": [],
     "activity_log": [],
-    "settings": {},
     "document_versions": [],
     "boq": [],
+    "settings": {},
 }
 
 
@@ -149,6 +149,7 @@ def _ensure_collection(db: dict[str, Any], collection: str) -> list[dict[str, An
 
 
 def get_collection(collection: str, db: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return the raw list for a collection, ensuring it exists."""
     return _ensure_collection(db, collection)
 
 
