@@ -53,11 +53,22 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
     c5.metric("Variation", f"{totals['Variation']:,.2f}")
     st.caption(f"Budget remaining after actual cost: {totals['Budget'] - totals['Actual Cost']:,.2f}")
 
+    search = st.text_input("Search costs", placeholder="Cost code or description", key="cost_control_search")
+    status_filter = st.selectbox("Status", ["All"] + STATUSES, key="cost_control_status_filter")
+    type_filter = st.selectbox("Cost Type", ["All"] + COST_TYPES, key="cost_control_type_filter")
+    query = search.strip().lower()
+    visible = [
+        record for record in items
+        if (not query or query in str(record.get("cost_code", "")).lower() or query in str(record.get("description", "")).lower())
+        and (status_filter == "All" or record.get("status") == status_filter)
+        and (type_filter == "All" or record.get("cost_type") == type_filter)
+    ]
+
     st.subheader("Cost Register")
-    if not items:
-        st.info("No cost records exist for this project yet.")
+    if not visible:
+        st.info("No matching cost records exist for this project.")
     else:
-        for record in list(items):
+        for record in list(visible):
             record_id = record.get("id")
             with st.expander(
                 f"{record.get('cost_code', 'Cost')} | {record.get('description', 'Cost item')} | {_amount(record):,.2f}"
@@ -76,7 +87,7 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
                         st.error("Cost Code and Description are required.")
                     else:
                         try:
-                            if not save_updated_record(
+                            saved = save_updated_record(
                                 database,
                                 "cost_control",
                                 record_id,
@@ -90,7 +101,8 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
                                     "notes": notes.strip(),
                                     "updated_at": now_iso(),
                                 },
-                            ):
+                            )
+                            if not saved:
                                 st.error("The cost record could not be found.")
                             else:
                                 st.success("Cost record updated.")
