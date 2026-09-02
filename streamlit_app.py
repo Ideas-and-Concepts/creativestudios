@@ -8,8 +8,6 @@ Authentication has been removed.
 
 Top-level modules:
     Dashboard, Projects, Documents, Architecture, Engineering, MEP, BOQ, Construction
-
-Drawings is intentionally NOT a standalone module.
 """
 
 from __future__ import annotations
@@ -117,7 +115,7 @@ def initialize_session_state() -> None:
 
 
 # ============================================================
-# GLOBAL CSS (Improved UI)
+# GLOBAL CSS (Blue theme + centered sidebar)
 # ============================================================
 
 def inject_css() -> None:
@@ -140,13 +138,13 @@ def inject_css() -> None:
         }
 
         /* ==================================================
-           SIDEBAR - Modern dark theme
+           SIDEBAR - Blue gradient background
            ================================================== */
         [data-testid="stSidebar"] {
             min-width: 260px;
             max-width: 260px;
-            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-            border-right: 1px solid rgba(148, 163, 184, 0.1);
+            background: linear-gradient(180deg, #1e3a8a 0%, #2563eb 100%);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         [data-testid="stSidebar"] > div:first-child {
@@ -154,27 +152,25 @@ def inject_css() -> None:
         }
 
         /* Sidebar brand */
-        .cs-sidebar-brand {
-            text-align: center;
-            margin-bottom: 0.5rem;
-        }
         .cs-sidebar-title {
             font-size: 18px;
             font-weight: 700;
-            color: #f8fafc;
+            color: #ffffff;
             letter-spacing: -0.02em;
             margin-top: 0.4rem;
+            text-align: center;
         }
         .cs-sidebar-subtitle {
             font-size: 11px;
-            color: #94a3b8;
+            color: #bfdbfe;
             margin-top: 0.1rem;
             letter-spacing: 0.03em;
+            text-align: center;
         }
 
         .cs-sidebar-divider {
             height: 1px;
-            background: rgba(148, 163, 184, 0.15);
+            background: rgba(255, 255, 255, 0.2);
             margin: 1rem 0 0.8rem 0;
         }
 
@@ -183,49 +179,63 @@ def inject_css() -> None:
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: #94a3b8;
+            color: #bfdbfe;
             margin: 0.8rem 0 0.5rem 0;
+            text-align: center;
         }
 
-        /* Navigation radio */
+        /* ==================================================
+           CENTER RADIO NAVIGATION
+           ================================================== */
         [data-testid="stSidebar"] div[role="radiogroup"] {
-            gap: 0.15rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.2rem;
         }
 
         [data-testid="stSidebar"] div[role="radiogroup"] label {
+            width: 100%;
+            text-align: center;
             border-radius: 8px;
             padding: 0.3rem 0.6rem;
             transition: all 0.2s ease;
+            color: #ffffff;
         }
 
         [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-            background: rgba(148, 163, 184, 0.1);
+            background: rgba(255, 255, 255, 0.15);
         }
 
-        /* Buttons */
+        /* ==================================================
+           BUTTONS (blue accent)
+           ================================================== */
         div.stButton > button {
             border-radius: 8px;
             min-height: 2.4rem;
             font-weight: 600;
-            border: 1px solid rgba(148, 163, 184, 0.3);
+            border: 1px solid #2563eb;
+            background-color: #eff6ff;
+            color: #1e40af;
             transition: all 0.2s ease;
         }
 
         div.stButton > button:hover {
-            border-color: #3b82f6;
-            background-color: rgba(59, 130, 246, 0.05);
+            border-color: #1d4ed8;
+            background-color: #dbeafe;
+            color: #1e3a8a;
         }
 
         /* Main headings */
         h1, h2, h3 {
-            color: #0f172a;
+            color: #1e3a8a;
             letter-spacing: -0.02em;
         }
 
-        /* Cards (if used in modules) */
+        /* Cards */
         .cs-card {
             background: #ffffff;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #dbeafe;
             border-radius: 12px;
             padding: 1.25rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -291,7 +301,7 @@ def render_sidebar_brand() -> None:
         st.sidebar.markdown(
             """
             <div style="display:flex; justify-content:center; align-items:center; width:100%; margin:0; padding:0;">
-                <div style="width:56px;height:56px;border-radius:12px;border:1px solid rgba(148,163,184,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#f8fafc;background:#1e293b;">CS</div>
+                <div style="width:56px;height:56px;border-radius:12px;border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;background:#1e3a8a;">CS</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -397,37 +407,42 @@ def render_global_search(database):
 
 
 # ============================================================
-# MODULE LOADER & ERROR HANDLING
+# MODULE LOADER with GRACEFUL FALLBACK
 # ============================================================
 
 def load_module_renderer(module_name: str) -> Callable[[dict[str, Any]], Any]:
+    """Load the selected module renderer, or return a fallback that shows an error."""
     if module_name not in MODULE_IMPORTS:
-        raise KeyError(f"Unknown module: {module_name}")
+        return lambda db: st.error(f"Unknown module: {module_name}")
+
     module_path, function_name = MODULE_IMPORTS[module_name]
+
     try:
         module = importlib.import_module(module_path)
+        renderer = getattr(module, function_name, None)
+        if callable(renderer):
+            return renderer
+        else:
+            return lambda db: st.error(f"Module '{module_path}' does not contain a callable '{function_name}'.")
     except Exception as exc:
-        raise RuntimeError(f"Unable to import {module_name} module.") from exc
-    renderer = getattr(module, function_name, None)
-    if not callable(renderer):
-        raise AttributeError(f"Module '{module_path}' missing callable '{function_name}'.")
-    return renderer
-
-
-def render_module_error(module_name: str, exc: Exception) -> None:
-    st.error(f"Unable to load the {module_name} module.")
-    st.caption("The Creative Studios application is still running.")
-    with st.expander("Technical details"):
-        st.exception(exc)
+        # Return a fallback renderer that shows the error, but does not crash the app
+        def fallback(db):
+            st.error(f"Unable to load the {module_name} module.")
+            st.caption("The Creative Studios application is still running.")
+            with st.expander("Technical details"):
+                st.exception(exc)
+        return fallback
 
 
 def render_module(choice: str, database: dict[str, Any]) -> None:
+    renderer = load_module_renderer(choice)
     try:
-        renderer = load_module_renderer(choice)
         renderer(database)
     except Exception as exc:
-        render_module_error(choice, exc)
-        log_activity(database, "Module error", f"{choice}: {exc}")
+        st.error(f"Error while rendering {choice} module.")
+        with st.expander("Technical details"):
+            st.exception(exc)
+        log_activity(database, "Module rendering error", f"{choice}: {exc}")
 
 
 # ============================================================
