@@ -62,39 +62,40 @@ def render_tasks_module(database: dict[str, Any]) -> None:
                     st.error("Task title is required.")
                 else:
                     try:
-                        save_updated_record(
-                            database,
-                            "tasks",
-                            rid,
-                            {
-                                "project_id": project_id,
-                                "title": title.strip(),
-                                "assignee": assignee.strip(),
-                                "priority": priority,
-                                "status": status,
-                                "progress": progress,
-                                "due_date": due_date.strip(),
-                                "notes": notes.strip(),
-                                "updated_at": now_iso(),
-                            },
-                        )
-                        st.success("Task updated.")
-                        st.rerun()
+                        saved = save_updated_record(database, "tasks", rid, {
+                            "project_id": project_id,
+                            "title": title.strip(),
+                            "assignee": assignee.strip(),
+                            "priority": priority,
+                            "status": status,
+                            "progress": progress,
+                            "due_date": due_date.strip(),
+                            "notes": notes.strip(),
+                            "updated_at": now_iso(),
+                        })
+                        if not saved:
+                            st.error("The task could not be found.")
+                        else:
+                            st.success("Task updated.")
+                            st.rerun()
                     except Exception as exc:
                         st.error("Unable to update the task.")
                         with st.expander("Technical details"):
                             st.exception(exc)
             if st.button("Delete Task", key=f"task_delete_{rid}", use_container_width=True):
                 try:
-                    remove_record(database, "tasks", rid)
-                    st.success("Task deleted.")
-                    st.rerun()
+                    if remove_record(database, "tasks", rid):
+                        st.success("Task deleted.")
+                        st.rerun()
+                    else:
+                        st.warning("The task was already removed.")
                 except Exception as exc:
                     st.error("Unable to delete the task.")
                     with st.expander("Technical details"):
                         st.exception(exc)
 
     st.divider()
+    st.subheader("Add Task")
     with st.form("task_add", clear_on_submit=True):
         title = st.text_input("Task")
         assignee = st.text_input("Assignee")
@@ -109,22 +110,18 @@ def render_tasks_module(database: dict[str, Any]) -> None:
             st.error("Task title is required.")
         else:
             try:
-                save_new_record(
-                    database,
-                    "tasks",
-                    {
-                        "project_id": project_id,
-                        "title": title.strip(),
-                        "assignee": assignee.strip(),
-                        "priority": priority,
-                        "status": status,
-                        "progress": progress,
-                        "due_date": due_date.strip(),
-                        "notes": notes.strip(),
-                        "created_at": now_iso(),
-                        "updated_at": now_iso(),
-                    },
-                )
+                save_new_record(database, "tasks", {
+                    "project_id": project_id,
+                    "title": title.strip(),
+                    "assignee": assignee.strip(),
+                    "priority": priority,
+                    "status": status,
+                    "progress": progress,
+                    "due_date": due_date.strip(),
+                    "notes": notes.strip(),
+                    "created_at": now_iso(),
+                    "updated_at": now_iso(),
+                })
                 st.success("Task added.")
                 st.rerun()
             except Exception as exc:
