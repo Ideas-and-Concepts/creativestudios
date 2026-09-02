@@ -1,6 +1,7 @@
 """Creative Studios Settings module."""
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 import streamlit as st
@@ -30,11 +31,11 @@ def render_settings_module(database: dict[str, Any]) -> None:
     values = {**DEFAULTS, **settings}
 
     with st.form("settings_form"):
-        company_name = st.text_input("Company Name", value=str(values.get("company_name", DEFAULTS["company_name"])))
-        platform_name = st.text_input("Platform Name", value=str(values.get("platform_name", DEFAULTS["platform_name"])))
-        timezone = st.text_input("Timezone", value=str(values.get("timezone", DEFAULTS["timezone"])))
-        currency = st.text_input("Currency", value=str(values.get("currency", DEFAULTS["currency"])))
-        date_format = st.text_input("Date Format", value=str(values.get("date_format", DEFAULTS["date_format"])))
+        company_name = st.text_input("Company Name", value=str(values["company_name"]))
+        platform_name = st.text_input("Platform Name", value=str(values["platform_name"]))
+        timezone = st.text_input("Timezone", value=str(values["timezone"]))
+        currency = st.text_input("Currency", value=str(values["currency"]))
+        date_format = st.text_input("Date Format", value=str(values["date_format"]))
         default_status = str(values.get("default_project_status", DEFAULTS["default_project_status"]))
         default_project_status = st.selectbox(
             "Default Project Status",
@@ -46,7 +47,7 @@ def render_settings_module(database: dict[str, Any]) -> None:
         submitted = st.form_submit_button("Save Settings", use_container_width=True)
 
     if submitted:
-        database["settings"] = {
+        new_settings = {
             "company_name": company_name.strip() or DEFAULTS["company_name"],
             "platform_name": platform_name.strip() or DEFAULTS["platform_name"],
             "timezone": timezone.strip() or DEFAULTS["timezone"],
@@ -56,13 +57,16 @@ def render_settings_module(database: dict[str, Any]) -> None:
             "notifications_enabled": notifications_enabled,
             "compact_mode": compact_mode,
         }
+        previous = copy.deepcopy(database.get("settings", {}))
+        database["settings"] = new_settings
         try:
             if save_memory(database):
-                st.success("Settings saved.")
+                st.success("Settings saved successfully.")
                 st.rerun()
-            else:
-                st.error("Unable to save settings.")
+            database["settings"] = previous
+            st.error("Unable to save settings to the shared database.")
         except Exception as exc:
+            database["settings"] = previous
             st.error("Unable to save settings to the shared database.")
             with st.expander("Technical details"):
                 st.exception(exc)
@@ -70,10 +74,8 @@ def render_settings_module(database: dict[str, Any]) -> None:
     st.divider()
     st.subheader("Workspace Information")
     backend = database_backend()
-    st.write(
-        {
-            "database": "Shared workspace state",
-            "data_layer": "Neon PostgreSQL" if backend == "neon" else "Local JSON",
-            "pwa": "Next.js",
-        }
-    )
+    st.write({
+        "database": "Shared workspace state",
+        "data_layer": "Neon PostgreSQL" if backend == "neon" else "Local JSON",
+        "pwa": "Next.js",
+    })
