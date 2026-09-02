@@ -6,6 +6,7 @@ Projects Module
 import streamlit as st
 from datetime import datetime
 from .database import (
+    get_collection,
     add_record,
     update_record,
     delete_record,
@@ -14,15 +15,6 @@ from .database import (
 )
 
 PROJECT_STATUSES = ["Planning", "Active", "On Hold", "Completed", "Cancelled"]
-
-
-def _get_collection(collection, db):
-    """Local helper that returns a list from the database."""
-    if collection not in db:
-        db[collection] = []
-    if not isinstance(db[collection], list):
-        db[collection] = []
-    return db[collection]
 
 
 def _log_activity(database, action, details=""):
@@ -39,7 +31,7 @@ def _log_activity(database, action, details=""):
 def render_projects_module(database):
     st.header("Projects")
 
-    projects = _get_collection("projects", database)
+    projects = get_collection("projects", database)
 
     # Create project
     with st.expander("New Project", expanded=False):
