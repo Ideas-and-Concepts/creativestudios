@@ -56,40 +56,41 @@ def render_rfis_module(database: dict[str, Any]) -> None:
                     st.error("RFI Number, Subject and Question are required.")
                 else:
                     try:
-                        save_updated_record(
-                            database,
-                            "rfis",
-                            rid,
-                            {
-                                "project_id": project_id,
-                                "rfi_number": number.strip(),
-                                "subject": subject.strip(),
-                                "raised_by": raised_by.strip(),
-                                "priority": priority,
-                                "status": status,
-                                "question": question.strip(),
-                                "response": response.strip(),
-                                "notes": notes.strip(),
-                                "updated_at": now_iso(),
-                            },
-                        )
-                        st.success("RFI updated.")
-                        st.rerun()
+                        saved = save_updated_record(database, "rfis", rid, {
+                            "project_id": project_id,
+                            "rfi_number": number.strip(),
+                            "subject": subject.strip(),
+                            "raised_by": raised_by.strip(),
+                            "priority": priority,
+                            "status": status,
+                            "question": question.strip(),
+                            "response": response.strip(),
+                            "notes": notes.strip(),
+                            "updated_at": now_iso(),
+                        })
+                        if not saved:
+                            st.error("The RFI could not be found.")
+                        else:
+                            st.success("RFI updated.")
+                            st.rerun()
                     except Exception as exc:
                         st.error("Unable to update the RFI.")
                         with st.expander("Technical details"):
                             st.exception(exc)
             if st.button("Delete RFI", key=f"rfi_delete_{rid}", use_container_width=True):
                 try:
-                    remove_record(database, "rfis", rid)
-                    st.success("RFI deleted.")
-                    st.rerun()
+                    if remove_record(database, "rfis", rid):
+                        st.success("RFI deleted.")
+                        st.rerun()
+                    else:
+                        st.warning("The RFI was already removed.")
                 except Exception as exc:
                     st.error("Unable to delete the RFI.")
                     with st.expander("Technical details"):
                         st.exception(exc)
 
     st.divider()
+    st.subheader("Add RFI")
     with st.form("rfi_add", clear_on_submit=True):
         number = st.text_input("RFI Number")
         subject = st.text_input("Subject")
@@ -105,23 +106,19 @@ def render_rfis_module(database: dict[str, Any]) -> None:
             st.error("RFI Number, Subject and Question are required.")
         else:
             try:
-                save_new_record(
-                    database,
-                    "rfis",
-                    {
-                        "project_id": project_id,
-                        "rfi_number": number.strip(),
-                        "subject": subject.strip(),
-                        "raised_by": raised_by.strip(),
-                        "priority": priority,
-                        "status": status,
-                        "question": question.strip(),
-                        "response": response.strip(),
-                        "notes": notes.strip(),
-                        "created_at": now_iso(),
-                        "updated_at": now_iso(),
-                    },
-                )
+                save_new_record(database, "rfis", {
+                    "project_id": project_id,
+                    "rfi_number": number.strip(),
+                    "subject": subject.strip(),
+                    "raised_by": raised_by.strip(),
+                    "priority": priority,
+                    "status": status,
+                    "question": question.strip(),
+                    "response": response.strip(),
+                    "notes": notes.strip(),
+                    "created_at": now_iso(),
+                    "updated_at": now_iso(),
+                })
                 st.success("RFI added.")
                 st.rerun()
             except Exception as exc:
