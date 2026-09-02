@@ -1,9 +1,4 @@
-"""Creative Studios Streamlit workspace.
-
-Streamlit remains the compatible workspace interface while the Next.js PWA is
-the primary production interface. Both use the shared workspace database when
-DATABASE_URL is configured.
-"""
+"""Creative Studios Streamlit workspace."""
 from __future__ import annotations
 
 import importlib
@@ -79,8 +74,10 @@ PWA_URL = get_pwa_url()
 def initialize_session_state() -> None:
     if "active_module" not in st.session_state:
         st.session_state.active_module = "Dashboard"
-    if "navigation" not in st.session_state:
+    if "navigation" not in st.session_state or st.session_state.navigation not in NAVIGATION:
         st.session_state.navigation = st.session_state.active_module
+    if st.session_state.navigation not in NAVIGATION:
+        st.session_state.navigation = "Dashboard"
     if "database" not in st.session_state or not isinstance(st.session_state.database, dict):
         st.session_state.database = load_memory()
 
@@ -139,13 +136,15 @@ def render_sidebar() -> str:
     current = st.session_state.get("active_module", "Dashboard")
     if current not in NAVIGATION:
         current = "Dashboard"
-    if st.session_state.get("navigation") not in NAVIGATION:
-        st.session_state.navigation = current
+    navigation = st.session_state.get("navigation", current)
+    if navigation not in NAVIGATION:
+        navigation = current
+    st.session_state.navigation = navigation
 
     choice = st.sidebar.radio(
         "Workspace",
         NAVIGATION,
-        index=NAVIGATION.index(st.session_state.navigation),
+        index=NAVIGATION.index(navigation),
         key="navigation",
         label_visibility="collapsed",
     )
@@ -154,8 +153,12 @@ def render_sidebar() -> str:
     col1, col2 = st.sidebar.columns(2)
     with col1:
         if st.button("Refresh", use_container_width=True, key="refresh_database"):
-            get_database(reload=True)
-            st.rerun()
+            try:
+                get_database(reload=True)
+                st.rerun()
+            except Exception as exc:
+                st.sidebar.error("Database refresh failed.")
+                st.sidebar.exception(exc)
     with col2:
         if st.button("Top", use_container_width=True, key="top_workspace"):
             st.rerun()
@@ -178,6 +181,7 @@ def load_module_renderer(name: str) -> Callable[[dict[str, Any]], Any] | None:
     module_path, function_name = MODULE_IMPORTS.get(name, ("", ""))
     if not module_path:
         return None
+    importlib.invalidate_caches()
     module = importlib.import_module(module_path)
     renderer = getattr(module, function_name, None)
     if not callable(renderer):
@@ -192,6 +196,11 @@ def render_module(name: str, database: dict[str, Any]) -> None:
             st.warning(f"The {name} Streamlit renderer is not registered.")
             return
         renderer(database)
+    except ImportError as exc:
+        st.error(f"Unable to load the {name} module dependencies.")
+        with st.expander("Technical details", expanded=True):
+            st.code(str(exc))
+            st.caption("Check requirements.txt and the module import path, then reboot the Streamlit Cloud app.")
     except Exception as exc:
         st.error(f"Unable to render the {name} module.")
         with st.expander("Technical details", expanded=False):
@@ -199,7 +208,15 @@ def render_module(name: str, database: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    initialize_session_state()
+    try:
+        initialize_session_state()
+    except Exception as exc:
+        st.error("Creative Studios could not load the shared workspace database.")
+        st.caption("Check DATABASE_URL in Streamlit Cloud Secrets, then reboot the app.")
+        with st.expander("Technical details", expanded=True):
+            st.exception(exc)
+        return
+
     inject_css()
     choice = render_sidebar()
     render_module(choice, get_database())
