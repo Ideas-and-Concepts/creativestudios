@@ -1,7 +1,7 @@
 """Creative Studios shared workspace database layer.
 
 Neon PostgreSQL is the preferred shared store when DATABASE_URL is configured.
-The JSON file remains available as a local/offline fallback for development.
+The JSON file is used only when DATABASE_URL is not configured, for local/offline development.
 """
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def database_backend() -> str:
 def _neon_connect():
     url = _database_url()
     if not url:
-        return None
+        raise RuntimeError("DATABASE_URL is not configured.")
     try:
         import psycopg
     except ImportError as exc:
@@ -111,29 +111,34 @@ def _load_json_file() -> dict[str, Any]:
         return copy.deepcopy(DEFAULT_DATABASE)
 
 
+def _load_neon() -> dict[str, Any]:
+    with _neon_connect() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT data FROM workspace_state WHERE id = 1")
+            row = cursor.fetchone()
+        if row and isinstance(row[0], dict):
+            database = _normalize_database(row[0])
+        else:
+            database = copy.deepcopy(DEFAULT_DATABASE)
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO workspace_state (id, data, updated_at) VALUES (1, %s::jsonb, now()) ON CONFLICT (id) DO NOTHING",
+                    (json.dumps(database, ensure_ascii=False, default=_json_default),),
+                )
+            connection.commit()
+        _save_json(database)
+        return database
+
+
 def load_memory() -> dict[str, Any]:
-    """Load shared workspace data from Neon, falling back to JSON offline."""
+    """Load workspace data.
+
+    When DATABASE_URL is configured, Neon is authoritative. Neon connection or
+    query failures are surfaced instead of silently falling back to stale JSON.
+    JSON is used only when no DATABASE_URL is configured.
+    """
     if database_backend() == "neon":
-        try:
-            with _neon_connect() as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute("SELECT data FROM workspace_state WHERE id = 1")
-                    row = cursor.fetchone()
-                if row and isinstance(row[0], dict):
-                    database = _normalize_database(row[0])
-                    _save_json(database)
-                    return database
-                database = copy.deepcopy(DEFAULT_DATABASE)
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        "INSERT INTO workspace_state (id, data, updated_at) VALUES (1, %s::jsonb, now()) ON CONFLICT (id) DO NOTHING",
-                        (json.dumps(database, ensure_ascii=False, default=_json_default),),
-                    )
-                connection.commit()
-                _save_json(database)
-                return database
-        except Exception:
-            return _load_json_file()
+        return _load_neon()
     return _load_json_file()
 
 
@@ -142,22 +147,19 @@ def initialize_database() -> dict[str, Any]:
 
 
 def save_memory(db: dict[str, Any], *, force_json: bool = False) -> bool:
-    """Persist workspace data to Neon when configured and keep a local backup."""
+    """Persist workspace data to Neon when configured, otherwise to JSON."""
     database = _normalize_database(db)
     if not force_json and database_backend() == "neon":
-        try:
-            payload = json.dumps(database, ensure_ascii=False, default=_json_default)
-            with _neon_connect() as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        "INSERT INTO workspace_state (id, data, updated_at) VALUES (1, %s::jsonb, now()) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()",
-                        (payload,),
-                    )
-                connection.commit()
-            _save_json(database)
-            return True
-        except Exception:
-            return False
+        payload = json.dumps(database, ensure_ascii=False, default=_json_default)
+        with _neon_connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO workspace_state (id, data, updated_at) VALUES (1, %s::jsonb, now()) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()",
+                    (payload,),
+                )
+            connection.commit()
+        _save_json(database)
+        return True
     return _save_json(database)
 
 
@@ -195,9 +197,12 @@ def add_record(collection: str, record: dict[str, Any], db: dict[str, Any]) -> d
     if new_record.get("id") is None:
         new_record["id"] = next_id(collection, db)
     _ensure_collection(db, collection).append(new_record)
-    if not save_memory(db):
+    try:
+        if not save_memory(db):
+            raise IOError("Unable to save the database.")
+    except Exception:
         _ensure_collection(db, collection).pop()
-        raise IOError("Unable to save the database.")
+        raise
     return new_record
 
 
@@ -218,9 +223,12 @@ def update_record(collection: str, record_id: Any, updates: dict[str, Any], db: 
             updated = copy.deepcopy(record)
             updated.update(copy.deepcopy(updates))
             records[index] = updated
-            if not save_memory(db):
+            try:
+                if not save_memory(db):
+                    raise IOError("Unable to save the database.")
+            except Exception:
                 records[index] = original
-                raise IOError("Unable to save the database.")
+                raise
             return updated
     return None
 
@@ -230,8 +238,11 @@ def delete_record(collection: str, record_id: Any, db: dict[str, Any]) -> bool:
     for index, record in enumerate(records):
         if isinstance(record, dict) and str(record.get("id")) == str(record_id):
             deleted = records.pop(index)
-            if not save_memory(db):
+            try:
+                if not save_memory(db):
+                    raise IOError("Unable to save the database.")
+            except Exception:
                 records.insert(index, deleted)
-                raise IOError("Unable to save the database.")
+                raise
             return True
     return False
