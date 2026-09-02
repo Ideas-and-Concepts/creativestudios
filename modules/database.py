@@ -22,6 +22,8 @@ DEFAULT_DATABASE: dict[str, Any] = {
     "mep": [],
     "boq": [],
     "construction": [],
+    "procurement": [],
+    "cost_control": [],
     "rfis": [],
     "tasks": [],
     "approvals": [],
@@ -131,10 +133,7 @@ def save_memory(db: dict[str, Any]) -> bool:
         return False
 
 
-def _ensure_collection(
-    db: dict[str, Any],
-    collection: str,
-) -> list[Any]:
+def _ensure_collection(db: dict[str, Any], collection: str) -> list[Any]:
     if not isinstance(db, dict):
         raise TypeError("Database must be a dictionary.")
 
@@ -144,17 +143,11 @@ def _ensure_collection(
     return db[collection]
 
 
-def get_collection(
-    collection: str,
-    db: dict[str, Any],
-) -> list[Any]:
+def get_collection(collection: str, db: dict[str, Any]) -> list[Any]:
     return _ensure_collection(db, collection)
 
 
-def get_records(
-    collection: str,
-    db: dict[str, Any],
-) -> list[dict[str, Any]]:
+def get_records(collection: str, db: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         record
         for record in _ensure_collection(db, collection)
@@ -162,35 +155,24 @@ def get_records(
     ]
 
 
-def next_id(
-    collection: str,
-    db: dict[str, Any],
-) -> int:
+def next_id(collection: str, db: dict[str, Any]) -> int:
     highest = 0
 
     for record in _ensure_collection(db, collection):
         if isinstance(record, dict):
             try:
-                highest = max(
-                    highest,
-                    int(record.get("id", 0)),
-                )
+                highest = max(highest, int(record.get("id", 0)))
             except (TypeError, ValueError):
                 pass
 
     return highest + 1
 
 
-def add_record(
-    collection: str,
-    record: dict[str, Any],
-    db: dict[str, Any],
-) -> dict[str, Any]:
+def add_record(collection: str, record: dict[str, Any], db: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(record, dict):
         raise TypeError("Record must be a dictionary.")
 
     new_record = copy.deepcopy(record)
-
     if new_record.get("id") is None:
         new_record["id"] = next_id(collection, db)
 
@@ -203,37 +185,20 @@ def add_record(
     return new_record
 
 
-def get_record(
-    collection: str,
-    record_id: Any,
-    db: dict[str, Any],
-) -> dict[str, Any] | None:
+def get_record(collection: str, record_id: Any, db: dict[str, Any]) -> dict[str, Any] | None:
     for record in _ensure_collection(db, collection):
-        if (
-            isinstance(record, dict)
-            and str(record.get("id")) == str(record_id)
-        ):
+        if isinstance(record, dict) and str(record.get("id")) == str(record_id):
             return record
-
     return None
 
 
-def update_record(
-    collection: str,
-    record_id: Any,
-    updates: dict[str, Any],
-    db: dict[str, Any],
-) -> dict[str, Any] | None:
+def update_record(collection: str, record_id: Any, updates: dict[str, Any], db: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(updates, dict):
         raise TypeError("Updates must be a dictionary.")
 
     records = _ensure_collection(db, collection)
-
     for index, record in enumerate(records):
-        if (
-            isinstance(record, dict)
-            and str(record.get("id")) == str(record_id)
-        ):
+        if isinstance(record, dict) and str(record.get("id")) == str(record_id):
             original = copy.deepcopy(record)
             updated = copy.deepcopy(record)
             updated.update(copy.deepcopy(updates))
@@ -242,30 +207,18 @@ def update_record(
             if not save_memory(db):
                 records[index] = original
                 raise IOError("Unable to save the database.")
-
             return updated
 
     return None
 
 
-def delete_record(
-    collection: str,
-    record_id: Any,
-    db: dict[str, Any],
-) -> bool:
+def delete_record(collection: str, record_id: Any, db: dict[str, Any]) -> bool:
     records = _ensure_collection(db, collection)
-
     for index, record in enumerate(records):
-        if (
-            isinstance(record, dict)
-            and str(record.get("id")) == str(record_id)
-        ):
+        if isinstance(record, dict) and str(record.get("id")) == str(record_id):
             deleted = records.pop(index)
-
             if not save_memory(db):
                 records.insert(index, deleted)
                 raise IOError("Unable to save the database.")
-
             return True
-
     return False
