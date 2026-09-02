@@ -1,5 +1,4 @@
 """Creative Studios application verification."""
-
 from __future__ import annotations
 
 import ast
@@ -11,15 +10,8 @@ ROOT = Path(__file__).resolve().parent.parent
 APP_FILE = ROOT / "streamlit_app.py"
 
 REQUIRED_DATABASE_FUNCTIONS = [
-    "load_memory",
-    "save_memory",
-    "initialize_database",
-    "add_record",
-    "update_record",
-    "delete_record",
-    "next_id",
-    "get_record",
-    "get_records",
+    "load_memory", "save_memory", "initialize_database", "add_record",
+    "update_record", "delete_record", "next_id", "get_record", "get_records",
 ]
 
 WORKSPACE_MODULES = [
@@ -32,6 +24,18 @@ WORKSPACE_MODULES = [
     ("boq", "render_boq_module"),
     ("mep", "render_mep_module"),
     ("construction", "render_construction_module"),
+    ("cost_control", "render_cost_control_module"),
+    ("tasks", "render_tasks_module"),
+    ("rfis", "render_rfis_module"),
+    ("approvals", "render_approvals_module"),
+    ("reports", "render_reports_module"),
+    ("settings", "render_settings_module"),
+]
+
+REQUIRED_COLLECTIONS = [
+    "users", "projects", "documents", "drawings", "architecture", "engineering",
+    "mep", "boq", "construction", "procurement", "cost_control", "rfis", "tasks",
+    "approvals", "teams", "settings",
 ]
 
 
@@ -43,8 +47,7 @@ def main() -> int:
         return 1
 
     try:
-        source = APP_FILE.read_text(encoding="utf-8")
-        ast.parse(source, filename=str(APP_FILE))
+        ast.parse(APP_FILE.read_text(encoding="utf-8"), filename=str(APP_FILE))
     except SyntaxError as exc:
         print(f"STREAMLIT_APP SYNTAX ERROR: {exc}")
         return 1
@@ -55,10 +58,7 @@ def main() -> int:
         print(f"DATABASE IMPORT FAILED: {type(exc).__name__}: {exc}")
         return 1
 
-    missing = [
-        name for name in REQUIRED_DATABASE_FUNCTIONS
-        if not callable(getattr(database, name, None))
-    ]
+    missing = [name for name in REQUIRED_DATABASE_FUNCTIONS if not callable(getattr(database, name, None))]
     if missing:
         print("MISSING DATABASE FUNCTIONS:")
         for name in missing:
@@ -75,11 +75,7 @@ def main() -> int:
         print("DATABASE INITIALIZATION FAILED: expected dictionary.")
         return 1
 
-    for collection in [
-        "users", "projects", "documents", "drawings", "architecture",
-        "engineering", "mep", "boq", "construction", "rfis", "tasks",
-        "approvals", "teams", "settings",
-    ]:
+    for collection in REQUIRED_COLLECTIONS:
         if collection not in db:
             print(f"MISSING COLLECTION: {collection}")
             return 1
@@ -99,7 +95,7 @@ def main() -> int:
     print("PASS: database contract")
     print("PASS: database initialization")
     print("PASS: streamlit_app syntax")
-    print("PASS: workspace module imports")
+    print("PASS: all workspace module imports")
     print("Creative Studios verification passed.")
     return 0
 
