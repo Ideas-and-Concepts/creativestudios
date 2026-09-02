@@ -1,7 +1,8 @@
-"""Creative Studios legacy Streamlit workspace.
+"""Creative Studios Streamlit workspace.
 
-The production application is the Next.js PWA. This Streamlit application is
-kept as a lightweight legacy/admin workspace for the existing Python modules.
+This remains the Streamlit-compatible workspace while the Next.js PWA is the
+primary production interface. Both can use the same Neon-backed workspace
+state when DATABASE_URL is configured.
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ from urllib.parse import urlparse
 
 import streamlit as st
 
-from modules.database import load_memory
+from modules.database import database_backend, load_memory
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
@@ -46,13 +47,11 @@ MODULE_IMPORTS: dict[str, tuple[str, str]] = {
 }
 
 LOGO_PATH = next(
-    (
-        path for path in (
-            ASSETS_DIR / "creative_studios.png",
-            ASSETS_DIR / "creative_studios_logo.png",
-            ASSETS_DIR / "logo.png",
-        ) if path.exists()
-    ),
+    (path for path in (
+        ASSETS_DIR / "creative_studios.png",
+        ASSETS_DIR / "creative_studios_logo.png",
+        ASSETS_DIR / "logo.png",
+    ) if path.exists()),
     None,
 )
 
@@ -86,21 +85,17 @@ def inject_css() -> None:
     st.markdown(
         """
         <style>
-        .block-container { max-width: 1280px; padding-top: 1.5rem; padding-bottom: 3rem; }
-        [data-testid="stSidebar"] { min-width: 250px; max-width: 250px; }
-        .cs-brand { text-align: center; }
-        .cs-brand-title { font-size: 18px; font-weight: 700; margin-top: .35rem; }
-        .cs-brand-subtitle { font-size: 11px; opacity: .68; margin-top: .1rem; }
-        .cs-divider { height: 1px; background: rgba(127,127,127,.24); margin: 1rem 0; }
-        .cs-section { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; opacity: .62; margin: .7rem 0 .45rem; }
-        .cs-sidebar-note { font-size: 11px; text-align: center; opacity: .62; line-height: 1.5; margin-top: .7rem; }
-        .cs-native-link { display:block; text-decoration:none !important; padding:.48rem .7rem; margin:.25rem 0; border-radius:7px; color:inherit !important; font-size:13px; }
-        .cs-native-link:hover { background: rgba(127,127,127,.12); }
-        .cs-pwa-link { display:block; text-decoration:none !important; padding:.5rem .7rem; margin:.25rem 0; border:1px solid rgba(127,127,127,.3); border-radius:7px; color:inherit !important; font-size:13px; text-align:left; }
-        .cs-pwa-link:hover { background: rgba(127,127,127,.12); }
-        [data-testid="stSidebar"] div[role="radiogroup"] { gap: 2px; }
-        [data-testid="stSidebar"] div[role="radiogroup"] label { width:100%; border-radius:7px; padding:.35rem .65rem; }
-        [data-testid="stSidebar"] div[role="radiogroup"] label:hover { background:rgba(127,127,127,.12); }
+        .block-container { max-width: 1320px; padding-top: 1.2rem; padding-bottom: 3rem; }
+        [data-testid="stSidebar"] { min-width: 255px; max-width: 255px; }
+        .cs-brand { text-align:center; }
+        .cs-brand-title { font-size:18px; font-weight:700; margin-top:.35rem; }
+        .cs-brand-subtitle { font-size:11px; opacity:.68; margin-top:.1rem; }
+        .cs-divider { height:1px; background:rgba(127,127,127,.24); margin:1rem 0; }
+        .cs-section { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; opacity:.62; margin:.7rem 0 .45rem; }
+        .cs-sidebar-note { font-size:11px; text-align:center; opacity:.62; line-height:1.5; margin-top:.7rem; }
+        .cs-pwa-link { display:block; text-decoration:none !important; padding:.55rem .7rem; margin:.3rem 0; border:1px solid rgba(127,127,127,.3); border-radius:8px; color:inherit !important; font-size:13px; text-align:center; }
+        .cs-pwa-link.primary { background:rgba(127,127,127,.12); font-weight:650; }
+        .cs-pwa-link:hover { background:rgba(127,127,127,.16); }
         .cs-footer { text-align:center; opacity:.48; font-size:11px; padding-top:2rem; }
         </style>
         """,
@@ -109,25 +104,32 @@ def inject_css() -> None:
 
 
 def render_pwa_links() -> None:
-    # Streamlit Cloud-style external navigation: compact, full-width links.
-    st.sidebar.markdown(f'<a class="cs-pwa-link" href="{PWA_URL}" target="_blank" rel="noopener noreferrer">Creative Studios PWA</a>', unsafe_allow_html=True)
-    st.sidebar.markdown(f'<a class="cs-pwa-link" href="{AI_PWA_URL}" target="_blank" rel="noopener noreferrer">Creative Studios AI</a>', unsafe_allow_html=True)
+    st.sidebar.markdown(
+        f'<a class="cs-pwa-link primary" href="{PWA_URL}" target="_blank" rel="noopener noreferrer">Open Production PWA</a>',
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown(
+        f'<a class="cs-pwa-link" href="{AI_PWA_URL}" target="_blank" rel="noopener noreferrer">Open Creative Studios AI</a>',
+        unsafe_allow_html=True,
+    )
 
 
-def get_database() -> dict[str, Any]:
-    database = st.session_state.get("database")
-    if not isinstance(database, dict):
-        database = load_memory()
-        st.session_state.database = database
-    return database
+def get_database(*, reload: bool = False) -> dict[str, Any]:
+    if reload or not isinstance(st.session_state.get("database"), dict):
+        st.session_state.database = load_memory()
+    return st.session_state.database
 
 
 def render_sidebar() -> str:
     if LOGO_PATH:
         st.sidebar.image(str(LOGO_PATH), width=54)
-    st.sidebar.markdown('<div class="cs-brand"><div class="cs-brand-title">Creative Studios</div><div class="cs-brand-subtitle">AEC Collaboration Platform</div></div>', unsafe_allow_html=True)
+    st.sidebar.markdown(
+        '<div class="cs-brand"><div class="cs-brand-title">Creative Studios</div><div class="cs-brand-subtitle">AEC Collaboration Platform</div></div>',
+        unsafe_allow_html=True,
+    )
     st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
     render_pwa_links()
+    st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="cs-section">Workspace</div>', unsafe_allow_html=True)
 
     current = st.session_state.get("active_module", "Dashboard")
@@ -138,8 +140,24 @@ def render_sidebar() -> str:
 
     choice = st.sidebar.radio("Workspace", NAVIGATION, key="navigation", label_visibility="collapsed")
     st.session_state.active_module = choice
+
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        if st.button("Refresh", use_container_width=True, key="refresh_database"):
+            get_database(reload=True)
+            st.rerun()
+    with col2:
+        if st.button("Top", use_container_width=True, key="top_workspace"):
+            st.rerun()
+
     st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="cs-sidebar-note">Edit records directly inside each module.<br>Production data layer: Neon PostgreSQL.</div>', unsafe_allow_html=True)
+    backend = database_backend()
+    backend_label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
+    st.sidebar.caption(f"Data layer: {backend_label}")
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-note">Create, edit and delete records directly inside each module. Changes are persisted through the shared database layer.</div>',
+        unsafe_allow_html=True,
+    )
     return choice
 
 
@@ -172,7 +190,7 @@ def main() -> None:
     inject_css()
     choice = render_sidebar()
     render_module(choice, get_database())
-    st.markdown('<div class="cs-footer">Creative Studios · AEC Collaboration Platform · Legacy Streamlit Workspace</div>', unsafe_allow_html=True)
+    st.markdown('<div class="cs-footer">Creative Studios · AEC Collaboration Platform · Shared workspace</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
