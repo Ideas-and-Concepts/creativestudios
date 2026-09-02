@@ -39,6 +39,16 @@ export const mepDiscipline = pgEnum("mep_discipline", [
   "other",
 ]);
 
+export const procurementStatus = pgEnum("procurement_status", [
+  "draft",
+  "requested",
+  "approved",
+  "ordered",
+  "partially_received",
+  "received",
+  "cancelled",
+]);
+
 export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   code: text("code").notNull().unique(),
@@ -77,6 +87,19 @@ export const engineeringWorks = pgTable("engineering_works", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const drawings = pgTable("drawings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  drawingNumber: text("drawing_number").notNull(),
+  title: text("title").notNull(),
+  discipline: drawingDiscipline("discipline").notNull(),
+  revision: text("revision").default("A").notNull(),
+  status: text("status").default("draft").notNull(),
+  fileUrl: text("file_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const mepWorks = pgTable("mep_works", {
   id: uuid("id").defaultRandom().primaryKey(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
@@ -88,19 +111,6 @@ export const mepWorks = pgTable("mep_works", {
   status: workStatus("status").default("planned").notNull(),
   progress: integer("progress").default(0).notNull(),
   notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const drawings = pgTable("drawings", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
-  drawingNumber: text("drawing_number").notNull(),
-  title: text("title").notNull(),
-  discipline: drawingDiscipline("discipline").notNull(),
-  revision: text("revision").default("A").notNull(),
-  status: text("status").default("draft").notNull(),
-  fileUrl: text("file_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -118,6 +128,51 @@ export const boqItems = pgTable("boq_items", {
   rate: decimal("rate", { precision: 14, scale: 2 }).default("0").notNull(),
   amount: decimal("amount", { precision: 16, scale: 2 }).default("0").notNull(),
   status: workStatus("status").default("planned").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const suppliers = pgTable("suppliers", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  contactName: text("contact_name"),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  taxNumber: text("tax_number"),
+  category: text("category"),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const purchaseOrders = pgTable("purchase_orders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "restrict" }).notNull(),
+  poNumber: text("po_number").notNull().unique(),
+  status: procurementStatus("status").default("draft").notNull(),
+  orderDate: timestamp("order_date", { withTimezone: true }),
+  expectedDeliveryDate: timestamp("expected_delivery_date", { withTimezone: true }),
+  subtotal: decimal("subtotal", { precision: 16, scale: 2 }).default("0").notNull(),
+  taxAmount: decimal("tax_amount", { precision: 16, scale: 2 }).default("0").notNull(),
+  totalAmount: decimal("total_amount", { precision: 16, scale: 2 }).default("0").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const purchaseOrderItems = pgTable("purchase_order_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  purchaseOrderId: uuid("purchase_order_id").references(() => purchaseOrders.id, { onDelete: "cascade" }).notNull(),
+  boqItemId: uuid("boq_item_id").references(() => boqItems.id, { onDelete: "set null" }),
+  description: text("description").notNull(),
+  quantity: decimal("quantity", { precision: 14, scale: 3 }).default("0").notNull(),
+  unit: text("unit").notNull(),
+  unitRate: decimal("unit_rate", { precision: 14, scale: 2 }).default("0").notNull(),
+  amount: decimal("amount", { precision: 16, scale: 2 }).default("0").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
