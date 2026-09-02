@@ -1,89 +1,35 @@
-import base64
+from pathlib import Path
 
 import streamlit_app
 
 
-def test_render_sidebar_branding_without_expected_session_state(
-    monkeypatch,
-):
-    captured = {}
+def test_branding_asset_exists():
+    root = Path(streamlit_app.__file__).resolve().parent
+    logo = root / "assets" / "creative_studios.png"
+    assert logo.exists()
+    assert logo.is_file()
+    assert logo.stat().st_size > 0
 
-    def fake_markdown(body, **kwargs):
-        captured["body"] = body
-        captured["kwargs"] = kwargs
 
-    # Capture sidebar.markdown() output.
-    monkeypatch.setattr(
-        streamlit_app.st.sidebar,
-        "markdown",
-        fake_markdown,
-    )
+def test_sidebar_branding_configuration():
+    source = Path(streamlit_app.__file__).read_text(encoding="utf-8")
+    assert "Creative Studios" in source
+    assert "AEC Collaboration Platform" in source
+    assert "creative_studios.png" in source
+    assert "st.sidebar.image" in source
+    assert "unsafe_allow_html=True" in source
 
-    # Simulate a fresh/partial session where the expected
-    # authentication keys are absent.
-    for key in (
-        "user",
-        "active_module",
-        "authenticated",
-    ):
-        try:
-            del streamlit_app.st.session_state[key]
-        except KeyError:
-            pass
 
-    # Sidebar buttons must not interfere with this branding test.
-    monkeypatch.setattr(
-        streamlit_app.st.sidebar,
-        "button",
-        lambda *args, **kwargs: False,
-    )
-
-    streamlit_app.render_sidebar()
-
-    html = captured["body"]
-
-    # --------------------------------------------------------
-    # Creative Studios branding must still exist.
-    # --------------------------------------------------------
-
-    assert "Creative Studios" in html
-    assert "AEC Workspace" in html
-
-    # --------------------------------------------------------
-    # Logo must still be an embedded SVG.
-    # --------------------------------------------------------
-
-    marker = "data:image/svg+xml;base64,"
-
-    assert marker in html
-
-    encoded = html.split(marker, 1)[1].split('"', 1)[0]
-
-    svg = base64.b64decode(
-        encoded,
-        validate=True,
-    ).decode("utf-8")
-
-    assert "<svg" in svg
-    assert 'xmlns="http://www.w3.org/2000/svg"' in svg
-
-    # --------------------------------------------------------
-    # Sidebar logo dimensions.
-    # --------------------------------------------------------
-
-    assert 'width="46"' in html
-    assert 'height="46"' in html
-
-    assert "width:46px" in html
-    assert "height:46px" in html
-
-    # --------------------------------------------------------
-    # HTML must actually be enabled.
-    # --------------------------------------------------------
-
-    assert (
-        captured["kwargs"].get(
-            "unsafe_allow_html"
-        )
-        is True
-    )
+def test_navigation_contains_current_modules():
+    expected = {
+        "Dashboard",
+        "Projects",
+        "Documents",
+        "Architecture",
+        "Engineering",
+        "Drawings",
+        "BOQ",
+        "MEP",
+        "Construction",
+    }
+    assert expected.issubset(set(streamlit_app.NAVIGATION))

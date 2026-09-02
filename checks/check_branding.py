@@ -1,68 +1,43 @@
-"""
-Creative Studios
-Branding smoke test.
-
-Checks that the source contains the required CSS and
-HTML branding markers without starting Streamlit.
-"""
+"""Creative Studios branding diagnostic."""
 
 from pathlib import Path
 
-
-APP_FILE = (
-    Path(__file__).resolve()
-    / "streamlit_app.py"
-)
-
-source = APP_FILE.read_text(
-    encoding="utf-8"
-)
+ROOT = Path(__file__).resolve().parent.parent
+APP_FILE = ROOT / "streamlit_app.py"
+LOGO_FILE = ROOT / "assets" / "creative_studios.png"
 
 
-REQUIRED = [
-    ".cs-logo",
-    ".cs-logo-text",
-    ".cs-sidebar-logo",
-    ".cs-sidebar-logo-text",
-    ".cs-brand-name",
-    ".cs-brand-subtitle",
-    "render_login_brand",
-    "render_sidebar_brand",
-    "unsafe_allow_html=True",
-]
+def main() -> int:
+    if not APP_FILE.exists():
+        print(f"BRANDING CHECK: FAILED\nMissing {APP_FILE}")
+        return 1
+
+    source = APP_FILE.read_text(encoding="utf-8")
+
+    required = [
+        "Creative Studios",
+        "AEC Collaboration Platform",
+        "render_sidebar",
+        "st.sidebar.image",
+        "unsafe_allow_html=True",
+        "creative_studios.png",
+    ]
+
+    missing = [item for item in required if item not in source]
+
+    if not LOGO_FILE.exists():
+        missing.append("assets/creative_studios.png")
+
+    if missing:
+        print("BRANDING CHECK: FAILED")
+        for item in missing:
+            print(f"  - {item}")
+        return 1
+
+    print("BRANDING CHECK: PASSED")
+    print("Current image logo and sidebar branding are present.")
+    return 0
 
 
-missing = [
-    item
-    for item in REQUIRED
-    if item not in source
-]
-
-
-if missing:
-
-    print("BRANDING CHECK: FAILED")
-
-    print("\nMissing:")
-
-    for item in missing:
-        print(f"  - {item}")
-
-    raise SystemExit(1)
-
-
-print(
-    "BRANDING CHECK: PASSED"
-)
-
-print(
-    "Login CSS/branding markers found."
-)
-
-print(
-    "Sidebar CSS/branding markers found."
-)
-
-print(
-    "unsafe_allow_html=True found."
-)
+if __name__ == "__main__":
+    raise SystemExit(main())
