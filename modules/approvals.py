@@ -53,38 +53,39 @@ def render_approvals_module(database: dict[str, Any]) -> None:
                     st.error("Approval Number and Title are required.")
                 else:
                     try:
-                        save_updated_record(
-                            database,
-                            "approvals",
-                            rid,
-                            {
-                                "project_id": project_id,
-                                "approval_number": number.strip(),
-                                "title": title.strip(),
-                                "requested_by": requested_by.strip(),
-                                "approver": approver.strip(),
-                                "status": status,
-                                "comments": comments.strip(),
-                                "updated_at": now_iso(),
-                            },
-                        )
-                        st.success("Approval updated.")
-                        st.rerun()
+                        saved = save_updated_record(database, "approvals", rid, {
+                            "project_id": project_id,
+                            "approval_number": number.strip(),
+                            "title": title.strip(),
+                            "requested_by": requested_by.strip(),
+                            "approver": approver.strip(),
+                            "status": status,
+                            "comments": comments.strip(),
+                            "updated_at": now_iso(),
+                        })
+                        if not saved:
+                            st.error("The approval could not be found.")
+                        else:
+                            st.success("Approval updated.")
+                            st.rerun()
                     except Exception as exc:
                         st.error("Unable to update the approval.")
                         with st.expander("Technical details"):
                             st.exception(exc)
             if st.button("Delete Approval", key=f"approval_delete_{rid}", use_container_width=True):
                 try:
-                    remove_record(database, "approvals", rid)
-                    st.success("Approval deleted.")
-                    st.rerun()
+                    if remove_record(database, "approvals", rid):
+                        st.success("Approval deleted.")
+                        st.rerun()
+                    else:
+                        st.warning("The approval was already removed.")
                 except Exception as exc:
                     st.error("Unable to delete the approval.")
                     with st.expander("Technical details"):
                         st.exception(exc)
 
     st.divider()
+    st.subheader("Add Approval")
     with st.form("approval_add", clear_on_submit=True):
         number = st.text_input("Approval Number")
         title = st.text_input("Title")
@@ -98,21 +99,17 @@ def render_approvals_module(database: dict[str, Any]) -> None:
             st.error("Approval Number and Title are required.")
         else:
             try:
-                save_new_record(
-                    database,
-                    "approvals",
-                    {
-                        "project_id": project_id,
-                        "approval_number": number.strip(),
-                        "title": title.strip(),
-                        "requested_by": requested_by.strip(),
-                        "approver": approver.strip(),
-                        "status": status,
-                        "comments": comments.strip(),
-                        "created_at": now_iso(),
-                        "updated_at": now_iso(),
-                    },
-                )
+                save_new_record(database, "approvals", {
+                    "project_id": project_id,
+                    "approval_number": number.strip(),
+                    "title": title.strip(),
+                    "requested_by": requested_by.strip(),
+                    "approver": approver.strip(),
+                    "status": status,
+                    "comments": comments.strip(),
+                    "created_at": now_iso(),
+                    "updated_at": now_iso(),
+                })
                 st.success("Approval added.")
                 st.rerun()
             except Exception as exc:
