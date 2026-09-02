@@ -39,7 +39,7 @@ export default function Home() {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as Record<string, Partial<Module>>;
-        setModules(defaultModules.map((item) => ({ ...item, ...(parsed[item.name] ?? {}) })));
+        setModules(defaultModules.map((item) => ({ ...item, ...(parsed[item.href] ?? {}) })));
       }
     } catch {
       setModules(defaultModules);
@@ -61,13 +61,13 @@ export default function Home() {
     [active, modules],
   );
 
-  const updatePage = (name: string, field: "name" | "description", value: string) => {
-    setModules((current) => current.map((item) => item.name === name ? { ...item, [field]: value } : item));
+  const updatePage = (href: string, field: "name" | "description", value: string) => {
+    setModules((current) => current.map((item) => item.href === href ? { ...item, [field]: value } : item));
   };
 
   const savePageConfig = () => {
     const config = Object.fromEntries(
-      modules.map((item) => [item.name, { name: item.name, description: item.description }]),
+      modules.map((item) => [item.href, { name: item.name, description: item.description }]),
     );
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     setEditingPages(false);
@@ -76,6 +76,7 @@ export default function Home() {
   const resetPageConfig = () => {
     window.localStorage.removeItem(STORAGE_KEY);
     setModules(defaultModules);
+    setActive("Dashboard");
     setEditingPages(false);
   };
 
@@ -87,14 +88,11 @@ export default function Home() {
           <div className="brand-title">Creative Studios</div>
           <div className="brand-subtitle">AEC Collaboration Platform</div>
         </div>
-
         <div className="divider" />
-
         <div className="sidebar-links">
           <a className="streamlit-link primary" href="https://creativestudios-app.vercel.app/" target="_blank" rel="noreferrer">Open Production PWA</a>
           <a className="streamlit-link" href="https://creativestudios-ai.vercel.app/" target="_blank" rel="noreferrer">Creative Studios AI</a>
         </div>
-
         <div className="divider" />
         <div className="section-label">Workspace</div>
         <nav className="nav" aria-label="Workspace navigation">
@@ -109,7 +107,6 @@ export default function Home() {
             </Link>
           ))}
         </nav>
-
         <div className="sidebar-bottom">
           <button className="theme-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
             {theme === "dark" ? "Light mode" : "Dark mode"}
@@ -138,7 +135,7 @@ export default function Home() {
               <div>
                 <div className="section-label">Page editor</div>
                 <h2>Edit workspace pages</h2>
-                <p>Change the page labels and descriptions shown in the navigation. Changes are stored in this browser.</p>
+                <p>Change page names and descriptions used by the workspace navigation.</p>
               </div>
               <div className="editor-actions">
                 <button className="secondary-button" onClick={resetPageConfig}>Reset</button>
@@ -150,11 +147,11 @@ export default function Home() {
                 <div className="page-editor-row" key={item.href}>
                   <label>
                     Page name
-                    <input value={item.name} onChange={(event) => updatePage(item.name, "name", event.target.value)} disabled={item.name === "Dashboard"} />
+                    <input value={item.name} onChange={(event) => updatePage(item.href, "name", event.target.value)} />
                   </label>
                   <label>
                     Description
-                    <input value={item.description} onChange={(event) => updatePage(item.name, "description", event.target.value)} />
+                    <input value={item.description} onChange={(event) => updatePage(item.href, "description", event.target.value)} />
                   </label>
                 </div>
               ))}
