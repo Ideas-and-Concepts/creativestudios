@@ -1,7 +1,14 @@
-"""Creative Studios AEC Collaboration Platform."""
+"""Creative Studios legacy Streamlit workspace.
+
+The production application is the Next.js PWA. This Streamlit application is
+kept as a lightweight legacy/admin workspace for the existing Python modules.
+It intentionally does not store Neon credentials or attempt to manage the
+production PostgreSQL schema.
+"""
 from __future__ import annotations
 
 import importlib
+import os
 from pathlib import Path
 from typing import Any, Callable
 
@@ -11,6 +18,11 @@ from modules.database import load_memory
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
+PWA_URL = os.getenv(
+    "CREATIVE_STUDIOS_PWA_URL",
+    "https://creativestudios-rho.vercel.app/",
+)
+
 LOGO_PATH = next(
     (
         path
@@ -31,6 +43,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# The Python workspace exposes only modules that have a real Streamlit
+# renderer. Modules that are part of the production PWA but do not yet have a
+# Python renderer are shown as planned/production-only instead of failing at
+# import time.
 NAVIGATION = [
     "Dashboard",
     "Projects",
@@ -40,7 +56,14 @@ NAVIGATION = [
     "Drawings",
     "MEP",
     "BOQ",
+    "Procurement",
     "Construction",
+    "Cost Control",
+    "Tasks",
+    "RFIs",
+    "Approvals",
+    "Reports",
+    "Settings",
 ]
 
 MODULE_IMPORTS: dict[str, tuple[str, str]] = {
@@ -55,12 +78,25 @@ MODULE_IMPORTS: dict[str, tuple[str, str]] = {
     "Construction": ("modules.construction", "render_construction_module"),
 }
 
+PRODUCTION_ONLY_MODULES = {
+    "Procurement",
+    "Cost Control",
+    "Tasks",
+    "RFIs",
+    "Approvals",
+    "Reports",
+    "Settings",
+}
+
 
 def initialize_session_state() -> None:
+    """Initialize Streamlit state before any state-dependent rendering."""
     if "active_module" not in st.session_state:
         st.session_state.active_module = "Dashboard"
+
     if "navigation" not in st.session_state:
         st.session_state.navigation = st.session_state.active_module
+
     if "database" not in st.session_state or not isinstance(
         st.session_state.database, dict
     ):
@@ -76,27 +112,32 @@ def inject_css() -> None:
             padding-top: 1.5rem;
             padding-bottom: 3rem;
         }
+
         [data-testid="stSidebar"] {
             min-width: 250px;
             max-width: 250px;
         }
+
         .cs-sidebar-title {
             font-size: 18px;
             font-weight: 700;
             text-align: center;
             margin-top: .4rem;
         }
+
         .cs-sidebar-subtitle {
             font-size: 11px;
             opacity: .7;
             text-align: center;
             margin-top: .1rem;
         }
+
         .cs-sidebar-divider {
             height: 1px;
             background: rgba(127,127,127,.25);
             margin: 1rem 0 .8rem;
         }
+
         .cs-sidebar-section {
             font-size: 10px;
             font-weight: 700;
@@ -106,12 +147,28 @@ def inject_css() -> None:
             text-align: center;
             margin: .8rem 0 .5rem;
         }
+
+        .cs-sidebar-status {
+            font-size: 11px;
+            text-align: center;
+            opacity: .72;
+            margin-top: .7rem;
+        }
+
+        .cs-footer {
+            text-align: center;
+            opacity: .5;
+            font-size: 11px;
+            padding-top: 2rem;
+        }
+
         [data-testid="stSidebar"] div[role="radiogroup"] label {
             width: 100%;
             text-align: center;
             border-radius: 8px;
             padding: .3rem .6rem;
         }
+
         [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
             background: rgba(127,127,127,.12);
         }
@@ -122,6 +179,7 @@ def inject_css() -> None:
 
 
 def get_database() -> dict[str, Any]:
+    """Return the legacy in-memory JSON-backed workspace database."""
     database = st.session_state.get("database")
     if not isinstance(database, dict):
         database = load_memory()
@@ -130,6 +188,7 @@ def get_database() -> dict[str, Any]:
 
 
 def render_sidebar() -> str:
+    """Render navigation and the link to the production PWA."""
     if LOGO_PATH:
         st.sidebar.image(str(LOGO_PATH), width=56)
 
@@ -145,8 +204,11 @@ def render_sidebar() -> str:
         '<div class="cs-sidebar-divider"></div>',
         unsafe_allow_html=True,
     )
+
+    st.sidebar.link_button("Open Production PWA", PWA_URL, use_container_width=True)
+
     st.sidebar.markdown(
-        '<div class="cs-sidebar-section">Navigation</div>',
+        '<div class="cs-sidebar-section">Workspace</div>',
         unsafe_allow_html=True,
     )
 
@@ -165,12 +227,23 @@ def render_sidebar() -> str:
         label_visibility="collapsed",
     )
     st.session_state.active_module = choice
+
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-divider"></div>',
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown(
+        '<div class="cs-sidebar-status">Legacy Python workspace<br>Production data layer: Neon PostgreSQL</div>',
+        unsafe_allow_html=True,
+    )
+
     return choice
 
 
-def load_module_renderer(name: str) -> Callable[[dict[str, Any]], Any]:
+def load_module_renderer(name: str) -> Callable[[dict[str, Any]], Any] | None:
+    """Load a Streamlit renderer when one exists."""
     if name not in MODULE_IMPORTS:
-        raise KeyError(f"Unknown module: {name}")
+        return None
 
     module_path, function_name = MODULE_IMPORTS[name]
     module = importlib.import_module(module_path)
@@ -182,9 +255,35 @@ def load_module_renderer(name: str) -> Callable[[dict[str, Any]], Any]:
     return renderer
 
 
+def render_production_only_module(name: str) -> None:
+    """Explain that the module is implemented in the production PWA."""
+    st.title(name)
+    st.caption("Production module in the Creative Studios Next.js workspace.")
+
+    st.info(
+        f"The {name} workspace is part of the production application. "
+        "This legacy Streamlit shell does not duplicate the production module."
+    )
+
+    st.link_button("Open Production PWA", PWA_URL, use_container_width=False)
+
+    st.markdown("### Production architecture")
+    st.write(
+        "Next.js PWA → API routes → Drizzle ORM → Neon PostgreSQL"
+    )
+
+
 def render_module(name: str, database: dict[str, Any]) -> None:
+    """Render a Python module safely, or route to its production PWA page."""
+    if name in PRODUCTION_ONLY_MODULES:
+        render_production_only_module(name)
+        return
+
     try:
         renderer = load_module_renderer(name)
+        if renderer is None:
+            st.warning(f"The {name} Streamlit renderer is not registered.")
+            return
         renderer(database)
     except Exception as exc:
         st.error(f"Unable to render the {name} module.")
@@ -195,13 +294,14 @@ def render_module(name: str, database: dict[str, Any]) -> None:
 def main() -> None:
     initialize_session_state()
     inject_css()
+
     database = get_database()
     choice = render_sidebar()
     render_module(choice, database)
 
     st.markdown(
-        '<div style="text-align:center;opacity:.5;font-size:11px;padding-top:2rem;">'
-        "Creative Studios · AEC Collaboration Platform"
+        '<div class="cs-footer">'
+        "Creative Studios · AEC Collaboration Platform · Legacy Streamlit Workspace"
         "</div>",
         unsafe_allow_html=True,
     )
