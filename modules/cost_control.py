@@ -5,12 +5,12 @@ from typing import Any
 
 import streamlit as st
 
-from modules.database import delete_record
 from modules.module_utils import (
     ensure_collection,
     now_iso,
     project_records,
     project_selector,
+    remove_record,
     save_new_record,
     save_updated_record,
 )
@@ -19,21 +19,15 @@ COST_TYPES = ["Budget", "Committed Cost", "Actual Cost", "Forecast", "Variation"
 STATUSES = ["Draft", "Active", "Approved", "Closed"]
 
 
-def _amount(record: dict[str, Any], field: str = "amount") -> float:
+def _amount(record: dict[str, Any]) -> float:
     try:
-        return float(record.get(field, 0) or 0)
+        return float(record.get("amount", 0) or 0)
     except (TypeError, ValueError):
         return 0.0
 
 
-def _cost_type_index(record: dict[str, Any]) -> int:
-    value = record.get("cost_type", "Budget")
-    return COST_TYPES.index(value) if value in COST_TYPES else 0
-
-
-def _status_index(record: dict[str, Any]) -> int:
-    value = record.get("status", "Draft")
-    return STATUSES.index(value) if value in STATUSES else 0
+def _index(options: list[str], value: Any, default: int = 0) -> int:
+    return options.index(value) if value in options else default
 
 
 def render_cost_control_module(database: dict[str, Any]) -> None:
@@ -45,26 +39,25 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
     if project_id is None:
         return
 
-    project_records_list = project_records(records, project_id)
-    total_budget = sum(_amount(record) for record in project_records_list if record.get("cost_type") == "Budget")
-    committed = sum(_amount(record) for record in project_records_list if record.get("cost_type") == "Committed Cost")
-    actual = sum(_amount(record) for record in project_records_list if record.get("cost_type") == "Actual Cost")
-    forecast = sum(_amount(record) for record in project_records_list if record.get("cost_type") == "Forecast")
-    variation = sum(_amount(record) for record in project_records_list if record.get("cost_type") == "Variation")
+    items = project_records(records, project_id)
+    totals = {
+        cost_type: sum(_amount(record) for record in items if record.get("cost_type") == cost_type)
+        for cost_type in COST_TYPES
+    }
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Budget", f"{total_budget:,.2f}")
-    c2.metric("Committed", f"{committed:,.2f}")
-    c3.metric("Actual", f"{actual:,.2f}")
-    c4.metric("Forecast", f"{forecast:,.2f}")
-    c5.metric("Variation", f"{variation:,.2f}")
-
-    remaining = total_budget - actual
-    st.caption(f"Budget remaining after actual cost: {remaining:,.2f}")
+    c1.metric("Budget", f"{totals['Budget']:,.2f}")
+    c2.metric("Committed", f"{totals['Committed Cost']:,.2f}")
+    c3.metric("Actual", f"{totals['Actual Cost']:,.2f}")
+    c4.metric("Forecast", f"{totals['Forecast']:,.2f}")
+    c5.metric("Variation", f"{totals['Variation']:,.2f}")
+    st.caption(f"Budget remaining after actual cost: {totals['Budget'] - totals['Actual Cost']:,.2f}")
 
     st.subheader("Cost Register")
-    if project_records_list:
-        for record in list(project_records_list):
+    if not items:
+        st.info("No cost records exist for this project yet.")
+    else:
+        for record in list(items):
             record_id = record.get("id")
             with st.expander(
                 f"{record.get('cost_code', 'Cost')} | {record.get('description', 'Cost item')} | {_amount(record):,.2f}"
@@ -72,14 +65,9 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
                 with st.form(f"cost_edit_{record_id}"):
                     code = st.text_input("Cost Code", value=str(record.get("cost_code", "")))
                     description = st.text_input("Description", value=str(record.get("description", "")))
-                    cost_type = st.selectbox("Cost Type", COST_TYPES, index=_cost_type_index(record))
-                    amount = st.number_input(
-                        "Amount",
-                        min_value=0.0,
-                        value=max(0.0, _amount(record)),
-                        step=100.0,
-                    )
-                    status = st.selectbox("Status", STATUSES, index=_status_index(record))
+                    cost_type = st.selectbox("Cost Type", COST_TYPES, index=_index(COST_TYPES, record.get("cost_type")))
+                    amount = st.number_input("Amount", min_value=0.0, value=max(0.0, _amount(record)), step=100.0)
+                    status = st.selectbox("Status", STATUSES, index=_index(STATUSES, record.get("status")))
                     notes = st.text_area("Notes", value=str(record.get("notes", "")))
                     submitted = st.form_submit_button("Save Changes", use_container_width=True)
 
@@ -88,7 +76,7 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
                         st.error("Cost Code and Description are required.")
                     else:
                         try:
-                            saved = save_updated_record(
+                            if not save_updated_record(
                                 database,
                                 "cost_control",
                                 record_id,
@@ -102,8 +90,7 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
                                     "notes": notes.strip(),
                                     "updated_at": now_iso(),
                                 },
-                            )
-                            if not saved:
+                            ):
                                 st.error("The cost record could not be found.")
                             else:
                                 st.success("Cost record updated.")
@@ -115,7 +102,7 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
 
                 if st.button("Delete Record", key=f"cost_delete_{record_id}", use_container_width=True):
                     try:
-                        if delete_record("cost_control", record_id, database):
+                        if remove_record(database, "cost_control", record_id):
                             st.success("Cost record deleted.")
                             st.rerun()
                         else:
@@ -124,8 +111,6 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
                         st.error("Unable to delete the cost record.")
                         with st.expander("Technical details"):
                             st.exception(exc)
-    else:
-        st.info("No cost records exist for this project yet.")
 
     st.divider()
     st.subheader("Add Cost Record")
