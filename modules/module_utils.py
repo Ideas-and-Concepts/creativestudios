@@ -6,7 +6,7 @@ from typing import Any
 
 import streamlit as st
 
-from modules.database import delete_record, get_records, next_id, save_memory, update_record
+from modules.database import add_record, delete_record, get_records, update_record
 from modules.project_context import project_label, project_options
 
 
@@ -50,17 +50,17 @@ def project_records(records: list[dict[str, Any]], project_id: int) -> list[dict
     return [record for record in records if project_id_of(record) == project_id]
 
 
-def save_new_record(database: dict[str, Any], collection: str, record: dict[str, Any]) -> None:
-    record = dict(record)
-    record.setdefault("id", next_id(collection, database))
-    get_records(collection, database).append(record)
-    if not save_memory(database):
-        get_records(collection, database).remove(record)
-        raise IOError("Unable to save the database.")
+def save_new_record(database: dict[str, Any], collection: str, record: dict[str, Any]) -> dict[str, Any]:
+    """Insert a new record into the real backing collection and persist it.
+
+    ``get_records`` returns a filtered copy, so appending to its result does not
+    modify the database. Use the database layer's ``add_record`` instead.
+    """
+    return add_record(collection, dict(record), database)
 
 
 def save_updated_record(database: dict[str, Any], collection: str, record_id: Any, updates: dict[str, Any]) -> bool:
-    return update_record(collection, record_id, updates, database) is not None
+    return update_record(collection, record_id, updates) is not None
 
 
 def remove_record(database: dict[str, Any], collection: str, record_id: Any) -> bool:
