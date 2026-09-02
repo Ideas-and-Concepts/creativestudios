@@ -2,14 +2,12 @@
 Creative Studios
 Documents Module
 
-Supports document upload, metadata, and versioning.
+Supports document upload, metadata, and basic versioning.
 """
 
 import streamlit as st
 from pathlib import Path
 from datetime import datetime
-import shutil
-import os
 from .database import (
     get_collection,
     add_record,
@@ -55,7 +53,7 @@ def render_documents_module(database):
 
     documents = get_collection("documents", database)
 
-    # -------- Upload / Create Document --------
+    # Upload new document or new version
     with st.expander("New Document", expanded=False):
         with st.form("document_upload_form", clear_on_submit=True):
             title = st.text_input("Document Title")
@@ -72,13 +70,14 @@ def render_documents_module(database):
             elif uploaded_file is None:
                 st.error("Please select a file.")
             else:
-                # Check if title already exists (versioning)
+                # Check if document with same title exists (versioning)
                 existing = next((d for d in documents if d.get("title", "").lower() == title.lower()), None)
                 if existing:
                     # Create new version
                     new_version = existing.get("version", 1) + 1
                     doc_id = existing["id"]
                     file_path = _save_uploaded_file(uploaded_file, doc_id, new_version)
+
                     # Add version record
                     version_record = {
                         "id": next_id("document_versions", database),
@@ -89,15 +88,12 @@ def render_documents_module(database):
                         "version_note": version_note,
                     }
                     add_record("document_versions", version_record, database)
+
                     # Update main document record
                     update_record(
                         "documents",
                         doc_id,
-                        {
-                            "version": new_version,
-                            "file_path": file_path,
-                            "status": status,
-                        },
+                        {"version": new_version, "file_path": file_path, "status": status},
                         database,
                     )
                     _log_activity(database, "Document version uploaded", f"{title} v{new_version}")
@@ -117,6 +113,8 @@ def render_documents_module(database):
                         "created_at": datetime.now().isoformat(),
                     }
                     add_record("documents", document, database)
+
+                    # Add initial version record
                     version_record = {
                         "id": next_id("document_versions", database),
                         "document_id": doc_id,
@@ -130,7 +128,7 @@ def render_documents_module(database):
                     st.success(f"Document '{title}' uploaded.")
                 st.rerun()
 
-    # -------- Document List --------
+    # Document list
     if not documents:
         st.info("No documents found.")
         return
@@ -172,12 +170,12 @@ def render_documents_module(database):
                                     key=f"download_{v['id']}",
                                 )
 
-            # Edit/Delete
-            edit_col, del_col = st.columns(2)
-            with edit_col:
+            # Edit and Delete
+            col1, col2 = st.columns(2)
+            with col1:
                 if st.button("Edit", key=f"edit_doc_{doc['id']}"):
                     st.session_state["edit_doc_id"] = doc["id"]
-            with del_col:
+            with col2:
                 if st.button("Delete", key=f"del_doc_{doc['id']}"):
                     # Delete file from storage
                     if doc.get("file_path"):
@@ -189,7 +187,7 @@ def render_documents_module(database):
                     st.success("Document deleted.")
                     st.rerun()
 
-    # -------- Edit Document (inline) --------
+    # Edit form (if requested)
     if "edit_doc_id" in st.session_state:
         doc_id = st.session_state["edit_doc_id"]
         doc = next((d for d in documents if d["id"] == doc_id), None)
