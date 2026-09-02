@@ -12,7 +12,7 @@ const supplierSchema = z.object({
   code: z.string().trim().min(1).max(50),
   name: z.string().trim().min(1).max(200),
   contactName: z.string().trim().max(160).nullable().optional(),
-  email: z.string().trim().email().max(320).nullable().optional(),
+  email: z.preprocess((value) => typeof value === "string" && !value.trim() ? null : value, z.string().trim().email().max(320).nullable().optional()),
   phone: z.string().trim().max(60).nullable().optional(),
   address: z.string().trim().max(500).nullable().optional(),
   taxNumber: z.string().trim().max(100).nullable().optional(),
