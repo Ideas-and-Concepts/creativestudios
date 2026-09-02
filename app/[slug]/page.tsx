@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const definitions: Record<string, { title: string; description: string; kind?: string }> = {
@@ -15,11 +16,12 @@ const definitions: Record<string, { title: string; description: string; kind?: s
 };
 
 type Project = { id: string; code: string; name: string };
-
 type Row = Record<string, string | number | boolean | null> & { id: string };
 
-export default function WorkspaceModule({ params }: { params: { slug: string } }) {
-  const definition = definitions[params.slug];
+export default function WorkspaceModule() {
+  const params = useParams<{ slug: string }>();
+  const slug = Array.isArray(params?.slug) ? params.slug[0] : params?.slug;
+  const definition = definitions[slug ?? ""];
   const [projects, setProjects] = useState<Project[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [projectId, setProjectId] = useState("");
@@ -85,7 +87,7 @@ export default function WorkspaceModule({ params }: { params: { slug: string } }
     <section className="kpi-grid">{cards.map((card) => <div className="kpi-card" key={card}><span>{card}</span><strong>{definition.kind === "settings" ? "Ready" : definition.kind === "cost" || definition.kind === "reports" ? "Live" : rows.length}</strong></div>)}</section>
     {definition.kind !== "cost" && definition.kind !== "reports" && definition.kind !== "settings" && <>
       <section className="workspace-card">
-        <div className="page-editor-header"><div><div className="section-label">New record</div><h2>Add {definition.title.slice(0, -1) || definition.title}</h2></div></div>
+        <div className="page-editor-header"><div><div className="section-label">New record</div><h2>Add {definition.title.replace(/s$/, "")}</h2></div></div>
         <form className="form-grid" onSubmit={submit}>
           <label>Project<select value={projectId} onChange={(e) => setProjectId(e.target.value)} required><option value="">Select project</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}</select></label>
           <label>Title / Subject<input value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
