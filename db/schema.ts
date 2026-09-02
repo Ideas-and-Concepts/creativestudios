@@ -29,6 +29,16 @@ export const drawingDiscipline = pgEnum("drawing_discipline", [
   "structural",
 ]);
 
+export const mepDiscipline = pgEnum("mep_discipline", [
+  "mechanical",
+  "electrical",
+  "plumbing",
+  "fire_protection",
+  "hvac",
+  "public_health",
+  "other",
+]);
+
 export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   code: text("code").notNull().unique(),
@@ -60,6 +70,21 @@ export const engineeringWorks = pgTable("engineering_works", {
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
   category: text("category").notNull(),
   description: text("description").notNull(),
+  status: workStatus("status").default("planned").notNull(),
+  progress: integer("progress").default(0).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const mepWorks = pgTable("mep_works", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  drawingId: uuid("drawing_id").references(() => drawings.id, { onDelete: "set null" }),
+  discipline: mepDiscipline("discipline").notNull(),
+  category: text("category").notNull(),
+  description: text("description").notNull(),
+  specification: text("specification"),
   status: workStatus("status").default("planned").notNull(),
   progress: integer("progress").default(0).notNull(),
   notes: text("notes"),
