@@ -1,14 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import "./globals.css";
 
-const logoUrl = "https://raw.githubusercontent.com/Ideas-and-Concepts/creativestudios/main/assets/creative_studios.png";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Creative Studios",
   description: "AEC Collaboration Platform",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: logoUrl,
+    icon: "/assets/creative_studios.png",
+    apple: "/assets/creative_studios.png",
   },
 };
 
