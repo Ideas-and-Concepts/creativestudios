@@ -72,5 +72,18 @@ def render_construction_module(database):
                     "Completed": "green",
                 }
             )
-            fig.update_yaxes(autorange="reversed")  # Gantt style
+            fig.update_yaxes(autorange="reversed")
             st.plotly_chart(fig, use_container_width=True)
+
+            # --- Summary Table ---
+            st.subheader("Phase Summary")
+            st.dataframe(df[["phase", "boq", "status", "start", "end"]])
+
+            # --- Export to CSV ---
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="Download Construction Schedule as CSV",
+                data=csv,
+                file_name="construction_schedule.csv",
+                mime="text/csv",
+            )
