@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-type Project={id:string;code:string;name:string}; type Option={id:string;title?:string;drawingNumber?:string;rfiNumber?:string};
+type Project={id:string;code:string;name:string}; type Option={id:string;title?:string;drawingNumber?:string;rfiNumber?:string;subject?:string};
 type Approval={id:string;projectId:string;approvalNumber?:string|null;subject:string;approvalType:string;status:string;requestedBy?:string|null;reviewer?:string|null;dueDate?:string|null;submittedAt?:string|null;decidedAt?:string|null;documentId?:string|null;drawingId?:string|null;rfiId?:string|null;comments?:string|null;createdAt?:string};
 const statuses=["Pending","In Review","Approved","Rejected","Returned","Cancelled"],types=["Drawing","Document","BOQ","RFI Response","Material","Method Statement","Design Decision","Other"];
 async function json(r:Response){const t=await r.text();try{return t?JSON.parse(t):{}}catch{return {}}} const dateValue=(v?:string|null)=>v?new Date(v).toISOString().slice(0,10):"";
