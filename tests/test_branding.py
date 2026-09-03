@@ -16,7 +16,13 @@ def test_sidebar_branding_configuration():
     assert "Creative Studios" in source
     assert "AEC Collaboration Platform" in source
     assert "creative-studios.png" in source
-    assert "st.sidebar.image" not in source
+    assert "st.sidebar.image" in source
+    assert "Inter" in source
+    assert "Space Grotesk" in source
+    assert "#2f80ed" in source
+    assert "#030509" in source
+    assert "green" not in source.lower()
+    assert "#00" not in source.lower()
     assert "unsafe_allow_html=True" in source
 
 
