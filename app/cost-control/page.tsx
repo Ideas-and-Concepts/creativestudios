@@ -1,5 +1,6 @@
 "use client";
 
+import EarnedValuePanel from "@/components/EarnedValuePanel";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Project = { id: string; code: string; name: string };
@@ -113,6 +114,7 @@ export default function CostControlPage() {
       <header className="projects-header"><div><div className="eyebrow">Creative Studios / Commercial</div><h1>Cost Control</h1><p>Track budget, commitments, actual cost, forecast and variance against live project quantities and procurement.</p></div><a className="back-link" href="/">Dashboard</a></header>
       <section className="project-stats" aria-label="Project cost summary"><div className="project-stat"><span>BOQ Budget</span><strong>{summaryLoading ? "Loading..." : money(summary.budget)}</strong></div><div className="project-stat"><span>Committed Cost</span><strong>{summaryLoading ? "Loading..." : money(summary.committed)}</strong></div><div className="project-stat"><span>Actual Cost</span><strong>{summaryLoading ? "Loading..." : money(summary.actual)}</strong></div><div className="project-stat"><span>Forecast</span><strong>{summaryLoading ? "Loading..." : money(summary.forecast)}</strong></div><div className="project-stat"><span>Variance</span><strong>{summaryLoading ? "Loading..." : money(summary.variance)}</strong></div></section>
       <section className="workspace-card" style={{ marginBottom: "24px" }}><div className="list-toolbar"><div><div className="section-label">Live project commercial position</div><h2>{selectedProject}</h2><p>{summary.progress.toFixed(1)}% physical progress · {money(summary.actualQuantity)} of {money(summary.plannedQuantity)} planned quantity recorded.</p></div><strong>{budgetUtilisation.toFixed(1)}% forecast budget used</strong></div><div style={{ height: "8px", background: "#eef2f7", borderRadius: "999px", overflow: "hidden", marginTop: "14px" }}><div style={{ width: `${budgetUtilisation}%`, height: "100%", background: "#2563eb", borderRadius: "999px" }} /></div><div className="project-stats" style={{ marginTop: "16px" }}><div className="project-stat"><span>Remaining Budget</span><strong>{money(summary.remainingBudget)}</strong></div><div className="project-stat"><span>Physical Progress</span><strong>{summary.progress.toFixed(1)}%</strong></div></div></section>
+      {form.projectId && <EarnedValuePanel projectId={form.projectId} />}
       {(error || message) && <div className={error ? "project-alert error" : "project-alert success"} role="status">{error || message}</div>}
       {projects.length === 0 && !loading ? <section className="project-empty"><strong>Create a project first</strong><span>Every cost record must belong to a project.</span><a className="back-link" href="/projects">Open Projects</a></section> : (
         <section className="project-layout">
