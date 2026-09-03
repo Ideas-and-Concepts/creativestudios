@@ -5,7 +5,7 @@ import importlib
 import os
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import streamlit as st
 
@@ -60,7 +60,7 @@ st.set_page_config(
     page_title="Creative Studios",
     page_icon=str(LOGO_PATH) if LOGO_PATH else "CS",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -97,38 +97,37 @@ def get_navigation(database: dict[str, Any]) -> tuple[list[str], dict[str, str]]
 def inject_css() -> None:
     st.markdown("""
     <style>
-    :root{--bg:#f6f7f9;--panel:#fff;--text:#171a1f;--muted:#6b7280;--border:#e5e7eb;--blue:#2f80ed;--soft:#eef5ff}
+    :root{--bg:#f7f8fa;--panel:#fff;--text:#111827;--muted:#64748b;--border:#e5e7eb;--blue:#2563eb;--soft:#eff6ff}
     .stApp{background:var(--bg);color:var(--text)}
-    .block-container{max-width:1480px;padding:5.6rem 2rem 3rem}
-    [data-testid="stSidebar"]{background:#fff;border-right:1px solid var(--border);min-width:250px;max-width:250px}
-    [data-testid="stSidebar"]>div:first-child{padding:1rem .85rem}
-    [data-testid="stSidebar"] img{display:block!important;width:72px!important;max-width:72px!important;height:auto!important;margin:.1rem auto .7rem!important;object-fit:contain;border-radius:8px}
-    .cs-brand{text-align:center;padding-bottom:.9rem;border-bottom:1px solid var(--border)}
-    .cs-brand-title{font-family:'Space Grotesk','Inter',sans-serif;font-weight:700;font-size:1rem;color:var(--text)}
-    .cs-brand-subtitle{color:var(--muted);font-size:.62rem;margin-top:.2rem}
-    .cs-section{margin:.9rem .2rem .35rem;color:#9ca3af;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em}
-    .cs-floating{position:fixed;top:.65rem;left:50%;transform:translateX(-50%);z-index:999999;width:min(1180px,calc(100vw - 2rem));background:rgba(255,255,255,.97);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.10);padding:.45rem .55rem;backdrop-filter:blur(12px)}
-    .cs-float-title{text-align:center;font-size:.56rem;font-weight:700;color:#9ca3af;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.3rem}
-    .cs-float-row{display:flex;justify-content:center;gap:.3rem;flex-wrap:wrap}
-    .cs-float-group{font-size:.66rem;font-weight:700;color:#475569;background:#fff;border:1px solid var(--border);border-radius:7px;padding:.34rem .55rem;white-space:nowrap}
-    .cs-link{display:block;padding:.45rem .6rem;margin:.2rem 0;border:1px solid var(--border);border-radius:7px;color:#4b5563!important;background:#fff;text-decoration:none!important;font-size:.64rem;font-weight:600;text-align:center}
-    .cs-link.primary{background:var(--blue);border-color:var(--blue);color:#fff!important}
-    .cs-db{display:flex;gap:.4rem;align-items:center;margin-top:.6rem;padding:.45rem .55rem;border:1px solid var(--border);border-radius:7px;background:#fafafa;color:var(--muted);font-size:.6rem}
-    .cs-db-dot{width:6px;height:6px;border-radius:50%;background:var(--blue)}.cs-db-dot.local{background:#9ca3af}
-    .cs-page-header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-end;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--border)}
-    .cs-eyebrow{color:var(--blue);font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em}.cs-page-title{margin:.2rem 0 0;font-family:'Space Grotesk','Inter',sans-serif;font-size:clamp(1.45rem,2.5vw,2.05rem);letter-spacing:-.04em}.cs-page-copy{margin:.35rem 0 0;color:var(--muted);font-size:.74rem}.cs-page-meta{color:#9ca3af;font-size:.58rem}
-    [data-testid="stMetric"]{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:.7rem;box-shadow:none}
-    .stButton>button{border:1px solid #dfe3e8;border-radius:7px;background:#fff;color:#374151;font-size:.68rem;font-weight:600;box-shadow:none}.stButton>button:hover{background:#f9fafb;border-color:#cbd5e1}.stButton>button[kind="primary"]{background:var(--blue);border-color:var(--blue);color:#fff}
-    .cs-footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color:#9ca3af;text-align:center;font-size:.56rem}
-    @media(max-width:900px){.block-container{padding:5.5rem .8rem 2rem}[data-testid="stSidebar"]{min-width:230px;max-width:230px}.cs-floating{width:calc(100vw - 1rem);top:.35rem}.cs-float-row{justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:.1rem}.cs-float-group{flex:0 0 auto}.cs-page-header{align-items:flex-start;flex-direction:column}.cs-page-meta{white-space:normal}}
+    [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{display:none!important}
+    .block-container{max-width:1500px;padding:5.25rem 2rem 2.5rem}
+    header[data-testid="stHeader"]{background:transparent!important}
+    .cs-stream-nav{position:fixed;z-index:999999;top:.85rem;left:50%;transform:translateX(-50%);width:min(1180px,calc(100vw - 2rem));height:50px;background:rgba(255,255,255,.98);border:1px solid var(--border);border-radius:10px;box-shadow:0 7px 24px rgba(15,23,42,.09);display:flex;align-items:center;padding:.35rem .45rem;backdrop-filter:blur(12px)}
+    .cs-stream-logo{position:fixed;z-index:1000000;top:.82rem;left:max(1.2rem,calc(50% - min(650px,calc(50vw - 2.2rem))));width:52px;height:52px;padding:7px;background:#fff;border:1px solid #eef2f7;border-radius:50%;box-shadow:0 7px 22px rgba(15,23,42,.10);object-fit:contain}
+    .cs-stream-links{display:flex;align-items:center;justify-content:center;gap:2px;width:100%;overflow-x:auto;scrollbar-width:none}.cs-stream-links::-webkit-scrollbar{display:none}
+    .cs-stream-link{display:flex;align-items:center;justify-content:center;height:36px;padding:0 .62rem;border-radius:7px;text-decoration:none!important;color:#475569!important;font-size:.62rem;font-weight:700;white-space:nowrap}.cs-stream-link:hover{background:#f8fafc;color:#111827!important}.cs-stream-link.active{background:var(--soft);color:var(--blue)!important;box-shadow:inset 0 -2px 0 var(--blue)}
+    .cs-stream-actions{display:flex;align-items:center;gap:2px;margin-left:auto}.cs-stream-action{font-size:.75rem;color:#334155;padding:.45rem}.cs-stream-user{width:27px;height:27px;border:1px solid #dbe2ea;border-radius:50%;display:grid;place-items:center;font-size:.52rem;font-weight:800;color:#475569;background:#fff;margin-left:2px}
+    .cs-more{position:relative}.cs-more summary{list-style:none;cursor:pointer;height:36px;padding:0 .62rem;display:flex;align-items:center;border-radius:7px;color:#475569;font-size:.62rem;font-weight:700}.cs-more summary::-webkit-details-marker{display:none}.cs-more summary:hover,.cs-more[open] summary{background:#f8fafc;color:#111827}.cs-more-menu{position:absolute;right:0;top:40px;width:190px;padding:.35rem;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 16px 38px rgba(15,23,42,.14)}.cs-more-menu a{display:block;padding:.48rem .55rem;border-radius:6px;text-decoration:none!important;color:#334155!important;font-size:.6rem}.cs-more-menu a:hover{background:var(--soft);color:var(--blue)!important}
+    .cs-page-header{display:none!important}.cs-floating{display:none!important}
+    .cs-footer{margin-top:1.6rem;padding-top:.8rem;border-top:1px solid var(--border);color:#94a3b8;text-align:center;font-size:.56rem}
+    .stButton>button{border:1px solid #dfe3e8;border-radius:7px;background:#fff;color:#374151;font-size:.68rem;font-weight:650;box-shadow:none}.stButton>button:hover{background:#f9fafb;border-color:#cbd5e1}.stButton>button[kind="primary"]{background:var(--blue);border-color:var(--blue);color:#fff}
+    @media(max-width:900px){.block-container{padding:4.7rem .65rem 2rem}.cs-stream-logo{left:.6rem;top:.6rem;width:43px;height:43px}.cs-stream-nav{left:58px;right:.6rem;transform:none;width:auto;top:.6rem;height:43px}.cs-stream-link{font-size:.57rem;padding:0 .5rem}.cs-stream-actions{display:none}}
     </style>
     """, unsafe_allow_html=True)
 
 
 def render_brand() -> None:
-    if LOGO_PATH:
-        st.sidebar.image(str(LOGO_PATH), width=72)
-    st.sidebar.markdown('<div class="cs-brand"><div class="cs-brand-title">Creative Studios</div><div class="cs-brand-subtitle">AEC Collaboration Platform</div></div>', unsafe_allow_html=True)
+    """Compatibility hook retained for modules that expect the old shell."""
+    return None
+
+
+def render_sidebar(database: dict[str, Any]) -> None:
+    """Legacy sidebar hook. Navigation now lives in the reference top bar."""
+    return None
+
+
+def render_pwa_links() -> None:
+    return None
 
 
 def render_floating_navigation(database: dict[str, Any]) -> None:
@@ -137,66 +136,26 @@ def render_floating_navigation(database: dict[str, Any]) -> None:
     if current not in order:
         current = "Dashboard"
         st.session_state.active_module = current
-    groups = []
-    for group, candidates in MODULE_GROUPS.items():
-        available = [page for page in candidates if page in order]
-        if not available:
-            continue
-        links = "".join(
-            f'<a href="?module={page.replace(" ", "%20")}" style="text-decoration:none;color:{"#1d4ed8" if page == current else "#475569"};background:{"#eff6ff" if page == current else "#fff"};border:1px solid {"#bfdbfe" if page == current else "#e5e7eb"};border-radius:6px;padding:.28rem .45rem;font-size:.61rem;font-weight:700;white-space:nowrap">{labels.get(page, page)}</a>'
-            for page in available
-        )
-        groups.append(f'<span style="display:flex;align-items:center;gap:.25rem">{links}</span>')
-    st.markdown(f'<div class="cs-floating"><div class="cs-float-title">Creative Studios · AEC Navigation</div><div class="cs-float-row">{"".join(groups)}</div></div>', unsafe_allow_html=True)
+
+    primary = ["Dashboard", "Projects", "Documents", "Drawings", "RFIs", "Tasks", "Reports"]
+    primary = [item for item in primary if item in order]
+    primary_links = "".join(
+        f'<a class="cs-stream-link {"active" if item == current else ""}" href="?module={quote(item)}">{labels.get(item, item)}</a>'
+        for item in primary
+    )
+    remaining = [item for item in order if item not in primary]
+    more_links = "".join(f'<a href="?module={quote(item)}">{labels.get(item, item)}</a>' for item in remaining)
+    more = f'<details class="cs-more"><summary>More</summary><div class="cs-more-menu">{more_links}</div></details>' if remaining else ""
+    st.markdown(
+        f'<img class="cs-stream-logo" src="{LOGO_PATH.name if LOGO_PATH else ""}" alt="Creative Studios">'
+        f'<nav class="cs-stream-nav" aria-label="Creative Studios navigation"><div class="cs-stream-links">{primary_links}{more}</div><div class="cs-stream-actions"><span class="cs-stream-action">⌕</span><span class="cs-stream-action">☼</span><span class="cs-stream-action">♧</span><span class="cs-stream-user">CS</span></div></nav>',
+        unsafe_allow_html=True,
+    )
 
     query_module = st.query_params.get("module")
     if query_module in NAVIGATION and query_module != st.session_state.active_module:
         st.session_state.active_module = query_module
         st.session_state.navigation_nonce += 1
-
-
-def render_pwa_links() -> None:
-    st.sidebar.markdown(f'<a class="cs-link primary" href="{PWA_URL}" target="_blank" rel="noopener noreferrer">Open Production PWA</a>', unsafe_allow_html=True)
-    st.sidebar.markdown(f'<a class="cs-link" href="{AI_PWA_URL}" target="_blank" rel="noopener noreferrer">Open Creative Studios AI</a>', unsafe_allow_html=True)
-
-
-def render_sidebar(database: dict[str, Any]) -> None:
-    render_brand()
-    order, labels = get_navigation(database)
-    current = st.session_state.get("active_module", "Dashboard")
-    if current not in order:
-        current = "Dashboard"
-    st.sidebar.markdown('<div class="cs-section">Modules</div>', unsafe_allow_html=True)
-    for group, candidates in MODULE_GROUPS.items():
-        available = [page for page in candidates if page in order]
-        if not available:
-            continue
-        st.sidebar.caption(group)
-        for page in available:
-            if st.sidebar.button(labels.get(page, page), key=f"sidebar_{group}_{page}", use_container_width=True, type="primary" if page == current else "secondary"):
-                st.session_state.active_module = page
-                st.session_state.navigation_nonce += 1
-                st.query_params.clear()
-                st.rerun()
-    st.sidebar.markdown('<div class="cs-section">Workspace</div>', unsafe_allow_html=True)
-    render_pwa_links()
-    c1, c2 = st.sidebar.columns(2)
-    with c1:
-        if st.button("Refresh", use_container_width=True, key="refresh_database"):
-            get_database(reload=True)
-            st.session_state.navigation_nonce += 1
-            st.rerun()
-    with c2:
-        if st.button("Top", use_container_width=True, key="top_workspace"):
-            st.rerun()
-    try:
-        backend = database_backend()
-        label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
-        dot = "" if backend == "neon" else "local"
-    except Exception:
-        label, dot = "Database unavailable", "local"
-    st.sidebar.markdown(f'<div class="cs-db"><span class="cs-db-dot {dot}"></span>{label}</div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div style="color:#9ca3af;font-size:.56rem;text-align:center;margin-top:.5rem;">Saved changes are retained. Refresh reloads current state.</div>', unsafe_allow_html=True)
 
 
 def load_module_renderer(name: str) -> Callable[[dict[str, Any]], Any] | None:
@@ -229,18 +188,13 @@ def render_module(name: str, database: dict[str, Any]) -> None:
 
 
 def render_workspace_header(name: str, count: int) -> None:
-    title = "AEC Project Workspace" if name == "Dashboard" else name
-    copy = "Projects, design, documentation, procurement, construction and cost control in one workspace." if name == "Dashboard" else f"Manage {name.lower()} records and project workflow from the shared workspace."
+    title = "Project Dashboard" if name == "Dashboard" else name
+    copy = "Welcome back, Creative Studios" if name == "Dashboard" else f"Manage {name.lower()} records and project workflow from the shared workspace."
     st.markdown(f'<div class="cs-page-header"><div><div class="cs-eyebrow">Creative Studios</div><h1 class="cs-page-title">{title}</h1><p class="cs-page-copy">{copy}</p></div><div class="cs-page-meta">{count} modules</div></div>', unsafe_allow_html=True)
 
 
 def render_system_status(database: dict[str, Any]) -> None:
-    def count(key: str) -> int:
-        value = database.get(key, [])
-        return len(value) if isinstance(value, list) else 0
-    cols = st.columns(5)
-    for col, label, key in zip(cols, ["Projects", "Documents", "Drawings", "Tasks", "RFIs"], ["projects", "documents", "drawings", "tasks", "rfis"]):
-        col.metric(label, count(key))
+    return None
 
 
 def main() -> None:
@@ -255,16 +209,18 @@ def main() -> None:
     database = get_database()
     render_floating_navigation(database)
     order, _ = get_navigation(database)
-    render_sidebar(database)
     choice = st.session_state.get("active_module", "Dashboard")
     if choice not in order:
         choice = "Dashboard"
         st.session_state.active_module = choice
     render_workspace_header(choice, len(order))
-    if choice != "Settings":
-        render_system_status(database)
     render_module(choice, database)
-    st.markdown('<div class="cs-footer">Creative Studios · AEC Collaboration Platform · Shared workspace</div>', unsafe_allow_html=True)
+    try:
+        backend = database_backend()
+        label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
+    except Exception:
+        label = "Database unavailable"
+    st.markdown(f'<div class="cs-footer">Creative Studios · AEC Collaboration Platform · {label}</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
