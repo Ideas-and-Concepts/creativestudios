@@ -26,6 +26,8 @@ type FormState = {
   location: string;
   description: string;
   status: ProjectStatus;
+  startDate: string;
+  targetEndDate: string;
 };
 
 const emptyForm: FormState = {
@@ -35,6 +37,8 @@ const emptyForm: FormState = {
   location: "",
   description: "",
   status: "planning",
+  startDate: "",
+  targetEndDate: "",
 };
 
 const statusLabel: Record<ProjectStatus, string> = {
@@ -51,6 +55,16 @@ function formatDate(value: string | null) {
   return Number.isNaN(date.getTime())
     ? "Not set"
     : new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" }).format(date);
+}
+
+function dateInputValue(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
+
+function toIsoDate(value: string) {
+  return value ? new Date(`${value}T00:00:00.000Z`).toISOString() : null;
 }
 
 export default function ProjectsPage() {
@@ -107,6 +121,12 @@ export default function ProjectsPage() {
     setError("");
     setMessage("");
 
+    if (form.startDate && form.targetEndDate && form.targetEndDate < form.startDate) {
+      setError("Target end date cannot be earlier than the start date.");
+      setSaving(false);
+      return;
+    }
+
     const payload = {
       code: form.code,
       name: form.name,
@@ -114,6 +134,8 @@ export default function ProjectsPage() {
       location: form.location || null,
       description: form.description || null,
       status: form.status,
+      startDate: toIsoDate(form.startDate),
+      targetEndDate: toIsoDate(form.targetEndDate),
     };
 
     try {
@@ -144,6 +166,8 @@ export default function ProjectsPage() {
       location: project.location ?? "",
       description: project.description ?? "",
       status: project.status,
+      startDate: dateInputValue(project.startDate),
+      targetEndDate: dateInputValue(project.targetEndDate),
     });
     setMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -222,6 +246,14 @@ export default function ProjectsPage() {
               <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as ProjectStatus })}>
                 {statuses.map((status) => <option key={status} value={status}>{statusLabel[status]}</option>)}
               </select>
+            </label>
+            <label>
+              Start date
+              <input type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} />
+            </label>
+            <label>
+              Target end date
+              <input type="date" value={form.targetEndDate} min={form.startDate || undefined} onChange={(event) => setForm({ ...form, targetEndDate: event.target.value })} />
             </label>
             <label className="full-width">
               Description
