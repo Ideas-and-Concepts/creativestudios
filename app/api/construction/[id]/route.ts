@@ -20,6 +20,21 @@ async function validateLinks(data: z.infer<typeof inputSchema>) {
 
 function normalize(data: z.infer<typeof inputSchema>) { return { ...data, boqItemId: data.boqItemId || null, discipline: data.discipline || null, contractor: data.contractor || null, unit: data.unit || null, notes: data.notes || null, plannedQuantity: String(data.plannedQuantity), actualQuantity: String(data.actualQuantity), plannedStart: data.plannedStart ? new Date(data.plannedStart) : null, plannedEnd: data.plannedEnd ? new Date(data.plannedEnd) : null, actualStart: data.actualStart ? new Date(data.actualStart) : null, actualEnd: data.actualEnd ? new Date(data.actualEnd) : null }; }
 
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  if (!idSchema.safeParse(id).success) return NextResponse.json({ error: "Invalid construction activity id." }, { status: 400 });
+  try {
+    const [activity] = await getDb().select().from(constructionActivities).where(eq(constructionActivities.id, id)).limit(1);
+    if (!activity) return NextResponse.json({ error: "Construction activity not found." }, { status: 404 });
+    const [project] = await getDb().select({ id: projects.id, code: projects.code, name: projects.name }).from(projects).where(eq(projects.id, activity.projectId)).limit(1);
+    const boq = activity.boqItemId ? (await getDb().select({ id: boqItems.id, itemCode: boqItems.itemCode, description: boqItems.description, quantity: boqItems.quantity, unit: boqItems.unit }).from(boqItems).where(eq(boqItems.id, activity.boqItemId)).limit(1))[0] : null;
+    return NextResponse.json({ data: { ...activity, project: project ?? null, boqItem: boq ?? null } });
+  } catch (error) {
+    console.error("GET /api/construction/[id] failed", error);
+    return NextResponse.json({ error: "Unable to load construction activity." }, { status: 503 });
+  }
+}
+
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params; if (!idSchema.safeParse(id).success) return NextResponse.json({ error: "Invalid construction activity id." }, { status: 400 });
   const parsed = inputSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: "Invalid construction activity data.", issues: parsed.error.flatten() }, { status: 400 });
