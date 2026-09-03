@@ -5,18 +5,18 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#05070B",
-  "theme_color": "#05070B",
+  "background_color": "#05080E",
+  "theme_color": "#2F80ED",
   "orientation": "any",
   "icons": [
     {
-      "src": "/assets/creative_studios.png",
+      "src": "/assets/creative-studios.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/creative_studios.png",
+      "src": "/assets/creative-studios.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
