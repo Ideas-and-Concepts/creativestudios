@@ -41,15 +41,17 @@ MODULE_IMPORTS: dict[str, tuple[str, str]] = {
     "Settings": ("modules.settings", "render_settings_module"),
 }
 
+# Canonical Creative Studios logo. The hyphenated filename is the production asset.
 LOGO_PATH = next(
     (
         path
         for path in (
+            ASSETS_DIR / "creative-studios.png",
             ASSETS_DIR / "creative_studios.png",
             ASSETS_DIR / "creative_studios_logo.png",
             ASSETS_DIR / "logo.png",
         )
-        if path.exists()
+        if path.is_file() and path.stat().st_size > 0
     ),
     None,
 )
@@ -86,193 +88,253 @@ def inject_css() -> None:
     st.markdown(
         """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
         :root {
             --cs-blue: #2f80ed;
             --cs-blue-dark: #1558b0;
-            --cs-blue-soft: #5aa9ff;
-            --cs-black: #05070b;
-            --cs-ink: #eaf2ff;
-            --cs-muted: #9aa9bd;
-            --cs-border: rgba(105, 150, 205, .22);
-            --cs-surface: rgba(12, 18, 29, .86);
-            --cs-surface-strong: rgba(17, 25, 39, .96);
-            --cs-shadow: 0 14px 42px rgba(0, 0, 0, .30);
+            --cs-blue-soft: #67b3ff;
+            --cs-black: #030509;
+            --cs-ink: #f2f7ff;
+            --cs-muted: #93a4bb;
+            --cs-muted-2: #6f8097;
+            --cs-border: rgba(111, 155, 214, .20);
+            --cs-border-strong: rgba(90, 169, 255, .38);
+            --cs-surface: rgba(10, 16, 27, .90);
+            --cs-surface-strong: rgba(16, 25, 40, .97);
+            --cs-input: #080f1a;
+            --cs-shadow: 0 18px 50px rgba(0, 0, 0, .34);
+        }
+
+        html, body, [class*="css"] {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
         }
 
         .stApp {
             background:
-                radial-gradient(circle at 7% 0%, rgba(47,128,237,.16), transparent 30%),
-                radial-gradient(circle at 93% 5%, rgba(21,88,176,.13), transparent 27%),
-                linear-gradient(135deg, #030509 0%, #07101c 48%, #04070c 100%);
+                radial-gradient(circle at 8% 0%, rgba(47,128,237,.18), transparent 29%),
+                radial-gradient(circle at 92% 3%, rgba(90,169,255,.08), transparent 25%),
+                linear-gradient(135deg, #020408 0%, #07111f 50%, #03060b 100%);
             color: var(--cs-ink);
         }
 
         .block-container {
-            max-width: 1420px;
-            padding: 1.35rem 2.1rem 4rem;
+            max-width: 1480px;
+            padding: 1.35rem 2.15rem 4rem;
+        }
+
+        [data-testid="stHeader"] {
+            background: transparent;
         }
 
         [data-testid="stSidebar"] {
-            min-width: 270px;
-            max-width: 270px;
-            background: #05080e;
+            min-width: 278px;
+            max-width: 278px;
+            background: #04070c;
             border-right: 1px solid var(--cs-border);
         }
 
-        [data-testid="stSidebar"] > div:first-child { padding-top: 1.2rem; }
-        [data-testid="stSidebar"] .stRadio > div { gap: .22rem; }
-        [data-testid="stSidebar"] .stRadio label {
-            border-radius: 9px;
-            padding: .46rem .65rem;
-            color: #dce9fa;
-            transition: background .16s ease, transform .16s ease;
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 1rem;
         }
+
+        [data-testid="stSidebar"] .stRadio > div {
+            gap: .18rem;
+        }
+
+        [data-testid="stSidebar"] .stRadio label {
+            border-radius: 10px;
+            padding: .48rem .68rem;
+            color: #cbd9ea;
+            font-size: .79rem;
+            font-weight: 560;
+            transition: background .16s ease, transform .16s ease, color .16s ease;
+        }
+
         [data-testid="stSidebar"] .stRadio label:hover {
-            background: rgba(47,128,237,.12);
+            background: rgba(47,128,237,.10);
+            color: #ffffff;
             transform: translateX(2px);
         }
+
         [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
-            background: rgba(47,128,237,.20);
+            background: linear-gradient(90deg, rgba(47,128,237,.24), rgba(47,128,237,.08));
             color: #ffffff;
+            box-shadow: inset 3px 0 0 var(--cs-blue);
         }
 
-        .cs-brand-wrap {
+        .cs-brand-card {
+            padding: .72rem .65rem .78rem;
+            border: 1px solid var(--cs-border);
+            border-radius: 15px;
+            background: linear-gradient(145deg, rgba(20,31,49,.88), rgba(6,10,17,.92));
+            box-shadow: 0 10px 30px rgba(0,0,0,.20);
+        }
+
+        .cs-brand-row {
             display: flex;
             align-items: center;
-            gap: .72rem;
-            padding: .35rem .15rem .15rem;
+            gap: .78rem;
         }
 
-        .cs-brand-mark {
-            width: 48px;
-            height: 48px;
+        .cs-brand-logo {
+            width: 58px;
+            height: 58px;
+            min-width: 58px;
+            object-fit: contain;
             border-radius: 13px;
-            display: grid;
-            place-items: center;
-            background: linear-gradient(145deg, var(--cs-blue), var(--cs-blue-dark));
-            color: white;
-            font-weight: 800;
-            letter-spacing: -.04em;
-            box-shadow: 0 8px 24px rgba(47,128,237,.28);
-            overflow: hidden;
+            display: block;
+            background: #ffffff;
+            padding: 3px;
+            box-shadow: 0 8px 24px rgba(47,128,237,.20);
         }
 
         .cs-brand-title {
-            font-size: 1.02rem;
-            line-height: 1.1;
-            font-weight: 780;
-            letter-spacing: -.025em;
-            color: #f4f8ff;
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-size: 1.08rem;
+            line-height: 1.05;
+            font-weight: 700;
+            letter-spacing: -.035em;
+            color: #f7fbff;
         }
 
         .cs-brand-subtitle {
-            margin-top: .2rem;
+            margin-top: .28rem;
             color: var(--cs-muted);
-            font-size: .69rem;
+            font-size: .68rem;
             line-height: 1.35;
         }
 
-        .cs-divider { height: 1px; background: var(--cs-border); margin: 1rem 0; }
+        .cs-brand-caption {
+            margin-top: .62rem;
+            color: var(--cs-muted-2);
+            font-size: .62rem;
+            letter-spacing: .02em;
+        }
+
+        .cs-divider {
+            height: 1px;
+            background: var(--cs-border);
+            margin: .9rem 0;
+        }
+
         .cs-section {
-            color: #6f88a7;
-            font-size: .65rem;
+            color: #7f95b0;
+            font-size: .61rem;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: .12em;
-            margin: .8rem 0 .45rem;
+            letter-spacing: .14em;
+            margin: .72rem 0 .42rem;
         }
 
         .cs-pwa-link {
             display: block;
             text-decoration: none !important;
-            padding: .58rem .72rem;
-            margin: .34rem 0;
+            padding: .62rem .72rem;
+            margin: .32rem 0;
             border: 1px solid var(--cs-border);
-            border-radius: 9px;
-            color: #dbeaff !important;
-            font-size: .76rem;
-            font-weight: 620;
+            border-radius: 10px;
+            color: #dceaff !important;
+            font-size: .74rem;
+            font-weight: 650;
             text-align: center;
-            background: rgba(30, 55, 85, .20);
+            background: rgba(20, 36, 57, .42);
             transition: all .16s ease;
         }
 
         .cs-pwa-link.primary {
-            color: white !important;
-            border-color: var(--cs-blue);
+            color: #ffffff !important;
+            border-color: rgba(47,128,237,.80);
             background: linear-gradient(135deg, var(--cs-blue), var(--cs-blue-dark));
-            box-shadow: 0 7px 20px rgba(47,128,237,.22);
+            box-shadow: 0 8px 24px rgba(47,128,237,.20);
         }
-        .cs-pwa-link:hover { transform: translateY(-1px); border-color: rgba(90,169,255,.65); }
+
+        .cs-pwa-link:hover {
+            transform: translateY(-1px);
+            border-color: var(--cs-border-strong);
+        }
 
         .cs-sidebar-note {
-            color: #718198;
-            font-size: .68rem;
+            color: #687b94;
+            font-size: .64rem;
             text-align: center;
             line-height: 1.5;
-            margin-top: .7rem;
+            margin-top: .65rem;
         }
 
         .cs-hero {
             position: relative;
             overflow: hidden;
             border: 1px solid var(--cs-border);
-            border-radius: 20px;
-            padding: 1.35rem 1.45rem;
-            margin-bottom: 1.15rem;
+            border-radius: 22px;
+            padding: 1.55rem 1.65rem;
+            margin-bottom: 1.25rem;
             background:
-                linear-gradient(135deg, rgba(47,128,237,.18), rgba(5,8,14,.55)),
+                linear-gradient(135deg, rgba(47,128,237,.16), rgba(5,8,14,.58)),
                 var(--cs-surface);
             box-shadow: var(--cs-shadow);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(14px);
         }
-        .cs-hero::after {
+
+        .cs-hero::before {
             content: "";
             position: absolute;
-            width: 190px;
-            height: 190px;
-            right: -70px;
-            top: -95px;
+            width: 340px;
+            height: 340px;
+            right: -180px;
+            top: -210px;
             border-radius: 50%;
-            border: 1px solid rgba(90,169,255,.16);
-            box-shadow: 0 0 55px rgba(47,128,237,.10);
+            border: 1px solid rgba(90,169,255,.12);
+            box-shadow: 0 0 80px rgba(47,128,237,.08);
         }
+
         .cs-eyebrow {
             color: var(--cs-blue-soft);
-            font-size: .68rem;
-            font-weight: 850;
-            letter-spacing: .13em;
+            font-size: .64rem;
+            font-weight: 800;
+            letter-spacing: .16em;
             text-transform: uppercase;
-            margin-bottom: .35rem;
+            margin-bottom: .42rem;
         }
+
         .cs-hero-title {
-            font-size: clamp(1.45rem, 2.7vw, 2.15rem);
-            font-weight: 820;
-            letter-spacing: -.045em;
-            line-height: 1.05;
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-size: clamp(1.55rem, 3vw, 2.45rem);
+            font-weight: 700;
+            letter-spacing: -.055em;
+            line-height: 1.02;
             margin: 0;
-            color: #f4f8ff;
+            color: #f7fbff;
         }
+
         .cs-hero-copy {
-            max-width: 780px;
+            max-width: 820px;
             color: var(--cs-muted);
-            font-size: .88rem;
-            line-height: 1.55;
-            margin: .55rem 0 0;
+            font-size: .86rem;
+            line-height: 1.65;
+            margin: .62rem 0 0;
         }
-        .cs-status-row { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .8rem; }
+
+        .cs-status-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .46rem;
+            margin-top: .95rem;
+        }
+
         .cs-pill {
             display: inline-flex;
             align-items: center;
-            gap: .36rem;
+            gap: .4rem;
             border: 1px solid var(--cs-border);
             border-radius: 999px;
-            padding: .28rem .58rem;
-            font-size: .67rem;
+            padding: .31rem .62rem;
+            font-size: .65rem;
             font-weight: 650;
-            background: var(--cs-surface-strong);
-            color: #dbeaff;
+            background: rgba(12,20,32,.88);
+            color: #dceaff;
         }
+
         .cs-dot {
             width: 7px;
             height: 7px;
@@ -280,72 +342,131 @@ def inject_css() -> None:
             background: var(--cs-blue-soft);
             box-shadow: 0 0 0 3px rgba(47,128,237,.14);
         }
-        .cs-dot.gold {
-            background: #7c8da3;
-            box-shadow: 0 0 0 3px rgba(124,141,163,.12);
+
+        .cs-dot.neutral {
+            background: #71829a;
+            box-shadow: 0 0 0 3px rgba(113,130,154,.12);
         }
+
         .cs-module-bar {
             display: flex;
             align-items: end;
             justify-content: space-between;
             gap: 1rem;
-            padding: .25rem 0 .85rem;
+            padding: .2rem 0 .78rem;
             border-bottom: 1px solid var(--cs-border);
             margin-bottom: 1rem;
         }
-        .cs-module-title { font-size: 1.15rem; font-weight: 780; letter-spacing: -.025em; margin: 0; color: #edf5ff; }
-        .cs-module-meta { color: var(--cs-muted); font-size: .7rem; white-space: nowrap; }
+
+        .cs-module-title {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-size: 1.18rem;
+            font-weight: 650;
+            letter-spacing: -.035em;
+            margin: 0;
+            color: #edf5ff;
+        }
+
+        .cs-module-meta {
+            color: var(--cs-muted-2);
+            font-size: .65rem;
+            white-space: nowrap;
+        }
 
         [data-testid="stMetric"] {
             border: 1px solid var(--cs-border);
-            border-radius: 14px;
-            padding: .82rem .95rem;
-            background: var(--cs-surface);
-            box-shadow: 0 8px 24px rgba(0,0,0,.18);
+            border-radius: 15px;
+            padding: .88rem 1rem;
+            background: linear-gradient(145deg, rgba(16,25,40,.92), rgba(7,12,20,.92));
+            box-shadow: 0 9px 26px rgba(0,0,0,.18);
         }
-        [data-testid="stMetricLabel"] { font-size: .68rem !important; font-weight: 700 !important; color: var(--cs-muted) !important; }
-        [data-testid="stMetricValue"] { font-weight: 800 !important; letter-spacing: -.035em; color: #f1f7ff !important; }
+
+        [data-testid="stMetricLabel"] {
+            font-size: .65rem !important;
+            font-weight: 650 !important;
+            color: var(--cs-muted) !important;
+        }
+
+        [data-testid="stMetricValue"] {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-weight: 700 !important;
+            letter-spacing: -.04em;
+            color: #f4f9ff !important;
+        }
 
         .stButton > button {
-            border-radius: 9px;
+            border-radius: 10px;
             border: 1px solid var(--cs-border);
             font-weight: 650;
-            min-height: 2.35rem;
-            background: #0c1421;
+            min-height: 2.4rem;
+            background: #0a1220;
             color: #dceaff;
             transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
         }
+
         .stButton > button:hover {
             transform: translateY(-1px);
-            border-color: rgba(90,169,255,.65);
-            box-shadow: 0 6px 18px rgba(0,0,0,.20);
+            border-color: var(--cs-border-strong);
+            box-shadow: 0 7px 20px rgba(0,0,0,.22);
         }
+
         .stButton > button[kind="primary"] {
             background: linear-gradient(135deg, var(--cs-blue), var(--cs-blue-dark));
             border-color: var(--cs-blue);
-            color: #fff;
+            color: #ffffff;
+            box-shadow: 0 6px 18px rgba(47,128,237,.16);
         }
 
         [data-testid="stTextInput"] input,
         [data-testid="stNumberInput"] input,
         [data-testid="stDateInput"] input,
-        [data-testid="stTextArea"] textarea,
+        [data-testid="stTextArea"] textarea {
+            border-radius: 10px;
+            background: var(--cs-input);
+            color: #edf5ff;
+            border-color: var(--cs-border);
+            font-size: .78rem;
+        }
+
         [data-testid="stSelectbox"] > div,
         [data-testid="stMultiSelect"] > div {
-            border-radius: 9px;
-            background: #0a111c;
-            color: #e9f2ff;
+            border-radius: 10px;
+            background: var(--cs-input);
+            color: #edf5ff;
             border-color: var(--cs-border);
         }
-        [data-testid="stExpander"] { border: 1px solid var(--cs-border); border-radius: 12px; overflow: hidden; background: var(--cs-surface); }
-        [data-testid="stDataFrame"] { border: 1px solid var(--cs-border); border-radius: 12px; overflow: hidden; }
-        .cs-footer { color: #62738b; text-align: center; font-size: .65rem; padding: 2.2rem 0 .2rem; letter-spacing: .01em; }
+
+        [data-testid="stExpander"] {
+            border: 1px solid var(--cs-border);
+            border-radius: 13px;
+            overflow: hidden;
+            background: var(--cs-surface);
+        }
+
+        [data-testid="stDataFrame"] {
+            border: 1px solid var(--cs-border);
+            border-radius: 13px;
+            overflow: hidden;
+        }
+
+        [data-testid="stAlert"] {
+            border-radius: 11px;
+        }
+
+        .cs-footer {
+            color: #5f7189;
+            text-align: center;
+            font-size: .62rem;
+            padding: 2.4rem 0 .2rem;
+            letter-spacing: .025em;
+        }
 
         @media (max-width: 900px) {
-            .block-container { padding: .9rem 1rem 3rem; }
-            .cs-hero { border-radius: 15px; padding: 1rem; }
-            .cs-module-bar { align-items: flex-start; flex-direction: column; gap: .2rem; }
+            .block-container { padding: .85rem .85rem 3rem; }
+            .cs-hero { border-radius: 16px; padding: 1.05rem; }
+            .cs-module-bar { align-items: flex-start; flex-direction: column; gap: .22rem; }
             .cs-module-meta { white-space: normal; }
+            .cs-brand-logo { width: 52px; height: 52px; min-width: 52px; }
         }
         </style>
         """,
@@ -354,11 +475,19 @@ def inject_css() -> None:
 
 
 def render_brand() -> None:
-    # Single compact brand block. The previous second st.sidebar.image() is intentionally removed.
+    logo_markup = ""
+    if LOGO_PATH:
+        logo_markup = f'<img class="cs-brand-logo" src="{LOGO_PATH.as_uri()}" alt="Creative Studios logo">'
+    else:
+        logo_markup = '<div class="cs-brand-logo" aria-label="Creative Studios logo">CS</div>'
+
     st.sidebar.markdown(
-        '<div class="cs-brand-wrap"><div class="cs-brand-mark">CS</div>'
+        '<div class="cs-brand-card">'
+        f'<div class="cs-brand-row">{logo_markup}'
         '<div><div class="cs-brand-title">Creative Studios</div>'
-        '<div class="cs-brand-subtitle">AEC Collaboration Platform</div></div></div>',
+        '<div class="cs-brand-subtitle">AEC Collaboration Platform</div></div></div>'
+        '<div class="cs-brand-caption">Project delivery workspace</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -421,14 +550,14 @@ def render_sidebar() -> str:
     try:
         backend = database_backend()
         backend_label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
-        status_class = "" if backend == "neon" else "gold"
+        dot_class = "" if backend == "neon" else "neutral"
         st.sidebar.markdown(
-            f'<div class="cs-pill"><span class="cs-dot {status_class}"></span>{backend_label}</div>',
+            f'<div class="cs-pill"><span class="cs-dot {dot_class}"></span>{backend_label}</div>',
             unsafe_allow_html=True,
         )
     except Exception:
         st.sidebar.markdown(
-            '<div class="cs-pill"><span class="cs-dot gold"></span>Database unavailable</div>',
+            '<div class="cs-pill"><span class="cs-dot neutral"></span>Database unavailable</div>',
             unsafe_allow_html=True,
         )
     st.sidebar.markdown(
@@ -442,10 +571,10 @@ def render_workspace_header(name: str) -> None:
     try:
         backend = database_backend()
         backend_label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
-        dot_class = "" if backend == "neon" else "gold"
+        dot_class = "" if backend == "neon" else "neutral"
     except Exception:
         backend_label = "Database unavailable"
-        dot_class = "gold"
+        dot_class = "neutral"
 
     if name == "Dashboard":
         title = "AEC Project Workspace"
