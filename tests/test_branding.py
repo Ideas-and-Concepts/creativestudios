@@ -21,26 +21,23 @@ def test_sidebar_branding_configuration():
     assert "Inter" in source
     assert "Space Grotesk" in source
     assert "#2f80ed" in source
-    assert "#030509" in source
-    assert "green" not in source.lower()
-    assert "#00" not in source.lower()
-    assert "width=88" in source
+    assert "#f6f7f9" in source
+    assert "#030509" not in source
+    assert "width=88" not in source
     assert "unsafe_allow_html=True" in source
 
 
-def test_navigation_contains_current_modules():
-    expected = {
-        "Dashboard",
-        "Projects",
-        "Documents",
-        "Architecture",
-        "Engineering",
-        "Drawings",
-        "BOQ",
-        "MEP",
-        "Construction",
-    }
-    assert expected.issubset(set(streamlit_app.NAVIGATION))
+def test_navigation_contains_all_registered_modules():
+    expected = set(streamlit_app.MODULE_IMPORTS)
+    assert expected == set(streamlit_app.NAVIGATION)
+
+
+def test_navigation_groups_cover_all_modules_once():
+    grouped = [page for pages in streamlit_app.MODULE_GROUPS.values() for page in pages]
+    assert set(grouped) == set(streamlit_app.NAVIGATION)
+    assert len(grouped) == len(set(grouped))
+    assert grouped.count("Dashboard") == 1
+    assert grouped.count("Settings") == 1
 
 
 def test_page_configuration_preserves_all_registered_pages():
