@@ -246,3 +246,100 @@ def delete_record(collection: str, record_id: Any, db: dict[str, Any]) -> bool:
                 raise
             return True
     return False
+
+
+# ---------------------------------------------------------------------------
+# Relational AEC accessors
+# ---------------------------------------------------------------------------
+# Projects are shared with the Next.js/Drizzle application.  Streamlit uses
+# these helpers when Neon is configured so both frontends read and write the
+# same relational projects table instead of maintaining a second project store.
+
+_PROJECT_FIELDS = {
+    "code", "name", "client_name", "location", "description", "status",
+    "start_date", "target_end_date",
+}
+
+
+def _rows_as_dicts(cursor) -> list[dict[str, Any]]:
+    columns = [column.name if hasattr(column, "name") else column[0] for column in cursor.description]
+    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+def get_relational_projects() -> list[dict[str, Any]]:
+    with _neon_connect() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id, code, name, client_name, location, description, status,
+                       start_date, target_end_date, created_at, updated_at
+                FROM projects
+                ORDER BY created_at DESC
+                """
+            )
+            return _rows_as_dicts(cursor)
+
+
+def create_relational_project(values: dict[str, Any]) -> dict[str, Any]:
+    unknown = set(values) - _PROJECT_FIELDS
+    if unknown:
+        raise ValueError(f"Unsupported project fields: {', '.join(sorted(unknown))}")
+    required = {"code", "name"}
+    if not required.issubset(values):
+        raise ValueError("Project code and name are required.")
+
+    with _neon_connect() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO projects
+                    (code, name, client_name, location, description, status, start_date, target_end_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, code, name, client_name, location, description, status,
+                          start_date, target_end_date, created_at, updated_at
+                """,
+                (
+                    values["code"], values["name"], values.get("client_name"),
+                    values.get("location"), values.get("description"),
+                    values.get("status", "planning"), values.get("start_date"),
+                    values.get("target_end_date"),
+                ),
+            )
+            rows = _rows_as_dicts(cursor)
+        connection.commit()
+    return rows[0]
+
+
+def update_relational_project(project_id: str, values: dict[str, Any]) -> dict[str, Any] | None:
+    unknown = set(values) - _PROJECT_FIELDS
+    if unknown:
+        raise ValueError(f"Unsupported project fields: {', '.join(sorted(unknown))}")
+    if not values:
+        raise ValueError("No project changes supplied.")
+
+    assignments = ", ".join(f"{field} = %s" for field in values)
+    params = list(values.values()) + [project_id]
+    with _neon_connect() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                UPDATE projects
+                SET {assignments}, updated_at = now()
+                WHERE id = %s
+                RETURNING id, code, name, client_name, location, description, status,
+                          start_date, target_end_date, created_at, updated_at
+                """,
+                params,
+            )
+            rows = _rows_as_dicts(cursor)
+        connection.commit()
+    return rows[0] if rows else None
+
+
+def delete_relational_project(project_id: str) -> bool:
+    with _neon_connect() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM projects WHERE id = %s RETURNING id", (project_id,))
+            deleted = cursor.fetchone() is not None
+        connection.commit()
+    return deleted
