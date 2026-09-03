@@ -7,13 +7,13 @@ export const metadata: Metadata = {
   description: "AEC Collaboration Platform",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/assets/creative_studios.png",
-    apple: "/assets/creative_studios.png",
+    icon: "/assets/creative-studios.png",
+    apple: "/assets/creative-studios.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#05070B",
+  themeColor: "#05080E",
   width: "device-width",
   initialScale: 1,
 };
