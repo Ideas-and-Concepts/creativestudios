@@ -131,6 +131,23 @@ export default function WorkspaceModule() {
   const pageClassName = `content standalone${isVercelColourModule ? " vercel-colour-module" : ""}`;
 
   return <main className={pageClassName}>
+    {isVercelColourModule && <style>{`
+      .vercel-colour-module{background:#f7f8fa;color:#111827;min-height:100vh}
+      .vercel-colour-module .eyebrow{color:#64748b}
+      .vercel-colour-module h1,.vercel-colour-module h2,.vercel-colour-module strong{color:#111827}
+      .vercel-colour-module p{color:#64748b}
+      .vercel-colour-module .workspace-card,.vercel-colour-module .kpi-card{background:#fff;border-color:#e5e7eb;box-shadow:0 1px 2px rgba(15,23,42,.03)}
+      .vercel-colour-module .kpi-card span{color:#64748b}
+      .vercel-colour-module .secondary-button{border-color:#e2e8f0;background:#fff;color:#334155}
+      .vercel-colour-module .secondary-button:hover{background:#f8fafc;color:#2563eb}
+      .vercel-colour-module .primary-button{border-color:#2563eb;background:#2563eb;color:#fff}
+      .vercel-colour-module .workflow a{border-color:#e2e8f0;background:#fff;color:#334155}
+      .vercel-colour-module .workflow a:hover{border-color:#bfdbfe;background:#eff6ff;color:#2563eb}
+      .vercel-colour-module input,.vercel-colour-module select,.vercel-colour-module textarea{background:#fff;color:#111827;border-color:#e2e8f0}
+      .vercel-colour-module table th{color:#64748b;background:#f8fafc;border-color:#e5e7eb}
+      .vercel-colour-module table td{color:#334155;border-color:#eef2f7}
+      .vercel-colour-module .section-label{color:#64748b}
+    `}</style>}
     <header className="topbar"><div><div className="eyebrow">Creative Studios</div><h1>{definition.title}</h1><p>{definition.description}</p></div><Link className="secondary-button" href="/">Dashboard</Link></header>
     <section className="kpi-grid">{cards.map((card) => <div className="kpi-card" key={card}><span>{card}</span><strong>{definition.kind === "settings" ? "Ready" : definition.kind === "cost" || definition.kind === "reports" ? "Live" : rows.length}</strong></div>)}</section>
     {definition.kind !== "cost" && definition.kind !== "reports" && definition.kind !== "settings" && <>
