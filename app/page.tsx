@@ -7,11 +7,13 @@ type Project = { id: string; code?: string; name?: string; status?: string };
 type Document = { id: string; title?: string; documentType?: string; revision?: string | null; createdAt?: string; projectId?: string | null; isApproved?: boolean };
 type Task = { id: string; title?: string; status?: string; priority?: string };
 type Rfi = { id: string; rfiNumber?: string; subject?: string; status?: string };
+type Commercial = { budget?: number; committed?: number; actual?: number; earnedValue?: number; forecast?: number; variance?: number; cpi?: number | null; budgetUtilisation?: number };
 type Summary = {
   projects: number; drawings: number; boqItems: number; activeWorks: number; boqValue?: number; averageProgress?: number;
   domainProgress?: { architecture?: number; engineering?: number; mep?: number; construction?: number };
   projectProgress?: { projectId: string; progress: number; activityCount: number }[];
-  commercial?: { budget?: number; committed?: number; actual?: number; earnedValue?: number; forecast?: number; variance?: number; cpi?: number | null; budgetUtilisation?: number };
+  commercial?: Commercial;
+  commercialByProject?: Commercial[] & { projectId?: string }[];
 };
 
 const money = (n = 0) => `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -68,15 +70,19 @@ export default function Home() {
   const filteredProjectIds = selectedProject ? new Set([selectedProject.id]) : null;
   const filteredDocuments = filteredProjectIds ? documents.filter(d => filteredProjectIds.has(d.projectId || "")) : documents;
   const projectProgress = useMemo(() => new Map((summary.projectProgress || []).map(x => [x.projectId, x])), [summary.projectProgress]);
-  const commercial = summary.commercial || {};
+  const commercial = useMemo(() => {
+    if (!selectedProject) return summary.commercial || {};
+    return summary.commercialByProject?.find(x => x.projectId === selectedProject.id) || {};
+  }, [selectedProject, summary.commercial, summary.commercialByProject]);
   const activeTasks = tasks.filter(t => ["open", "in_progress", "review"].includes((t.status || "").toLowerCase()));
   const openRfis = rfis.filter(r => !["closed", "answered", "completed"].includes((r.status || "").toLowerCase()));
   const completedTasks = tasks.filter(t => ["completed", "closed"].includes((t.status || "").toLowerCase())).length;
   const approvedDocuments = filteredDocuments.filter(d => d.isApproved).length;
   const domains = summary.domainProgress || {};
   const designProgress = Math.round((Number(domains.architecture || 0) + Number(domains.engineering || 0)) / 2);
-  const constructionProgress = Number(domains.construction || 0);
-  const overallProgress = Number(summary.averageProgress || 0);
+  const selectedProgress = selectedProject ? (projectProgress.get(selectedProject.id)?.progress || 0) : Number(summary.averageProgress || 0);
+  const constructionProgress = selectedProject ? (projectProgress.get(selectedProject.id)?.progress || 0) : Number(domains.construction || 0);
+  const overallProgress = selectedProject ? selectedProgress : Number(summary.averageProgress || 0);
   const budget = Number(commercial.budget || summary.boqValue || 0);
   const committed = Number(commercial.committed || 0);
   const actual = Number(commercial.actual || 0);
@@ -103,14 +109,14 @@ export default function Home() {
         </header>
 
         <section className="cs-kpis">
-          {[["Projects", summary.projects, "Portfolio"],["Active Work", summary.activeWorks, "Execution"],["Work Progress", pct(overallProgress), "Actual construction / work data"],["BOQ Value", money(budget), `${summary.boqItems} items`],["Drawings", summary.drawings, "Controlled register"],["Open RFIs", openRfis.length, "Attention queue"]].map(([a,b,c]) => <div className="cs-kpi" key={String(a)}><small>{a}</small><strong>{b}</strong><span>{c}</span></div>)}
+          {[["Projects", selectedProject ? 1 : summary.projects, selectedProject ? "Selected project" : "Portfolio"],["Active Work", summary.activeWorks, "Execution"],["Work Progress", pct(overallProgress), selectedProject ? "Selected project progress" : "Actual construction / work data"],["BOQ Value", money(budget), `${summary.boqItems} items`],["Drawings", summary.drawings, "Controlled register"],["Open RFIs", openRfis.length, "Attention queue"]].map(([a,b,c]) => <div className="cs-kpi" key={String(a)}><small>{a}</small><strong>{b}</strong><span>{c}</span></div>)}
         </section>
 
         <section className="cs-commercial">
           <div className="cs-panel">
-            <div className="cs-title"><strong>Commercial Position</strong><span>BOQ → Procurement → Actual Cost → Forecast</span></div>
+            <div className="cs-title"><strong>Commercial Position</strong><span>{selectedProject ? `${selectedProject.code || "Project"} · Project-scoped` : "Portfolio-scoped"}</span></div>
             <div className="cs-money-grid">
-              <div className="cs-money"><small>Budget / BAC</small><b>{money(budget)}</b><em>Approved BOQ basis</em></div>
+              <div className="cs-money"><small>Budget / BAC</small><b>{money(budget)}</b><em>BOQ basis</em></div>
               <div className="cs-money"><small>Committed</small><b>{money(committed)}</b><em>Non-draft procurement</em></div>
               <div className="cs-money"><small>Actual Cost</small><b>{money(actual)}</b><em>Recorded actuals</em></div>
               <div className="cs-money"><small>Forecast / EAC</small><b>{money(forecast)}</b><em>Current completion forecast</em></div>
@@ -128,7 +134,7 @@ export default function Home() {
         </section>
 
         <section className="cs-health-grid">
-          {[['Overall Delivery', overallProgress, 'Portfolio delivery signal'],['Design & Engineering', designProgress, 'Architecture + engineering'],['Construction', constructionProgress, 'Construction work records']].map(([name,value,note]) => <div className="cs-health-card" key={String(name)}><div className="cs-health-label">{name}</div><div className="cs-health-value">{pct(Number(value))}</div><div className="cs-track" style={{marginTop:8}}><div className="cs-fill" style={{width:`${Math.min(100, Math.max(0, Number(value)))}%`}} /></div><div className="cs-health-note">{note}</div></div>)}
+          {[['Overall Delivery', overallProgress, selectedProject ? 'Selected project construction progress' : 'Portfolio delivery signal'],['Design & Engineering', designProgress, 'Architecture + engineering'],['Construction', constructionProgress, selectedProject ? 'Selected project construction records' : 'Construction work records']].map(([name,value,note]) => <div className="cs-health-card" key={String(name)}><div className="cs-health-label">{name}</div><div className="cs-health-value">{pct(Number(value))}</div><div className="cs-track" style={{marginTop:8}}><div className="cs-fill" style={{width:`${Math.min(100, Math.max(0, Number(value)))}%`}} /></div><div className="cs-health-note">{note}</div></div>)}
         </section>
 
         <section className="cs-grid">
