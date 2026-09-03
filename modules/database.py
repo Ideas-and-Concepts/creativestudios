@@ -13,6 +13,7 @@ DEFAULT_DATABASE: dict[str, Any] = {"users": [], "projects": [], "documents": []
 def _json_default(value: Any) -> str:
     if isinstance(value, (datetime, date)): return value.isoformat()
     if isinstance(value, Path): return str(value)
+    return str(value)
 def _normalize_database(data: Any) -> dict[str, Any]:
     if not isinstance(data, dict): data = {}
     normalized = copy.deepcopy(DEFAULT_DATABASE); normalized.update(data)
