@@ -67,7 +67,8 @@ export async function POST(request: Request) {
   try {
     const table = tables[module] as any;
     const values = normalizeValues(module, parsed.data as Record<string, unknown>);
-    const [row] = await getDb().insert(table).values(values).returning();
+    const result = await getDb().insert(table).values(values).returning();
+    const row = (result as any[])[0];
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (error) {
     console.error(`POST /api/workspace?module=${module} failed`, error);
@@ -85,7 +86,8 @@ export async function PATCH(request: Request) {
   try {
     const table = tables[module] as any;
     const values = normalizeValues(module, parsed.data as Record<string, unknown>);
-    const [row] = await getDb().update(table).set({ ...values, updatedAt: new Date() }).where(eq(table.id, id)).returning();
+    const result = await getDb().update(table).set({ ...values, updatedAt: new Date() }).where(eq(table.id, id)).returning();
+    const row = (result as any[])[0];
     if (!row) return NextResponse.json({ error: "Record not found." }, { status: 404 });
     return NextResponse.json({ data: row });
   } catch (error) {
@@ -101,7 +103,8 @@ export async function DELETE(request: Request) {
   if (!validId(id)) return NextResponse.json({ error: "Invalid record id." }, { status: 400 });
   try {
     const table = tables[module] as any;
-    const [row] = await getDb().delete(table).where(eq(table.id, id)).returning({ id: table.id });
+    const result = await getDb().delete(table).where(eq(table.id, id)).returning({ id: table.id });
+    const row = (result as any[])[0];
     if (!row) return NextResponse.json({ error: "Record not found." }, { status: 404 });
     return NextResponse.json({ data: row });
   } catch (error) {
