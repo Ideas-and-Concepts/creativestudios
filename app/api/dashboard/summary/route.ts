@@ -3,6 +3,7 @@ import { count, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import {
+  architectureWorks,
   boqItems,
   constructionActivities,
   drawings,
@@ -17,7 +18,18 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const db = getDb();
-    const [projectsCount, drawingsCount, boqCount, activeWorksCount, boqValue, progressRows] = await Promise.all([
+    const [
+      projectsCount,
+      drawingsCount,
+      boqCount,
+      activeWorksCount,
+      boqValue,
+      architectureProgress,
+      engineeringProgress,
+      mepProgress,
+      constructionProgress,
+      projectProgressRows,
+    ] = await Promise.all([
       db.select({ value: count() }).from(projects),
       db.select({ value: count() }).from(drawings),
       db.select({ value: count() }).from(boqItems),
@@ -29,16 +41,30 @@ export async function GET() {
         value: Number(engineering[0]?.value ?? 0) + Number(mep[0]?.value ?? 0) + Number(construction[0]?.value ?? 0),
       })),
       db.select({ value: sql<string>`coalesce(sum(${boqItems.amount}), 0)` }).from(boqItems),
-      Promise.all([
-        db.select({ value: sql<number>`coalesce(avg(${engineeringWorks.progress}), 0)` }).from(engineeringWorks),
-        db.select({ value: sql<number>`coalesce(avg(${mepWorks.progress}), 0)` }).from(mepWorks),
-        db.select({ value: sql<number>`coalesce(avg(${constructionActivities.progress}), 0)` }).from(constructionActivities),
-      ]),
+      db.select({ value: sql<number>`coalesce(avg(${architectureWorks.progress}), 0)` }).from(architectureWorks),
+      db.select({ value: sql<number>`coalesce(avg(${engineeringWorks.progress}), 0)` }).from(engineeringWorks),
+      db.select({ value: sql<number>`coalesce(avg(${mepWorks.progress}), 0)` }).from(mepWorks),
+      db.select({ value: sql<number>`coalesce(avg(${constructionActivities.progress}), 0)` }).from(constructionActivities),
+      db.select({
+        projectId: projects.id,
+        progress: sql<number>`coalesce(avg(${constructionActivities.progress}), 0)`,
+        activityCount: count(constructionActivities.id),
+      })
+        .from(projects)
+        .leftJoin(constructionActivities, eq(constructionActivities.projectId, projects.id))
+        .groupBy(projects.id),
     ]);
 
-    const progressValues = progressRows.map((row) => Number(row[0]?.value ?? 0)).filter((value) => Number.isFinite(value));
-    const averageProgress = progressValues.length
-      ? Math.round(progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length)
+    const domainProgress = {
+      architecture: Number(architectureProgress[0]?.value ?? 0),
+      engineering: Number(engineeringProgress[0]?.value ?? 0),
+      mep: Number(mepProgress[0]?.value ?? 0),
+      construction: Number(constructionProgress[0]?.value ?? 0),
+    };
+
+    const domainValues = Object.values(domainProgress).filter((value) => Number.isFinite(value));
+    const averageProgress = domainValues.length
+      ? Math.round(domainValues.reduce((sum, value) => sum + value, 0) / domainValues.length)
       : 0;
 
     return NextResponse.json({
@@ -49,6 +75,12 @@ export async function GET() {
         activeWorks: Number(activeWorksCount.value ?? 0),
         boqValue: Number(boqValue[0]?.value ?? 0),
         averageProgress,
+        domainProgress,
+        projectProgress: projectProgressRows.map((row) => ({
+          projectId: row.projectId,
+          progress: Math.max(0, Math.min(100, Math.round(Number(row.progress ?? 0)))),
+          activityCount: Number(row.activityCount ?? 0),
+        })),
       },
     });
   } catch (error) {
