@@ -1,53 +1,25 @@
-/* Creative Studios visual system: clean AEC dashboard, blue + black accent palette. */
-main:not(.cs-dashboard-page) {
-  margin-left: 250px;
-  padding-top: 64px;
-}
+/* Creative Studios reference UI: compact white navigation, neutral workspace, blue active states. */
+main:not(.cs-dashboard-page) { margin-left: 0 !important; padding-top: 82px !important; }
 
-/* Keep the shell neutral and reserve blue for active / primary states. */
-.cs-side,
-.cs-top {
-  background: #ffffff !important;
-  color: #111827 !important;
-  border-color: #e5e7eb !important;
-}
+.cs-side { display: none !important; }
+.cs-top { color: #111827 !important; }
+.cs-dashboard-page { margin-left: 0 !important; padding-top: 86px !important; }
 
-.cs-brand { color: #111827 !important; }
-.cs-brand span { color: #64748b !important; }
-.cs-section-title { color: #2563eb !important; }
-.cs-nav-link { color: #334155 !important; }
-.cs-nav-link:hover { background: #f8fafc !important; color: #111827 !important; }
-.cs-nav-link.active { background: #eff6ff !important; color: #2563eb !important; border-color: #dbeafe !important; }
-.cs-top-icon,
-.cs-menu-btn { color: #111827 !important; }
-.cs-avatar { color: #111827 !important; background: #ffffff !important; border-color: #cbd5e1 !important; }
-
-/* Dashboard reference geometry and palette. */
-.cs-dashboard-page {
-  background: #f7f8fa !important;
-  color: #111827 !important;
-}
 .cs-dashboard-page .cs-kpi-trend,
 .cs-dashboard-page .cs-kpi-trend.down,
-.cs-dashboard-page .cs-status.ready {
-  color: #2563eb !important;
-}
-.cs-dashboard-page .cs-pill {
-  background: #eff6ff !important;
-  color: #2563eb !important;
-}
+.cs-dashboard-page .cs-status.ready,
+.cs-dashboard-page .cs-pill { color: #2563EB !important; }
+.cs-dashboard-page .cs-pill { background: #EFF6FF !important; }
 .cs-dashboard-page .cs-panel,
 .cs-dashboard-page .cs-kpi,
 .cs-dashboard-page .cs-select,
 .cs-dashboard-page .cs-date,
-.cs-dashboard-page .cs-status {
-  border-color: #e5e7eb !important;
-}
-.cs-dashboard-page .cs-bar { background: #2563eb !important; }
-.cs-dashboard-page .cs-table th { color: #64748b !important; }
+.cs-dashboard-page .cs-status { border-color: #E5E7EB !important; }
+.cs-dashboard-page .cs-bar { background: #2563EB !important; }
+.cs-dashboard-page .cs-table th { color: #64748B !important; }
 .cs-dashboard-page .cs-table td { color: #334155 !important; }
 
-/* Remove green/red semantic colors from shared project status treatments. */
+/* Keep semantic state treatment restrained to the Creative Studios blue/neutral system. */
 .project-alert.success,
 .project-alert.error,
 .project-status.active,
@@ -55,13 +27,9 @@ main:not(.cs-dashboard-page) {
 .project-status.on_hold,
 .project-status.completed,
 .project-status.cancelled,
-.row-actions .danger-link {
-  color: #2563eb !important;
-}
+.row-actions .danger-link { color: #2563EB !important; }
 
 @media (max-width: 900px) {
-  main:not(.cs-dashboard-page) {
-    margin-left: 0;
-    padding-top: 64px;
-  }
+  main:not(.cs-dashboard-page) { margin-left: 0 !important; padding-top: 68px !important; }
+  .cs-dashboard-page { margin-left: 0 !important; padding-top: 68px !important; }
 }
