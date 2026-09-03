@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 from modules.database import delete_record, get_records, next_id, update_record
@@ -16,6 +17,7 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 DOCUMENT_STATUSES = ["Draft", "Under Review", "Approved", "Superseded", "Archived"]
 ALLOWED_TYPES = ["pdf", "docx", "xlsx", "png", "jpg", "jpeg"]
+CHART_COLORS = ["#2563EB", "#111827", "#64748B", "#CBD5E1", "#94A3B8"]
 
 
 def _document_type(filename: str) -> str:
@@ -50,27 +52,40 @@ def _analytics(documents: list[dict[str, Any]]) -> None:
     frame = pd.DataFrame(documents)
     if frame.empty:
         return
-    frame["status"] = frame.get("status", "Draft").fillna("Draft")
-    frame["document_type"] = frame.get("document_type", "Other").fillna("Other")
-    frame["discipline"] = frame.get("discipline", "Unspecified").replace("", "Unspecified").fillna("Unspecified")
+
+    frame["status"] = frame["status"].fillna("Draft") if "status" in frame.columns else pd.Series("Draft", index=frame.index)
+    frame["document_type"] = frame["document_type"].fillna("Other") if "document_type" in frame.columns else pd.Series("Other", index=frame.index)
+    frame["discipline"] = frame["discipline"].replace("", "Unspecified").fillna("Unspecified") if "discipline" in frame.columns else pd.Series("Unspecified", index=frame.index)
 
     total = len(frame)
     approved = int((frame["status"] == "Approved").sum())
     review = int((frame["status"] == "Under Review").sum())
-    archived = int((frame["status"] == "Archived").sum())
+    project_count = int(frame["project_id"].replace("", pd.NA).dropna().nunique()) if "project_id" in frame.columns else 0
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total documents", total)
     c2.metric("Approved", approved)
     c3.metric("Under review", review)
-    c4.metric("Archived", archived)
+    c4.metric("Projects represented", project_count)
 
     left, right = st.columns(2)
     with left:
         st.caption("Documents by status")
-        st.bar_chart(frame["status"].value_counts().rename("Documents"), height=230)
+        status_counts = frame["status"].value_counts().reset_index()
+        status_counts.columns = ["Status", "Documents"]
+        fig = px.pie(status_counts, names="Status", values="Documents", hole=.62, color_discrete_sequence=CHART_COLORS)
+        fig.update_traces(textinfo="none", marker_line_width=0)
+        fig.update_layout(height=260, margin=dict(l=5, r=5, t=5, b=5), paper_bgcolor="rgba(0,0,0,0)", font=dict(size=9, color="#111827"))
+        fig.add_annotation(text=f"<b>{total}</b><br><span style='font-size:9px'>Total</span>", showarrow=False, font=dict(size=15, color="#111827"))
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
     with right:
         st.caption("Documents by file type")
-        st.bar_chart(frame["document_type"].value_counts().rename("Documents"), height=230)
+        type_counts = frame["document_type"].value_counts().reset_index()
+        type_counts.columns = ["Type", "Documents"]
+        fig = px.bar(type_counts, x="Type", y="Documents", color="Type", color_discrete_sequence=CHART_COLORS)
+        fig.update_layout(height=260, margin=dict(l=5, r=5, t=5, b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False, font=dict(size=9, color="#111827"))
+        fig.update_xaxes(showgrid=False, title=None)
+        fig.update_yaxes(showgrid=True, gridcolor="#E5E7EB", title=None)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
     st.caption("Document register")
     columns = ["id", "title", "project", "discipline", "document_type", "version", "status", "file_name", "updated_at"]
@@ -82,7 +97,13 @@ def _analytics(documents: list[dict[str, Any]]) -> None:
     discipline_counts = frame["discipline"].value_counts().rename("Documents").head(10)
     if len(discipline_counts) > 1:
         st.caption("Top disciplines")
-        st.bar_chart(discipline_counts, height=180)
+        discipline_df = discipline_counts.reset_index()
+        discipline_df.columns = ["Discipline", "Documents"]
+        fig = px.bar(discipline_df, x="Discipline", y="Documents", color_discrete_sequence=["#2563EB"])
+        fig.update_layout(height=180, margin=dict(l=5, r=5, t=5, b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False, font=dict(size=9, color="#111827"))
+        fig.update_xaxes(showgrid=False, title=None)
+        fig.update_yaxes(showgrid=True, gridcolor="#E5E7EB", title=None)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 
 def render_documents_module(database: dict[str, Any]) -> None:
