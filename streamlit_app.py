@@ -1,8 +1,8 @@
 """Creative Studios Streamlit workspace.
 
-The Streamlit entry point owns the application shell, persistent navigation,
-database lifecycle, responsive navigation and safe module loading.
-Domain CRUD remains inside the individual modules.
+Simple, modern Streamlit shell for the Creative Studios AEC workspace.
+The sidebar owns navigation and workspace controls. Domain CRUD remains
+inside the individual modules.
 """
 from __future__ import annotations
 
@@ -23,9 +23,22 @@ DEFAULT_PWA_URL = "https://creativestudios-app.vercel.app/"
 AI_PWA_URL = "https://creativestudios-ai.vercel.app/"
 
 NAVIGATION = [
-    "Dashboard", "Projects", "Documents", "Architecture", "Engineering",
-    "Drawings", "MEP", "BOQ", "Procurement", "Construction", "Cost Control",
-    "Tasks", "RFIs", "Approvals", "Reports", "Settings",
+    "Dashboard",
+    "Projects",
+    "Documents",
+    "Architecture",
+    "Engineering",
+    "Drawings",
+    "MEP",
+    "BOQ",
+    "Procurement",
+    "Construction",
+    "Cost Control",
+    "Tasks",
+    "RFIs",
+    "Approvals",
+    "Reports",
+    "Settings",
 ]
 
 MODULE_IMPORTS: dict[str, tuple[str, str]] = {
@@ -106,148 +119,337 @@ def inject_css() -> None:
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
         :root {
-            --cs-black: #050505;
-            --cs-sidebar: #08090b;
-            --cs-panel: #0d0f12;
-            --cs-input: #0a0c0f;
+            --cs-bg: #f6f7f9;
+            --cs-sidebar: #ffffff;
+            --cs-panel: #ffffff;
+            --cs-text: #171a1f;
+            --cs-muted: #6b7280;
+            --cs-border: #e5e7eb;
             --cs-blue: #2f80ed;
-            --cs-blue-hover: #3b8ef3;
-            --cs-text: #f5f7fa;
-            --cs-text-2: #c5cbd4;
-            --cs-muted: #8b95a3;
-            --cs-muted-2: #68727f;
-            --cs-border: #20252d;
-            --cs-border-strong: #315f98;
+            --cs-blue-soft: #eef5ff;
         }
 
-        html, body, [class*="css"] { font-family: 'Inter', 'Segoe UI', sans-serif; }
-        .stApp { background: var(--cs-black); color: var(--cs-text); }
-        .block-container { max-width: 1540px; padding: 1rem 1.5rem 3.5rem; }
-        [data-testid="stHeader"] { background: var(--cs-black); }
+        html, body, [class*="css"] {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+        }
+
+        .stApp {
+            background: var(--cs-bg);
+            color: var(--cs-text);
+        }
+
+        .block-container {
+            max-width: 1480px;
+            padding: 1.5rem 2rem 3rem;
+        }
+
+        [data-testid="stHeader"] {
+            background: var(--cs-bg);
+        }
 
         [data-testid="stSidebar"] {
-            min-width: 245px;
-            max-width: 245px;
             background: var(--cs-sidebar);
             border-right: 1px solid var(--cs-border);
+            min-width: 250px;
+            max-width: 250px;
         }
-        [data-testid="stSidebar"] > div:first-child { padding: .8rem .72rem 1rem; }
+
+        [data-testid="stSidebar"] > div:first-child {
+            padding: 1rem .85rem 1rem;
+        }
+
         [data-testid="stSidebar"] img {
             display: block !important;
-            width: 74px !important;
-            max-width: 74px !important;
+            width: 72px !important;
+            max-width: 72px !important;
             height: auto !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-            border-radius: 8px;
+            margin: .15rem auto .7rem !important;
             object-fit: contain;
+            border-radius: 8px;
         }
-        .cs-brand-card {
-            margin-top: .5rem;
-            padding: .78rem .5rem .72rem;
+
+        .cs-brand {
             text-align: center;
-            border-top: 1px solid var(--cs-border);
+            padding: 0 .25rem .9rem;
             border-bottom: 1px solid var(--cs-border);
         }
+
         .cs-brand-title {
             font-family: 'Space Grotesk', 'Inter', sans-serif;
-            font-size: .98rem;
-            line-height: 1.1;
+            font-size: 1rem;
             font-weight: 700;
-            letter-spacing: -.03em;
-            color: #ffffff;
+            letter-spacing: -.035em;
+            color: var(--cs-text);
         }
-        .cs-brand-subtitle { margin-top: .27rem; color: var(--cs-muted); font-size: .60rem; line-height: 1.35; }
-        .cs-brand-caption { margin-top: .48rem; color: var(--cs-muted-2); font-size: .57rem; }
-        .cs-brand-logo {
-            display: block; width: 42px; height: 42px; margin: 0 auto; padding: 2px;
-            object-fit: contain; border-radius: 7px; background: #ffffff;
+
+        .cs-brand-subtitle {
+            margin-top: .2rem;
+            color: var(--cs-muted);
+            font-size: .62rem;
+            line-height: 1.4;
         }
-        .cs-divider { height: 1px; background: var(--cs-border); margin: .72rem 0; }
+
         .cs-section {
-            color: var(--cs-muted-2); font-size: .57rem; font-weight: 700;
-            text-transform: uppercase; letter-spacing: .13em; margin: .65rem 0 .38rem;
+            margin: .95rem .2rem .42rem;
+            color: #9ca3af;
+            font-size: .58rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .12em;
         }
-        .cs-pwa-link {
-            display: block; text-decoration: none !important; padding: .52rem .55rem; margin: .26rem 0;
-            border: 1px solid var(--cs-border); border-radius: 6px; color: var(--cs-text-2) !important;
-            font-size: .66rem; font-weight: 600; text-align: center; background: #0c0f13;
-        }
-        .cs-pwa-link.primary { color: #ffffff !important; background: var(--cs-blue); border-color: var(--cs-blue); }
-        .cs-pwa-link:hover { color: #ffffff !important; background: #151a21; border-color: var(--cs-border-strong); }
-        .cs-pwa-link.primary:hover { background: var(--cs-blue-hover); border-color: var(--cs-blue-hover); }
-        .cs-sidebar-note { color: var(--cs-muted-2); font-size: .57rem; text-align: center; line-height: 1.45; margin-top: .55rem; }
 
-        .cs-nav-shell { border-bottom: 1px solid var(--cs-border); padding: .15rem 0 .55rem; margin-bottom: .7rem; }
-        .cs-nav-label {
-            color: var(--cs-muted-2); font-size: .56rem; font-weight: 700;
-            letter-spacing: .13em; text-transform: uppercase; margin: 0 0 .4rem .05rem;
+        [data-testid="stSidebar"] [data-testid="stRadio"] > div[role="radiogroup"] {
+            gap: .12rem;
         }
-        [data-testid="stRadio"] > div[role="radiogroup"] { gap: .25rem; flex-wrap: wrap; }
-        [data-testid="stRadio"] label {
-            min-height: 2rem; padding: .38rem .62rem; border: 1px solid var(--cs-border);
-            border-radius: 6px; background: #0b0d10; color: var(--cs-text-2); font-size: .65rem;
-            font-weight: 600; transition: background .14s ease, border-color .14s ease, color .14s ease;
-        }
-        [data-testid="stRadio"] label:hover { background: #12161c; color: #ffffff; border-color: #2a313a; }
-        [data-testid="stRadio"] label[data-checked="true"] { background: var(--cs-blue); color: #ffffff; border-color: var(--cs-blue); }
 
-        .cs-hero {
-            border: 1px solid var(--cs-border); border-left: 3px solid var(--cs-blue); border-radius: 7px;
-            padding: 1.15rem 1.3rem; margin-bottom: .9rem; background: var(--cs-panel);
+        [data-testid="stSidebar"] [data-testid="stRadio"] label {
+            width: 100%;
+            min-height: 2.05rem;
+            padding: .38rem .65rem;
+            margin: 0;
+            border: 1px solid transparent;
+            border-radius: 7px;
+            color: #4b5563;
+            background: transparent;
+            font-size: .70rem;
+            font-weight: 600;
+            transition: background .12s ease, color .12s ease, border-color .12s ease;
         }
-        .cs-eyebrow { color: var(--cs-blue); font-size: .58rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; margin-bottom: .38rem; }
-        .cs-hero-title {
-            font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: clamp(1.35rem, 2.4vw, 2rem);
-            font-weight: 700; letter-spacing: -.045em; line-height: 1.05; margin: 0; color: #ffffff;
-        }
-        .cs-hero-copy { max-width: 900px; color: var(--cs-muted); font-size: .77rem; line-height: 1.55; margin: .5rem 0 0; }
-        .cs-status-row { display: flex; flex-wrap: wrap; gap: .38rem; margin-top: .7rem; }
-        .cs-pill {
-            display: inline-flex; align-items: center; gap: .34rem; border: 1px solid var(--cs-border);
-            border-radius: 5px; padding: .25rem .46rem; font-size: .58rem; font-weight: 600;
-            background: #101318; color: var(--cs-text-2);
-        }
-        .cs-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cs-blue); }
-        .cs-dot.neutral { background: var(--cs-muted-2); }
-        .cs-module-bar {
-            display: flex; align-items: end; justify-content: space-between; gap: 1rem;
-            padding: .05rem 0 .62rem; border-bottom: 1px solid var(--cs-border); margin-bottom: .85rem;
-        }
-        .cs-module-title {
-            font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 1rem; font-weight: 600;
-            letter-spacing: -.025em; color: #ffffff;
-        }
-        .cs-module-meta { color: var(--cs-muted-2); font-size: .58rem; white-space: nowrap; }
 
-        [data-testid="stMetric"] { border: 1px solid var(--cs-border); border-radius: 7px; padding: .7rem .8rem; background: var(--cs-panel); box-shadow: none; }
-        [data-testid="stMetricLabel"] { font-size: .59rem !important; font-weight: 600 !important; color: var(--cs-muted) !important; }
-        [data-testid="stMetricValue"] { font-family: 'Space Grotesk', 'Inter', sans-serif; font-weight: 700 !important; letter-spacing: -.035em; color: #ffffff !important; }
-        .stButton > button { min-height: 2.15rem; border-radius: 6px; border: 1px solid #2a3038; font-weight: 600; background: #0d1014; color: var(--cs-text-2); box-shadow: none; }
-        .stButton > button:hover { background: #151a21; border-color: var(--cs-border-strong); color: #ffffff; }
-        .stButton > button[kind="primary"] { background: var(--cs-blue); border-color: var(--cs-blue); color: #ffffff; }
-        .stButton > button[kind="primary"]:hover { background: var(--cs-blue-hover); border-color: var(--cs-blue-hover); }
-        [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input, [data-testid="stDateInput"] input, [data-testid="stTextArea"] textarea {
-            border-radius: 6px; background: var(--cs-input); color: var(--cs-text); border-color: var(--cs-border); font-size: .74rem;
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+            background: #f3f4f6;
+            color: var(--cs-text);
         }
-        [data-testid="stSelectbox"] > div, [data-testid="stMultiSelect"] > div {
-            border-radius: 6px; background: var(--cs-input); color: var(--cs-text); border-color: var(--cs-border); font-size: .74rem;
+
+        [data-testid="stSidebar"] [data-testid="stRadio"] label[data-checked="true"] {
+            background: var(--cs-blue-soft);
+            border-color: #d9e9ff;
+            color: var(--cs-blue);
         }
-        [data-testid="stExpander"] { border: 1px solid var(--cs-border); border-radius: 7px; overflow: hidden; background: var(--cs-panel); box-shadow: none; }
-        [data-testid="stDataFrame"] { border: 1px solid var(--cs-border); border-radius: 7px; overflow: hidden; }
-        [data-testid="stAlert"] { border-radius: 6px; }
-        .cs-empty-state { border: 1px dashed #2a3038; border-radius: 7px; padding: 1.2rem; color: var(--cs-muted); background: #090b0e; }
-        .cs-footer { color: #555d68; text-align: center; font-size: .56rem; padding: 2rem 0 .2rem; letter-spacing: .02em; }
+
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {
+            display: none;
+        }
+
+        .cs-link {
+            display: block;
+            padding: .48rem .62rem;
+            margin: .2rem 0;
+            border: 1px solid var(--cs-border);
+            border-radius: 7px;
+            color: #4b5563 !important;
+            background: #fff;
+            text-decoration: none !important;
+            font-size: .64rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .cs-link:hover {
+            background: #f9fafb;
+            color: var(--cs-text) !important;
+        }
+
+        .cs-link.primary {
+            background: var(--cs-blue);
+            border-color: var(--cs-blue);
+            color: #fff !important;
+        }
+
+        .cs-link.primary:hover {
+            background: #256fd3;
+            color: #fff !important;
+        }
+
+        .cs-db {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            margin-top: .65rem;
+            padding: .48rem .58rem;
+            border: 1px solid var(--cs-border);
+            border-radius: 7px;
+            color: #6b7280;
+            background: #fafafa;
+            font-size: .60rem;
+            font-weight: 600;
+        }
+
+        .cs-db-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--cs-blue);
+        }
+
+        .cs-db-dot.local {
+            background: #9ca3af;
+        }
+
+        .cs-note {
+            margin: .55rem .2rem 0;
+            color: #9ca3af;
+            font-size: .56rem;
+            line-height: 1.45;
+            text-align: center;
+        }
+
+        .cs-page-header {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: .8rem;
+            border-bottom: 1px solid var(--cs-border);
+        }
+
+        .cs-eyebrow {
+            margin-bottom: .2rem;
+            color: var(--cs-blue);
+            font-size: .58rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+        }
+
+        .cs-page-title {
+            margin: 0;
+            color: var(--cs-text);
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-size: clamp(1.45rem, 2.5vw, 2.05rem);
+            font-weight: 700;
+            letter-spacing: -.045em;
+            line-height: 1.05;
+        }
+
+        .cs-page-copy {
+            margin: .35rem 0 0;
+            max-width: 850px;
+            color: var(--cs-muted);
+            font-size: .74rem;
+            line-height: 1.5;
+        }
+
+        .cs-page-meta {
+            color: #9ca3af;
+            font-size: .58rem;
+            white-space: nowrap;
+        }
+
+        [data-testid="stMetric"] {
+            background: var(--cs-panel);
+            border: 1px solid var(--cs-border);
+            border-radius: 8px;
+            padding: .72rem .8rem;
+            box-shadow: none;
+        }
+
+        [data-testid="stMetricLabel"] {
+            color: var(--cs-muted) !important;
+            font-size: .59rem !important;
+            font-weight: 600 !important;
+        }
+
+        [data-testid="stMetricValue"] {
+            color: var(--cs-text) !important;
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-weight: 700 !important;
+            letter-spacing: -.03em;
+        }
+
+        .stButton > button {
+            min-height: 2.1rem;
+            border: 1px solid #dfe3e8;
+            border-radius: 7px;
+            background: #fff;
+            color: #374151;
+            font-size: .68rem;
+            font-weight: 600;
+            box-shadow: none;
+        }
+
+        .stButton > button:hover {
+            border-color: #cbd5e1;
+            background: #f9fafb;
+            color: var(--cs-text);
+        }
+
+        .stButton > button[kind="primary"] {
+            background: var(--cs-blue);
+            border-color: var(--cs-blue);
+            color: #fff;
+        }
+
+        [data-testid="stTextInput"] input,
+        [data-testid="stNumberInput"] input,
+        [data-testid="stDateInput"] input,
+        [data-testid="stTextArea"] textarea {
+            background: #fff;
+            border-color: #dfe3e8;
+            border-radius: 7px;
+            color: var(--cs-text);
+            font-size: .72rem;
+        }
+
+        [data-testid="stSelectbox"] > div,
+        [data-testid="stMultiSelect"] > div {
+            background: #fff;
+            border-radius: 7px;
+            color: var(--cs-text);
+            font-size: .72rem;
+        }
+
+        [data-testid="stExpander"] {
+            background: #fff;
+            border: 1px solid var(--cs-border);
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+        [data-testid="stDataFrame"] {
+            border: 1px solid var(--cs-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        [data-testid="stAlert"] {
+            border-radius: 7px;
+        }
+
+        .cs-footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--cs-border);
+            color: #9ca3af;
+            text-align: center;
+            font-size: .56rem;
+        }
 
         @media (max-width: 900px) {
-            .block-container { padding: .7rem .65rem 2.5rem; }
-            [data-testid="stSidebar"] { min-width: 220px; max-width: 220px; }
-            [data-testid="stSidebar"] img { width: 68px !important; max-width: 68px !important; }
-            .cs-hero { padding: .95rem; }
-            .cs-module-bar { align-items: flex-start; flex-direction: column; gap: .18rem; }
-            .cs-module-meta { white-space: normal; }
-            [data-testid="stRadio"] > div[role="radiogroup"] { gap: .2rem; }
-            [data-testid="stRadio"] label { font-size: .60rem; padding: .34rem .48rem; }
+            .block-container {
+                padding: 1rem .8rem 2.5rem;
+            }
+
+            [data-testid="stSidebar"] {
+                min-width: 230px;
+                max-width: 230px;
+            }
+
+            [data-testid="stSidebar"] img {
+                width: 66px !important;
+                max-width: 66px !important;
+            }
+
+            .cs-page-header {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: .25rem;
+            }
+
+            .cs-page-meta {
+                white-space: normal;
+            }
         }
         </style>
         """,
@@ -257,15 +459,17 @@ def inject_css() -> None:
 
 def render_brand() -> None:
     if LOGO_PATH:
-        st.sidebar.image(str(LOGO_PATH), width=74)
+        st.sidebar.image(str(LOGO_PATH), width=72)
     else:
-        st.sidebar.markdown('<div class="cs-brand-logo">CS</div>', unsafe_allow_html=True)
+        st.sidebar.markdown(
+            '<div style="text-align:center;font-weight:700;font-size:1.1rem;">CS</div>',
+            unsafe_allow_html=True,
+        )
 
     st.sidebar.markdown(
-        '<div class="cs-brand-card">'
+        '<div class="cs-brand">'
         '<div class="cs-brand-title">Creative Studios</div>'
         '<div class="cs-brand-subtitle">AEC Collaboration Platform</div>'
-        '<div class="cs-brand-caption">Project delivery workspace</div>'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -273,11 +477,11 @@ def render_brand() -> None:
 
 def render_pwa_links() -> None:
     st.sidebar.markdown(
-        f'<a class="cs-pwa-link primary" href="{PWA_URL}" target="_blank" rel="noopener noreferrer">Open Production PWA</a>',
+        f'<a class="cs-link primary" href="{PWA_URL}" target="_blank" rel="noopener noreferrer">Open Production PWA</a>',
         unsafe_allow_html=True,
     )
     st.sidebar.markdown(
-        f'<a class="cs-pwa-link" href="{AI_PWA_URL}" target="_blank" rel="noopener noreferrer">Open Creative Studios AI</a>',
+        f'<a class="cs-link" href="{AI_PWA_URL}" target="_blank" rel="noopener noreferrer">Open Creative Studios AI</a>',
         unsafe_allow_html=True,
     )
 
@@ -290,47 +494,7 @@ def get_database(*, reload: bool = False) -> dict[str, Any]:
 
 def render_sidebar(database: dict[str, Any]) -> None:
     render_brand()
-    st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
-    render_pwa_links()
-    st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="cs-section">Workspace tools</div>', unsafe_allow_html=True)
 
-    c1, c2 = st.sidebar.columns(2)
-    with c1:
-        if st.button("Refresh", use_container_width=True, key="refresh_database"):
-            try:
-                get_database(reload=True)
-                st.session_state.navigation_nonce += 1
-                st.rerun()
-            except Exception as exc:
-                st.sidebar.error("Database refresh failed.")
-                with st.sidebar.expander("Technical details"):
-                    st.exception(exc)
-    with c2:
-        if st.button("Top", use_container_width=True, key="top_workspace"):
-            st.rerun()
-
-    st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
-    try:
-        backend = database_backend()
-        backend_label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
-        dot_class = "" if backend == "neon" else "neutral"
-        st.sidebar.markdown(
-            f'<div class="cs-pill"><span class="cs-dot {dot_class}"></span>{backend_label}</div>',
-            unsafe_allow_html=True,
-        )
-    except Exception:
-        st.sidebar.markdown(
-            '<div class="cs-pill"><span class="cs-dot neutral"></span>Database unavailable</div>',
-            unsafe_allow_html=True,
-        )
-    st.sidebar.markdown(
-        '<div class="cs-sidebar-note">Edits are retained in the shared workspace. Refresh reloads the current saved state.</div>',
-        unsafe_allow_html=True,
-    )
-
-
-def render_navigation(database: dict[str, Any]) -> str:
     order, labels = get_navigation(database)
     current = st.session_state.get("active_module", "Dashboard")
     if current not in order:
@@ -341,56 +505,71 @@ def render_navigation(database: dict[str, Any]) -> str:
     options = list(label_map.values())
     current_label = label_map.get(current, current)
 
-    st.markdown(
-        '<div class="cs-nav-shell"><div class="cs-nav-label">Workspace navigation</div></div>',
-        unsafe_allow_html=True,
-    )
-    selected_label = st.radio(
-        "Workspace navigation",
+    st.sidebar.markdown('<div class="cs-section">Modules</div>', unsafe_allow_html=True)
+    selected_label = st.sidebar.radio(
+        "Modules",
         options,
         index=options.index(current_label) if current_label in options else 0,
-        horizontal=True,
-        key=f"navigation_choice_{st.session_state.navigation_nonce}",
+        key=f"sidebar_navigation_{st.session_state.navigation_nonce}",
         label_visibility="collapsed",
     )
-    choice = reverse_map.get(selected_label, current)
-    st.session_state.active_module = choice
-    return choice
+    st.session_state.active_module = reverse_map.get(selected_label, current)
 
+    st.sidebar.markdown('<div class="cs-section">Workspace</div>', unsafe_allow_html=True)
+    render_pwa_links()
 
-def render_workspace_header(name: str, module_count: int) -> None:
+    c1, c2 = st.sidebar.columns(2)
+    with c1:
+        if st.button("Refresh", use_container_width=True, key="refresh_database"):
+            try:
+                get_database(reload=True)
+                st.session_state.navigation_nonce += 1
+                st.rerun()
+            except Exception as exc:
+                st.sidebar.error("Refresh failed.")
+                with st.sidebar.expander("Details"):
+                    st.exception(exc)
+    with c2:
+        if st.button("Top", use_container_width=True, key="top_workspace"):
+            st.rerun()
+
     try:
         backend = database_backend()
         backend_label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
-        dot_class = "" if backend == "neon" else "neutral"
+        dot_class = "" if backend == "neon" else "local"
     except Exception:
         backend_label = "Database unavailable"
-        dot_class = "neutral"
+        dot_class = "local"
 
+    st.sidebar.markdown(
+        f'<div class="cs-db"><span class="cs-db-dot {dot_class}"></span>{backend_label}</div>',
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown(
+        '<div class="cs-note">Changes are retained in the shared workspace. Refresh reloads the current saved state.</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_workspace_header(name: str, module_count: int) -> None:
     if name == "Dashboard":
         title = "AEC Project Workspace"
-        copy = "Projects, technical design, documentation, procurement, construction and cost control in one connected workspace."
+        copy = "Projects, design, documentation, procurement, construction and cost control in one workspace."
         eyebrow = "Creative Studios"
     else:
         title = name
-        copy = f"Manage {name.lower()} records and project workflow from the shared Creative Studios workspace."
-        eyebrow = "AEC Collaboration Platform"
+        copy = f"Manage {name.lower()} records and project workflow from the shared workspace."
+        eyebrow = "Creative Studios"
 
     st.markdown(
-        f'''<section class="cs-hero">
-            <div class="cs-eyebrow">{eyebrow}</div>
-            <h1 class="cs-hero-title">{title}</h1>
-            <p class="cs-hero-copy">{copy}</p>
-            <div class="cs-status-row">
-                <span class="cs-pill"><span class="cs-dot"></span>Workspace online</span>
-                <span class="cs-pill"><span class="cs-dot {dot_class}"></span>{backend_label}</span>
-                <span class="cs-pill">{module_count} pages</span>
+        f'''<div class="cs-page-header">
+            <div>
+                <div class="cs-eyebrow">{eyebrow}</div>
+                <h1 class="cs-page-title">{title}</h1>
+                <p class="cs-page-copy">{copy}</p>
             </div>
-        </section>''',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        f'''<div class="cs-module-bar"><div class="cs-module-title">{name}</div><div class="cs-module-meta">Shared workspace</div></div>''',
+            <div class="cs-page-meta">{module_count} modules</div>
+        </div>''',
         unsafe_allow_html=True,
     )
 
@@ -453,7 +632,11 @@ def main() -> None:
     database = get_database()
     order, _ = get_navigation(database)
     render_sidebar(database)
-    choice = render_navigation(database)
+    choice = st.session_state.get("active_module", "Dashboard")
+    if choice not in order:
+        choice = order[0] if order else "Dashboard"
+        st.session_state.active_module = choice
+
     render_workspace_header(choice, len(order))
     if choice != "Settings":
         render_system_status(database)
