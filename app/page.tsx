@@ -72,6 +72,7 @@ export default function Home() {
   const filteredTasks = scoped(tasks);
   const filteredRfis = scoped(rfis);
   const projectProgress = useMemo(() => new Map((summary.projectProgress || []).map(x => [x.projectId, x])), [summary.projectProgress]);
+  // Commercial records are project-scoped when a project is selected.
   const commercial = useMemo(() => selectedProject
     ? (summary.commercialByProject || []).find(x => x.projectId === selectedProject.id) || { projectId: selectedProject.id }
     : summary.commercial || {}, [selectedProject, summary.commercial, summary.commercialByProject]);
