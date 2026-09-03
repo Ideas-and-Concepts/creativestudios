@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 APP_FILE = ROOT / "streamlit_app.py"
-LOGO_FILE = ROOT / "assets" / "creative_studios.png"
+LOGO_FILES = [ROOT / "assets" / "creative-studios.png", ROOT / "assets" / "creative_studios.png"]
 
 
 def main() -> int:
@@ -13,20 +13,21 @@ def main() -> int:
         return 1
 
     source = APP_FILE.read_text(encoding="utf-8")
-
     required = [
         "Creative Studios",
         "AEC Collaboration Platform",
+        "render_brand",
         "render_sidebar",
         "st.sidebar.image",
         "unsafe_allow_html=True",
-        "creative_studios.png",
+        "MODULE_GROUPS",
+        "Architecture",
+        "Engineering",
+        "Construction",
     ]
-
     missing = [item for item in required if item not in source]
-
-    if not LOGO_FILE.exists():
-        missing.append("assets/creative_studios.png")
+    if not any(path.exists() and path.stat().st_size > 0 for path in LOGO_FILES):
+        missing.append("assets/creative-studios.png or assets/creative_studios.png")
 
     if missing:
         print("BRANDING CHECK: FAILED")
@@ -35,7 +36,7 @@ def main() -> int:
         return 1
 
     print("BRANDING CHECK: PASSED")
-    print("Current image logo and sidebar branding are present.")
+    print("Centered logo, grouped navigation, and current Streamlit branding are present.")
     return 0
 
 
