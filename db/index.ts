@@ -2,8 +2,10 @@ import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
 
 import * as schema from "./schema";
+import * as workflow from "./workflow";
 
 const databaseUrl = process.env.DATABASE_URL;
+const dbSchema = { ...schema, ...workflow };
 
 export function getDb() {
   if (!databaseUrl) {
@@ -11,5 +13,5 @@ export function getDb() {
   }
 
   const sql = neon(databaseUrl);
-  return drizzle(sql, { schema });
+  return drizzle(sql, { schema: dbSchema });
 }
