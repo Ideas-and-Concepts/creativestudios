@@ -96,51 +96,44 @@ def get_navigation(database: dict[str, Any]) -> tuple[list[str], dict[str, str]]
 def inject_css() -> None:
     st.markdown("""
     <style>
-    :root{--bg:#f4f7fb;--panel:#ffffff;--text:#172033;--muted:#526174;--border:#d7dee8;--blue:#155eef;--blue-dark:#0b4bc4;--soft:#eaf2ff;--sidebar:#101827;--sidebar-panel:#172235;--sidebar-text:#f8fafc;--sidebar-muted:#aab7ca}
+    :root{--bg:#f8fafc;--panel:#fff;--text:#111827;--muted:#64748b;--border:#e5e7eb;--blue:#2563eb;--blue-soft:#eff6ff}
     .stApp{background:var(--bg);color:var(--text)}
     .stApp *{color:inherit}
-    [data-testid="stSidebar"]{background:var(--sidebar);border-right:1px solid #263247}
-    [data-testid="stSidebar"]>div:first-child{padding-top:1rem}
-    [data-testid="stSidebar"] .stRadio>div{gap:3px}
-    [data-testid="stSidebar"] label[data-baseweb="radio"]{padding:.48rem .55rem;border-radius:7px;color:var(--sidebar-text)!important}
-    [data-testid="stSidebar"] label[data-baseweb="radio"] *{color:var(--sidebar-text)!important}
-    [data-testid="stSidebar"] label[data-baseweb="radio"]:hover{background:var(--sidebar-panel)}
-    [data-testid="stSidebar"] [aria-checked="true"] + div{color:#7fb0ff!important;font-weight:700}
-    [data-testid="stSidebar"] .stButton>button{background:#172235!important;color:#f8fafc!important;border-color:#334155!important}
-    [data-testid="stSidebar"] .stButton>button:hover{background:#22304a!important;border-color:#55709b!important;color:#ffffff!important}
-    [data-testid="stSidebar"] .stButton>button[kind="primary"]{background:var(--blue)!important;border-color:var(--blue)!important;color:#ffffff!important}
-    [data-testid="stSidebar"] .stButton>button[kind="primary"] *{color:#ffffff!important}
-    [data-testid="stSidebar"] .stMarkdown,[data-testid="stSidebar"] .stCaption,[data-testid="stSidebar"] .stText,[data-testid="stSidebar"] p{color:var(--sidebar-text)!important}
-    [data-testid="stSidebar"] .cs-sidebar-title{color:#ffffff!important}.cs-sidebar-subtitle{color:var(--sidebar-muted)!important}
-    [data-testid="stSidebar"] .cs-sidebar-section{color:#8fa3bf!important}
-    [data-testid="stSidebar"] .cs-sidebar-status{border-color:#334155;background:#172235;color:#c7d2e3}
-    [data-testid="stSidebar"] .cs-sidebar-status strong{color:#ffffff}
-    [data-testid="stSidebar"] [data-testid="stImage"]{background:#ffffff;border-radius:50%;padding:4px}
-    .block-container{max-width:1500px;padding:2rem 2rem 2.5rem}
-    .cs-sidebar-brand{text-align:center;padding:.2rem .4rem 1rem}
-    .cs-sidebar-brand img{width:58px;height:58px;object-fit:contain;border:1px solid #dce4ef;border-radius:50%;padding:7px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.18)}
-    .cs-sidebar-title{font-size:.92rem;font-weight:800;color:#ffffff;margin-top:.55rem}.cs-sidebar-subtitle{font-size:.58rem;color:#aab7ca;margin-top:.15rem}
-    .cs-sidebar-section{font-size:.56rem;color:#8fa3bf;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin:.8rem .35rem .25rem}
-    .cs-sidebar-status{border:1px solid var(--border);border-radius:8px;padding:.55rem .6rem;margin-top:.8rem;background:#f8fafc;font-size:.58rem;color:var(--muted)}
-    .cs-page-header{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:1rem;padding-bottom:.9rem;border-bottom:1px solid var(--border)}
-    .cs-eyebrow{font-size:.58rem;color:#526174;text-transform:uppercase;letter-spacing:.08em;font-weight:750}.cs-page-title{font-size:1.45rem;line-height:1.15;font-weight:780;letter-spacing:-.035em;margin:.2rem 0 0;color:#172033}.cs-page-copy{font-size:.68rem;color:#526174;margin:.25rem 0 0}.cs-page-meta{font-size:.58rem;color:#526174;border:1px solid var(--border);background:#fff;border-radius:999px;padding:.4rem .6rem}
+    [data-testid="stSidebar"]{background:#fff!important;border-right:1px solid #e5e7eb!important;min-width:280px;max-width:280px}
+    [data-testid="stSidebar"]>div:first-child{padding:14px 14px 20px}
+    [data-testid="stSidebarContent"]{overflow-y:auto!important;scrollbar-width:thin}
+    [data-testid="stSidebar"] .stDivider{margin:10px 0!important;border-color:#e5e7eb!important}
+    [data-testid="stSidebar"] .stButton{margin:0!important}
+    [data-testid="stSidebar"] .stButton>button{width:100%;min-height:38px!important;padding:8px 11px!important;border:1px solid transparent!important;border-radius:8px!important;background:transparent!important;color:#64748b!important;box-shadow:none!important;text-align:left!important;font-size:13px!important;font-weight:600!important}
+    [data-testid="stSidebar"] .stButton>button:hover{background:#f8fafc!important;border-color:#e5e7eb!important;color:#111827!important}
+    [data-testid="stSidebar"] .stButton>button[kind="primary"]{background:#eff6ff!important;border-color:#dbeafe!important;color:#2563eb!important;font-weight:750!important}
+    [data-testid="stSidebar"] .stButton>button[kind="primary"] *{color:#2563eb!important}
+    [data-testid="stSidebar"] .stButton>button[kind="secondary"] *{color:#64748b!important}
+    [data-testid="stSidebar"] .stButton>button[kind="secondary"]:hover *{color:#111827!important}
+    [data-testid="stSidebar"] .stLinkButton>a{width:100%;border:1px solid #e5e7eb!important;border-radius:8px!important;background:#fff!important;color:#334155!important;font-size:12px!important;font-weight:650!important}
+    [data-testid="stSidebar"] .stLinkButton>a:hover{background:#f8fafc!important;color:#2563eb!important;border-color:#cbd5e1!important}
+    [data-testid="stSidebar"] .stMarkdown,[data-testid="stSidebar"] p,[data-testid="stSidebar"] .stCaption{color:#64748b!important}
+    [data-testid="stSidebar"] [data-testid="stImage"]{display:flex!important;justify-content:center!important;margin:0 auto!important}
+    [data-testid="stSidebar"] [data-testid="stImage"] img{width:58px!important;height:58px!important;object-fit:contain!important;border:1px solid #e5e7eb!important;border-radius:50%!important;padding:6px!important;background:#fff!important;box-shadow:0 7px 22px rgba(15,23,42,.10)!important}
+    .block-container{max-width:1500px;padding:86px 2rem 2.5rem}
+    .cs-sidebar-brand{text-align:center;padding:2px 4px 4px}
+    .cs-sidebar-title{font-size:14px;font-weight:800;color:#111827!important;margin-top:7px;text-align:center}.cs-sidebar-subtitle{font-size:9px;color:#64748b!important;margin-top:2px;text-align:center}
+    .cs-sidebar-section{font-size:9px;color:#94a3b8!important;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin:13px 8px 6px}
+    .cs-sidebar-status{border:1px solid #e5e7eb;border-radius:9px;padding:10px;margin:12px 0;background:#f8fafc;font-size:10px;color:#64748b!important}.cs-sidebar-status strong{color:#334155!important}
+    .cs-page-header{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:1rem;padding-bottom:.9rem;border-bottom:1px solid #e5e7eb}
+    .cs-eyebrow{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;font-weight:750}.cs-page-title{font-size:1.55rem;line-height:1.15;font-weight:780;letter-spacing:-.035em;margin:.2rem 0 0;color:#111827}.cs-page-copy{font-size:.75rem;color:#64748b;margin:.25rem 0 0}.cs-page-meta{font-size:.65rem;color:#64748b;border:1px solid #e5e7eb;background:#fff;border-radius:999px;padding:.4rem .65rem}
     .stMarkdown,.stText,.stCaption,.stAlert,.stMetric,.stDataFrame,.stTable{color:var(--text)}
-    [data-testid="stMetricValue"],[data-testid="stMetricLabel"],[data-testid="stMetricDelta"]{color:var(--text)!important}
-    [data-testid="stMetricLabel"]{color:#526174!important}
-    .stSelectbox label,.stMultiSelect label,.stTextInput label,.stNumberInput label,.stDateInput label,.stTextArea label,.stFileUploader label,.stCheckbox label,.stRadio label,.stSlider label{color:#263247!important}
-    [data-baseweb="select"]>div{background:#ffffff!important;border-color:#cbd5e1!important;color:#172033!important}
-    [data-baseweb="select"] span{color:#172033!important}
-    [data-baseweb="input"] input,[data-baseweb="textarea"] textarea{color:#172033!important;background:#ffffff!important}
-    .stDataFrame [role="columnheader"]{color:#172033!important;background:#eef3f9!important}
-    .stDataFrame [role="gridcell"]{color:#263247!important;background:#ffffff!important}
-    .stTabs [data-baseweb="tab"]{color:#526174!important}.stTabs [aria-selected="true"]{color:var(--blue)!important}
-    .stExpander{border-color:var(--border)!important;background:#ffffff!important}.stExpander p,.stExpander label{color:#263247!important}
-    .stButton>button{border:1px solid #cbd5e1;border-radius:7px;background:#ffffff;color:#263247;font-size:.68rem;font-weight:650;box-shadow:none}
-    .stButton>button:hover{background:#f1f5f9;border-color:#94a3b8;color:#172033}.stButton>button[kind="primary"]{background:var(--blue);border-color:var(--blue);color:#fff}.stButton>button[kind="primary"] *{color:#fff!important}
-    .stDownloadButton>button{background:#ffffff!important;color:#263247!important;border-color:#cbd5e1!important}
-    .stLinkButton>a{background:#ffffff!important;color:#155eef!important;border-color:#cbd5e1!important}
-    .cs-footer{margin-top:1.6rem;padding-top:.8rem;border-top:1px solid var(--border);color:#64748b;text-align:center;font-size:.56rem}
-    @media(max-width:900px){.block-container{padding:1rem .75rem 2rem}.cs-page-header{display:block}.cs-page-meta{display:inline-block;margin-top:.55rem}}
+    [data-testid="stMetricValue"],[data-testid="stMetricLabel"],[data-testid="stMetricDelta"]{color:var(--text)!important}[data-testid="stMetricLabel"]{color:#64748b!important}
+    .stSelectbox label,.stMultiSelect label,.stTextInput label,.stNumberInput label,.stDateInput label,.stTextArea label,.stFileUploader label,.stCheckbox label,.stRadio label,.stSlider label{color:#334155!important}
+    [data-baseweb="select"]>div{background:#fff!important;border-color:#cbd5e1!important;color:#111827!important}[data-baseweb="select"] span{color:#111827!important}
+    [data-baseweb="input"] input,[data-baseweb="textarea"] textarea{color:#111827!important;background:#fff!important}
+    .stDataFrame [role="columnheader"]{color:#111827!important;background:#f1f5f9!important}.stDataFrame [role="gridcell"]{color:#334155!important;background:#fff!important}
+    .stTabs [data-baseweb="tab"]{color:#64748b!important}.stTabs [aria-selected="true"]{color:#2563eb!important}
+    .stExpander{border-color:#e5e7eb!important;background:#fff!important}.stExpander p,.stExpander label{color:#334155!important}
+    .stButton>button{border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;font-size:.72rem;font-weight:650;box-shadow:none}.stButton>button:hover{background:#f8fafc;border-color:#94a3b8;color:#111827}.stButton>button[kind="primary"]{background:#2563eb;border-color:#2563eb;color:#fff}.stButton>button[kind="primary"] *{color:#fff!important}
+    .stDownloadButton>button{background:#fff!important;color:#334155!important;border-color:#cbd5e1!important}.stLinkButton>a{background:#fff!important;color:#2563eb!important;border-color:#cbd5e1!important}
+    .cs-footer{margin-top:1.6rem;padding-top:.8rem;border-top:1px solid #e5e7eb;color:#94a3b8;text-align:center;font-size:.6rem}
+    @media(max-width:900px){[data-testid="stSidebar"]{min-width:250px;max-width:250px}.block-container{padding:70px 1rem 2rem}.cs-page-header{display:block}.cs-page-meta{display:inline-block;margin-top:.55rem}}
     </style>
     """, unsafe_allow_html=True)
 
@@ -152,13 +145,13 @@ def render_sidebar(database: dict[str, Any]) -> None:
         current = "Dashboard"
         st.session_state.active_module = current
 
-    logo_html = ""
-    if LOGO_PATH:
-        logo_html = f'<img src="/app/static/{LOGO_PATH.name}" alt="Creative Studios">'
     with st.sidebar:
+        st.markdown('<div class="cs-sidebar-brand">', unsafe_allow_html=True)
         if LOGO_PATH:
             st.image(str(LOGO_PATH), width=58)
-        st.markdown('<div class="cs-sidebar-title">Creative Studios</div><div class="cs-sidebar-subtitle">AEC Collaboration Platform</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="width:58px;height:58px;border:1px solid #e5e7eb;border-radius:50%;display:grid;place-items:center;margin:0 auto;background:#fff;font-weight:800;color:#2563eb">CS</div>', unsafe_allow_html=True)
+        st.markdown('<div class="cs-sidebar-title">Creative Studios</div><div class="cs-sidebar-subtitle">AEC Collaboration Platform</div></div>', unsafe_allow_html=True)
         st.divider()
         for group, items in MODULE_GROUPS.items():
             available = [item for item in items if item in order]
