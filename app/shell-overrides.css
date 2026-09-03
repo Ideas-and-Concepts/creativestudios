@@ -1,9 +1,9 @@
 /* Creative Studios reference UI: compact white navigation, neutral workspace, blue active states. */
-main:not(.cs-dashboard-page) { margin-left: 276px !important; padding-top: 82px !important; }
+main:not(.cs-dashboard-page) { margin-left: 288px !important; padding-top: 82px !important; }
 
 .cs-side { display: none !important; }
 .cs-top { color: #111827 !important; }
-.cs-dashboard-page { margin-left: 276px !important; padding-top: 86px !important; }
+.cs-dashboard-page { margin-left: 288px !important; padding-top: 86px !important; }
 
 .cs-dashboard-page .cs-kpi-trend,
 .cs-dashboard-page .cs-kpi-trend.down,
