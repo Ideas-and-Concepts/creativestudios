@@ -13,24 +13,24 @@ const STREAMLIT_CLOUD_URL = "https://creativestudios.streamlit.app/";
 
 const defaultModules: Module[] = [
   { name: "Dashboard", description: "Project and workspace overview.", href: "/", group: "Workspace" },
-  { name: "Projects", description: "Manage projects, phases and project status.", href: "/projects", group: "Workspace" },
-  { name: "Documents", description: "Central project documentation and records.", href: "/documents", group: "Workspace" },
-  { name: "Architecture", description: "Architectural works, design records and progress.", href: "/architecture", group: "Design" },
-  { name: "Engineering", description: "Structural, civil and technical engineering works.", href: "/engineering", group: "Design" },
-  { name: "Drawings", description: "Architectural and structural drawing registers.", href: "/drawings", group: "Design" },
-  { name: "MEP", description: "Mechanical, electrical and plumbing coordination.", href: "/mep", group: "Design" },
-  { name: "BOQ", description: "Bill of Quantities and construction cost items.", href: "/boq", group: "Commercial" },
-  { name: "Procurement", description: "Materials, suppliers and purchasing workflow.", href: "/procurement", group: "Commercial" },
-  { name: "Cost Control", description: "Project budgets, commitments and actual costs.", href: "/cost-control", group: "Commercial" },
-  { name: "Construction", description: "Construction activities, progress and site records.", href: "/construction", group: "Delivery" },
-  { name: "Tasks", description: "Assignments, deadlines and project actions.", href: "/tasks", group: "Delivery" },
-  { name: "RFIs", description: "Requests for information and responses.", href: "/rfis", group: "Delivery" },
-  { name: "Approvals", description: "Controlled review and approval workflow.", href: "/approvals", group: "Delivery" },
-  { name: "Reports", description: "Project, progress and commercial reporting.", href: "/reports", group: "Administration" },
-  { name: "Settings", description: "Workspace configuration and administration.", href: "/settings", group: "Administration" },
+  { name: "Projects", description: "Manage projects, phases and project status.", href: "/projects", group: "Architecture" },
+  { name: "Documents", description: "Central project documentation and records.", href: "/documents", group: "Architecture" },
+  { name: "Architecture", description: "Architectural works, design records and progress.", href: "/architecture", group: "Architecture" },
+  { name: "Drawings", description: "Architectural and structural drawing registers.", href: "/drawings", group: "Architecture" },
+  { name: "Engineering", description: "Structural, civil and technical engineering works.", href: "/engineering", group: "Engineering" },
+  { name: "MEP", description: "Mechanical, electrical and plumbing coordination.", href: "/mep", group: "Engineering" },
+  { name: "BOQ", description: "Bill of Quantities and construction cost items.", href: "/boq", group: "Engineering" },
+  { name: "RFIs", description: "Requests for information and responses.", href: "/rfis", group: "Engineering" },
+  { name: "Approvals", description: "Controlled review and approval workflow.", href: "/approvals", group: "Engineering" },
+  { name: "Procurement", description: "Materials, suppliers and purchasing workflow.", href: "/procurement", group: "Construction" },
+  { name: "Construction", description: "Construction activities, progress and site records.", href: "/construction", group: "Construction" },
+  { name: "Cost Control", description: "Project budgets, commitments and actual costs.", href: "/cost-control", group: "Construction" },
+  { name: "Tasks", description: "Assignments, deadlines and project actions.", href: "/tasks", group: "Construction" },
+  { name: "Reports", description: "Project, progress and commercial reporting.", href: "/reports", group: "Construction" },
+  { name: "Settings", description: "Workspace configuration and administration.", href: "/settings", group: "Workspace" },
 ];
 
-const groups = ["Workspace", "Design", "Commercial", "Delivery", "Administration"];
+const groups = ["Architecture", "Engineering", "Construction", "Workspace"];
 
 export default function Home() {
   const [active, setActive] = useState("Dashboard");
@@ -126,7 +126,8 @@ export default function Home() {
       </div>
       <div className="divider" />
       <nav className="nav" aria-label="Workspace navigation">
-        {grouped.map(({ group, items }) => <div key={group}><div className="section-label">{group}</div>{items.map((item) => <Link key={item.href} href={item.href} className={item.name === active ? "nav-item active" : "nav-item"} onClick={() => navigate(item.name)}>{item.name}</Link>)}</div>)}
+        <div><div className="section-label">Workspace</div>{modules.filter((item) => item.group === "Workspace").map((item) => <Link key={item.href} href={item.href} className={item.name === active ? "nav-item active" : "nav-item"} onClick={() => navigate(item.name)}>{item.name}</Link>)}</div>
+        {grouped.filter(({ group }) => group !== "Workspace").map(({ group, items }) => <div key={group}><div className="section-label">{group}</div>{items.map((item) => <Link key={item.href} href={item.href} className={item.name === active ? "nav-item active" : "nav-item"} onClick={() => navigate(item.name)}>{item.name}</Link>)}</div>)}
       </nav>
       <div className="sidebar-bottom"><button className="theme-button" onClick={() => void changeTheme()}>{theme === "dark" ? "Light mode" : "Dark mode"}</button><button className="edit-page-button" onClick={() => setEditingPages((value) => !value)}>{editingPages ? "Close page editor" : "Edit pages"}</button></div>
     </aside>
