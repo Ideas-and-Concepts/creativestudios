@@ -87,21 +87,24 @@ def inject_css() -> None:
         """
         <style>
         :root {
-            --cs-green: #2f7d5b;
-            --cs-green-dark: #245f46;
-            --cs-gold: #c89b3c;
-            --cs-ink: #17231d;
-            --cs-muted: #6b766f;
-            --cs-border: rgba(90, 105, 96, .18);
-            --cs-surface: rgba(255, 255, 255, .78);
-            --cs-surface-strong: rgba(255, 255, 255, .94);
-            --cs-shadow: 0 10px 35px rgba(25, 45, 35, .08);
+            --cs-blue: #2f80ed;
+            --cs-blue-dark: #1558b0;
+            --cs-blue-soft: #5aa9ff;
+            --cs-black: #05070b;
+            --cs-ink: #eaf2ff;
+            --cs-muted: #9aa9bd;
+            --cs-border: rgba(105, 150, 205, .22);
+            --cs-surface: rgba(12, 18, 29, .86);
+            --cs-surface-strong: rgba(17, 25, 39, .96);
+            --cs-shadow: 0 14px 42px rgba(0, 0, 0, .30);
         }
 
         .stApp {
             background:
-                radial-gradient(circle at 8% 0%, rgba(47,125,91,.08), transparent 28%),
-                radial-gradient(circle at 92% 4%, rgba(200,155,60,.08), transparent 24%);
+                radial-gradient(circle at 7% 0%, rgba(47,128,237,.16), transparent 30%),
+                radial-gradient(circle at 93% 5%, rgba(21,88,176,.13), transparent 27%),
+                linear-gradient(135deg, #030509 0%, #07101c 48%, #04070c 100%);
+            color: var(--cs-ink);
         }
 
         .block-container {
@@ -112,30 +115,25 @@ def inject_css() -> None:
         [data-testid="stSidebar"] {
             min-width: 270px;
             max-width: 270px;
+            background: #05080e;
             border-right: 1px solid var(--cs-border);
         }
 
-        [data-testid="stSidebar"] > div:first-child {
-            padding-top: 1.2rem;
-        }
-
-        [data-testid="stSidebar"] .stRadio > div {
-            gap: .22rem;
-        }
-
+        [data-testid="stSidebar"] > div:first-child { padding-top: 1.2rem; }
+        [data-testid="stSidebar"] .stRadio > div { gap: .22rem; }
         [data-testid="stSidebar"] .stRadio label {
             border-radius: 9px;
             padding: .46rem .65rem;
+            color: #dce9fa;
             transition: background .16s ease, transform .16s ease;
         }
-
         [data-testid="stSidebar"] .stRadio label:hover {
-            background: rgba(47,125,91,.08);
+            background: rgba(47,128,237,.12);
             transform: translateX(2px);
         }
-
         [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
-            background: rgba(47,125,91,.13);
+            background: rgba(47,128,237,.20);
+            color: #ffffff;
         }
 
         .cs-brand-wrap {
@@ -151,19 +149,12 @@ def inject_css() -> None:
             border-radius: 13px;
             display: grid;
             place-items: center;
-            background: linear-gradient(145deg, var(--cs-green), var(--cs-green-dark));
+            background: linear-gradient(145deg, var(--cs-blue), var(--cs-blue-dark));
             color: white;
             font-weight: 800;
             letter-spacing: -.04em;
-            box-shadow: 0 8px 22px rgba(47,125,91,.22);
+            box-shadow: 0 8px 24px rgba(47,128,237,.28);
             overflow: hidden;
-        }
-
-        .cs-brand-mark img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            padding: 5px;
         }
 
         .cs-brand-title {
@@ -171,6 +162,7 @@ def inject_css() -> None:
             line-height: 1.1;
             font-weight: 780;
             letter-spacing: -.025em;
+            color: #f4f8ff;
         }
 
         .cs-brand-subtitle {
@@ -180,14 +172,9 @@ def inject_css() -> None:
             line-height: 1.35;
         }
 
-        .cs-divider {
-            height: 1px;
-            background: var(--cs-border);
-            margin: 1rem 0;
-        }
-
+        .cs-divider { height: 1px; background: var(--cs-border); margin: 1rem 0; }
         .cs-section {
-            color: var(--cs-muted);
+            color: #6f88a7;
             font-size: .65rem;
             font-weight: 800;
             text-transform: uppercase;
@@ -202,28 +189,24 @@ def inject_css() -> None:
             margin: .34rem 0;
             border: 1px solid var(--cs-border);
             border-radius: 9px;
-            color: inherit !important;
+            color: #dbeaff !important;
             font-size: .76rem;
             font-weight: 620;
             text-align: center;
-            background: rgba(127,127,127,.035);
+            background: rgba(30, 55, 85, .20);
             transition: all .16s ease;
         }
 
         .cs-pwa-link.primary {
             color: white !important;
-            border-color: var(--cs-green);
-            background: linear-gradient(135deg, var(--cs-green), var(--cs-green-dark));
-            box-shadow: 0 6px 18px rgba(47,125,91,.16);
+            border-color: var(--cs-blue);
+            background: linear-gradient(135deg, var(--cs-blue), var(--cs-blue-dark));
+            box-shadow: 0 7px 20px rgba(47,128,237,.22);
         }
-
-        .cs-pwa-link:hover {
-            transform: translateY(-1px);
-            border-color: rgba(47,125,91,.42);
-        }
+        .cs-pwa-link:hover { transform: translateY(-1px); border-color: rgba(90,169,255,.65); }
 
         .cs-sidebar-note {
-            color: var(--cs-muted);
+            color: #718198;
             font-size: .68rem;
             text-align: center;
             line-height: 1.5;
@@ -238,40 +221,38 @@ def inject_css() -> None:
             padding: 1.35rem 1.45rem;
             margin-bottom: 1.15rem;
             background:
-                linear-gradient(135deg, rgba(47,125,91,.12), rgba(200,155,60,.055)),
+                linear-gradient(135deg, rgba(47,128,237,.18), rgba(5,8,14,.55)),
                 var(--cs-surface);
             box-shadow: var(--cs-shadow);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
         }
-
         .cs-hero::after {
             content: "";
             position: absolute;
-            width: 170px;
-            height: 170px;
-            right: -65px;
-            top: -85px;
+            width: 190px;
+            height: 190px;
+            right: -70px;
+            top: -95px;
             border-radius: 50%;
-            border: 1px solid rgba(47,125,91,.12);
+            border: 1px solid rgba(90,169,255,.16);
+            box-shadow: 0 0 55px rgba(47,128,237,.10);
         }
-
         .cs-eyebrow {
-            color: var(--cs-green);
+            color: var(--cs-blue-soft);
             font-size: .68rem;
             font-weight: 850;
             letter-spacing: .13em;
             text-transform: uppercase;
             margin-bottom: .35rem;
         }
-
         .cs-hero-title {
             font-size: clamp(1.45rem, 2.7vw, 2.15rem);
             font-weight: 820;
             letter-spacing: -.045em;
             line-height: 1.05;
             margin: 0;
+            color: #f4f8ff;
         }
-
         .cs-hero-copy {
             max-width: 780px;
             color: var(--cs-muted);
@@ -279,14 +260,7 @@ def inject_css() -> None:
             line-height: 1.55;
             margin: .55rem 0 0;
         }
-
-        .cs-status-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .45rem;
-            margin-top: .8rem;
-        }
-
+        .cs-status-row { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .8rem; }
         .cs-pill {
             display: inline-flex;
             align-items: center;
@@ -297,21 +271,19 @@ def inject_css() -> None:
             font-size: .67rem;
             font-weight: 650;
             background: var(--cs-surface-strong);
+            color: #dbeaff;
         }
-
         .cs-dot {
             width: 7px;
             height: 7px;
             border-radius: 50%;
-            background: var(--cs-green);
-            box-shadow: 0 0 0 3px rgba(47,125,91,.11);
+            background: var(--cs-blue-soft);
+            box-shadow: 0 0 0 3px rgba(47,128,237,.14);
         }
-
         .cs-dot.gold {
-            background: var(--cs-gold);
-            box-shadow: 0 0 0 3px rgba(200,155,60,.12);
+            background: #7c8da3;
+            box-shadow: 0 0 0 3px rgba(124,141,163,.12);
         }
-
         .cs-module-bar {
             display: flex;
             align-items: end;
@@ -321,56 +293,37 @@ def inject_css() -> None:
             border-bottom: 1px solid var(--cs-border);
             margin-bottom: 1rem;
         }
-
-        .cs-module-title {
-            font-size: 1.15rem;
-            font-weight: 780;
-            letter-spacing: -.025em;
-            margin: 0;
-        }
-
-        .cs-module-meta {
-            color: var(--cs-muted);
-            font-size: .7rem;
-            white-space: nowrap;
-        }
+        .cs-module-title { font-size: 1.15rem; font-weight: 780; letter-spacing: -.025em; margin: 0; color: #edf5ff; }
+        .cs-module-meta { color: var(--cs-muted); font-size: .7rem; white-space: nowrap; }
 
         [data-testid="stMetric"] {
             border: 1px solid var(--cs-border);
             border-radius: 14px;
             padding: .82rem .95rem;
             background: var(--cs-surface);
-            box-shadow: 0 6px 20px rgba(25,45,35,.045);
+            box-shadow: 0 8px 24px rgba(0,0,0,.18);
         }
-
-        [data-testid="stMetricLabel"] {
-            font-size: .68rem !important;
-            font-weight: 700 !important;
-            color: var(--cs-muted) !important;
-        }
-
-        [data-testid="stMetricValue"] {
-            font-weight: 800 !important;
-            letter-spacing: -.035em;
-        }
+        [data-testid="stMetricLabel"] { font-size: .68rem !important; font-weight: 700 !important; color: var(--cs-muted) !important; }
+        [data-testid="stMetricValue"] { font-weight: 800 !important; letter-spacing: -.035em; color: #f1f7ff !important; }
 
         .stButton > button {
             border-radius: 9px;
             border: 1px solid var(--cs-border);
             font-weight: 650;
             min-height: 2.35rem;
+            background: #0c1421;
+            color: #dceaff;
             transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
         }
-
         .stButton > button:hover {
             transform: translateY(-1px);
-            border-color: rgba(47,125,91,.45);
-            box-shadow: 0 5px 15px rgba(25,45,35,.08);
+            border-color: rgba(90,169,255,.65);
+            box-shadow: 0 6px 18px rgba(0,0,0,.20);
         }
-
         .stButton > button[kind="primary"] {
-            background: linear-gradient(135deg, var(--cs-green), var(--cs-green-dark));
-            border-color: var(--cs-green);
+            background: linear-gradient(135deg, var(--cs-blue), var(--cs-blue-dark));
+            border-color: var(--cs-blue);
+            color: #fff;
         }
 
         [data-testid="stTextInput"] input,
@@ -380,50 +333,19 @@ def inject_css() -> None:
         [data-testid="stSelectbox"] > div,
         [data-testid="stMultiSelect"] > div {
             border-radius: 9px;
+            background: #0a111c;
+            color: #e9f2ff;
+            border-color: var(--cs-border);
         }
-
-        [data-testid="stExpander"] {
-            border: 1px solid var(--cs-border);
-            border-radius: 12px;
-            overflow: hidden;
-            background: var(--cs-surface);
-        }
-
-        [data-testid="stDataFrame"] {
-            border: 1px solid var(--cs-border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .cs-footer {
-            color: var(--cs-muted);
-            text-align: center;
-            font-size: .65rem;
-            padding: 2.2rem 0 .2rem;
-            letter-spacing: .01em;
-        }
+        [data-testid="stExpander"] { border: 1px solid var(--cs-border); border-radius: 12px; overflow: hidden; background: var(--cs-surface); }
+        [data-testid="stDataFrame"] { border: 1px solid var(--cs-border); border-radius: 12px; overflow: hidden; }
+        .cs-footer { color: #62738b; text-align: center; font-size: .65rem; padding: 2.2rem 0 .2rem; letter-spacing: .01em; }
 
         @media (max-width: 900px) {
             .block-container { padding: .9rem 1rem 3rem; }
             .cs-hero { border-radius: 15px; padding: 1rem; }
             .cs-module-bar { align-items: flex-start; flex-direction: column; gap: .2rem; }
             .cs-module-meta { white-space: normal; }
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --cs-ink: #eef5f0;
-                --cs-muted: #aebbb3;
-                --cs-border: rgba(190, 210, 199, .16);
-                --cs-surface: rgba(27, 35, 31, .72);
-                --cs-surface-strong: rgba(34, 43, 38, .94);
-                --cs-shadow: 0 12px 36px rgba(0,0,0,.18);
-            }
-            .stApp {
-                background:
-                    radial-gradient(circle at 8% 0%, rgba(47,125,91,.15), transparent 28%),
-                    radial-gradient(circle at 92% 4%, rgba(200,155,60,.09), transparent 24%);
-            }
         }
         </style>
         """,
@@ -432,19 +354,13 @@ def inject_css() -> None:
 
 
 def render_brand() -> None:
-    if LOGO_PATH:
-        mark = f'<img src="data:image/png;base64,{LOGO_PATH.read_bytes().hex()}" />'
-    else:
-        mark = "CS"
-    # Streamlit's image component is used for the real logo below when available.
+    # Single compact brand block. The previous second st.sidebar.image() is intentionally removed.
     st.sidebar.markdown(
         '<div class="cs-brand-wrap"><div class="cs-brand-mark">CS</div>'
         '<div><div class="cs-brand-title">Creative Studios</div>'
         '<div class="cs-brand-subtitle">AEC Collaboration Platform</div></div></div>',
         unsafe_allow_html=True,
     )
-    if LOGO_PATH:
-        st.sidebar.image(str(LOGO_PATH), width=36)
 
 
 def render_pwa_links() -> None:
