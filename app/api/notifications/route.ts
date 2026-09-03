@@ -1,0 +1,12 @@
+import { NextResponse } from "next/server";
+import { and, desc, eq } from "drizzle-orm";
+import { z } from "zod";
+import { getDb } from "@/db";
+import { notifications } from "@/db/workflow";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+const schema = z.object({ projectId: z.string().uuid().optional().nullable(), title: z.string().trim().min(1).max(200), message: z.string().trim().min(1).max(5000), type: z.string().trim().max(50).optional(), severity: z.string().trim().max(30).optional(), recipient: z.string().trim().max(200).optional().nullable(), sourceType: z.string().trim().max(100).optional().nullable(), sourceId: z.string().trim().max(100).optional().nullable(), actionUrl: z.string().trim().max(1000).optional().nullable() });
+export async function GET(request: Request) { try { const p = new URL(request.url).searchParams.get("projectId"); const db = getDb(); const rows = await db.select().from(notifications).where(p ? eq(notifications.projectId, p) : undefined).orderBy(desc(notifications.createdAt)); return NextResponse.json({ data: rows }); } catch (error) { console.error("GET /api/notifications failed", error); return NextResponse.json({ error: "Database is not configured or unavailable." }, { status: 503 }); } }
+export async function POST(request: Request) { const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: "Invalid notification data.", issues: parsed.error.flatten() }, { status: 400 }); try { const result = await getDb().insert(notifications).values(parsed.data as any).returning(); return NextResponse.json({ data: result[0] }, { status: 201 }); } catch (error) { console.error("POST /api/notifications failed", error); return NextResponse.json({ error: "Unable to create notification." }, { status: 500 }); } }
+export async function PATCH(request: Request) { const id = new URL(request.url).searchParams.get("id"); if (!id || !z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Invalid notification id." }, { status: 400 }); try { const result = await getDb().update(notifications).set({ isRead: true, readAt: new Date() }).where(eq(notifications.id, id)).returning(); return result[0] ? NextResponse.json({ data: result[0] }) : NextResponse.json({ error: "Notification not found." }, { status: 404 }); } catch (error) { console.error("PATCH /api/notifications failed", error); return NextResponse.json({ error: "Unable to update notification." }, { status: 500 }); } }
