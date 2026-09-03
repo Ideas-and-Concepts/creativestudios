@@ -123,9 +123,7 @@ def inject_css() -> None:
             padding: 1.35rem 2.15rem 4rem;
         }
 
-        [data-testid="stHeader"] {
-            background: transparent;
-        }
+        [data-testid="stHeader"] { background: transparent; }
 
         [data-testid="stSidebar"] {
             min-width: 278px;
@@ -134,14 +132,8 @@ def inject_css() -> None:
             border-right: 1px solid var(--cs-border);
         }
 
-        [data-testid="stSidebar"] > div:first-child {
-            padding-top: 1rem;
-        }
-
-        [data-testid="stSidebar"] .stRadio > div {
-            gap: .18rem;
-        }
-
+        [data-testid="stSidebar"] > div:first-child { padding-top: 1rem; }
+        [data-testid="stSidebar"] .stRadio > div { gap: .18rem; }
         [data-testid="stSidebar"] .stRadio label {
             border-radius: 10px;
             padding: .48rem .68rem;
@@ -150,13 +142,11 @@ def inject_css() -> None:
             font-weight: 560;
             transition: background .16s ease, transform .16s ease, color .16s ease;
         }
-
         [data-testid="stSidebar"] .stRadio label:hover {
             background: rgba(47,128,237,.10);
             color: #ffffff;
             transform: translateX(2px);
         }
-
         [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
             background: linear-gradient(90deg, rgba(47,128,237,.24), rgba(47,128,237,.08));
             color: #ffffff;
@@ -170,25 +160,7 @@ def inject_css() -> None:
             background: linear-gradient(145deg, rgba(20,31,49,.88), rgba(6,10,17,.92));
             box-shadow: 0 10px 30px rgba(0,0,0,.20);
         }
-
-        .cs-brand-row {
-            display: flex;
-            align-items: center;
-            gap: .78rem;
-        }
-
-        .cs-brand-logo {
-            width: 58px;
-            height: 58px;
-            min-width: 58px;
-            object-fit: contain;
-            border-radius: 13px;
-            display: block;
-            background: #ffffff;
-            padding: 3px;
-            box-shadow: 0 8px 24px rgba(47,128,237,.20);
-        }
-
+        .cs-brand-row { display: flex; align-items: center; gap: .78rem; }
         .cs-brand-title {
             font-family: 'Space Grotesk', 'Inter', sans-serif;
             font-size: 1.08rem;
@@ -197,27 +169,32 @@ def inject_css() -> None:
             letter-spacing: -.035em;
             color: #f7fbff;
         }
-
         .cs-brand-subtitle {
             margin-top: .28rem;
             color: var(--cs-muted);
             font-size: .68rem;
             line-height: 1.35;
         }
-
         .cs-brand-caption {
             margin-top: .62rem;
             color: var(--cs-muted-2);
             font-size: .62rem;
             letter-spacing: .02em;
         }
-
-        .cs-divider {
-            height: 1px;
-            background: var(--cs-border);
-            margin: .9rem 0;
+        .cs-brand-logo {
+            display: block;
+            width: 58px;
+            min-width: 58px;
+            max-width: 58px;
+            height: 58px;
+            object-fit: contain;
+            border-radius: 13px;
+            background: #ffffff;
+            padding: 3px;
+            box-shadow: 0 8px 24px rgba(47,128,237,.20);
         }
 
+        .cs-divider { height: 1px; background: var(--cs-border); margin: .9rem 0; }
         .cs-section {
             color: #7f95b0;
             font-size: .61rem;
@@ -226,7 +203,6 @@ def inject_css() -> None:
             letter-spacing: .14em;
             margin: .72rem 0 .42rem;
         }
-
         .cs-pwa-link {
             display: block;
             text-decoration: none !important;
@@ -241,19 +217,13 @@ def inject_css() -> None:
             background: rgba(20, 36, 57, .42);
             transition: all .16s ease;
         }
-
         .cs-pwa-link.primary {
             color: #ffffff !important;
             border-color: rgba(47,128,237,.80);
             background: linear-gradient(135deg, var(--cs-blue), var(--cs-blue-dark));
             box-shadow: 0 8px 24px rgba(47,128,237,.20);
         }
-
-        .cs-pwa-link:hover {
-            transform: translateY(-1px);
-            border-color: var(--cs-border-strong);
-        }
-
+        .cs-pwa-link:hover { transform: translateY(-1px); border-color: var(--cs-border-strong); }
         .cs-sidebar-note {
             color: #687b94;
             font-size: .64rem;
@@ -269,13 +239,10 @@ def inject_css() -> None:
             border-radius: 22px;
             padding: 1.55rem 1.65rem;
             margin-bottom: 1.25rem;
-            background:
-                linear-gradient(135deg, rgba(47,128,237,.16), rgba(5,8,14,.58)),
-                var(--cs-surface);
+            background: linear-gradient(135deg, rgba(47,128,237,.16), rgba(5,8,14,.58)), var(--cs-surface);
             box-shadow: var(--cs-shadow);
             backdrop-filter: blur(14px);
         }
-
         .cs-hero::before {
             content: "";
             position: absolute;
@@ -287,7 +254,6 @@ def inject_css() -> None:
             border: 1px solid rgba(90,169,255,.12);
             box-shadow: 0 0 80px rgba(47,128,237,.08);
         }
-
         .cs-eyebrow {
             color: var(--cs-blue-soft);
             font-size: .64rem;
@@ -296,7 +262,6 @@ def inject_css() -> None:
             text-transform: uppercase;
             margin-bottom: .42rem;
         }
-
         .cs-hero-title {
             font-family: 'Space Grotesk', 'Inter', sans-serif;
             font-size: clamp(1.55rem, 3vw, 2.45rem);
@@ -306,7 +271,6 @@ def inject_css() -> None:
             margin: 0;
             color: #f7fbff;
         }
-
         .cs-hero-copy {
             max-width: 820px;
             color: var(--cs-muted);
@@ -314,14 +278,7 @@ def inject_css() -> None:
             line-height: 1.65;
             margin: .62rem 0 0;
         }
-
-        .cs-status-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .46rem;
-            margin-top: .95rem;
-        }
-
+        .cs-status-row { display: flex; flex-wrap: wrap; gap: .46rem; margin-top: .95rem; }
         .cs-pill {
             display: inline-flex;
             align-items: center;
@@ -334,7 +291,6 @@ def inject_css() -> None:
             background: rgba(12,20,32,.88);
             color: #dceaff;
         }
-
         .cs-dot {
             width: 7px;
             height: 7px;
@@ -342,12 +298,10 @@ def inject_css() -> None:
             background: var(--cs-blue-soft);
             box-shadow: 0 0 0 3px rgba(47,128,237,.14);
         }
-
         .cs-dot.neutral {
             background: #71829a;
             box-shadow: 0 0 0 3px rgba(113,130,154,.12);
         }
-
         .cs-module-bar {
             display: flex;
             align-items: end;
@@ -357,7 +311,6 @@ def inject_css() -> None:
             border-bottom: 1px solid var(--cs-border);
             margin-bottom: 1rem;
         }
-
         .cs-module-title {
             font-family: 'Space Grotesk', 'Inter', sans-serif;
             font-size: 1.18rem;
@@ -366,12 +319,7 @@ def inject_css() -> None:
             margin: 0;
             color: #edf5ff;
         }
-
-        .cs-module-meta {
-            color: var(--cs-muted-2);
-            font-size: .65rem;
-            white-space: nowrap;
-        }
+        .cs-module-meta { color: var(--cs-muted-2); font-size: .65rem; white-space: nowrap; }
 
         [data-testid="stMetric"] {
             border: 1px solid var(--cs-border);
@@ -380,13 +328,7 @@ def inject_css() -> None:
             background: linear-gradient(145deg, rgba(16,25,40,.92), rgba(7,12,20,.92));
             box-shadow: 0 9px 26px rgba(0,0,0,.18);
         }
-
-        [data-testid="stMetricLabel"] {
-            font-size: .65rem !important;
-            font-weight: 650 !important;
-            color: var(--cs-muted) !important;
-        }
-
+        [data-testid="stMetricLabel"] { font-size: .65rem !important; font-weight: 650 !important; color: var(--cs-muted) !important; }
         [data-testid="stMetricValue"] {
             font-family: 'Space Grotesk', 'Inter', sans-serif;
             font-weight: 700 !important;
@@ -403,13 +345,7 @@ def inject_css() -> None:
             color: #dceaff;
             transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
         }
-
-        .stButton > button:hover {
-            transform: translateY(-1px);
-            border-color: var(--cs-border-strong);
-            box-shadow: 0 7px 20px rgba(0,0,0,.22);
-        }
-
+        .stButton > button:hover { transform: translateY(-1px); border-color: var(--cs-border-strong); box-shadow: 0 7px 20px rgba(0,0,0,.22); }
         .stButton > button[kind="primary"] {
             background: linear-gradient(135deg, var(--cs-blue), var(--cs-blue-dark));
             border-color: var(--cs-blue);
@@ -420,53 +356,26 @@ def inject_css() -> None:
         [data-testid="stTextInput"] input,
         [data-testid="stNumberInput"] input,
         [data-testid="stDateInput"] input,
-        [data-testid="stTextArea"] textarea {
-            border-radius: 10px;
-            background: var(--cs-input);
-            color: #edf5ff;
-            border-color: var(--cs-border);
-            font-size: .78rem;
-        }
-
+        [data-testid="stTextArea"] textarea,
         [data-testid="stSelectbox"] > div,
         [data-testid="stMultiSelect"] > div {
             border-radius: 10px;
             background: var(--cs-input);
             color: #edf5ff;
             border-color: var(--cs-border);
+            font-size: .78rem;
         }
-
-        [data-testid="stExpander"] {
-            border: 1px solid var(--cs-border);
-            border-radius: 13px;
-            overflow: hidden;
-            background: var(--cs-surface);
-        }
-
-        [data-testid="stDataFrame"] {
-            border: 1px solid var(--cs-border);
-            border-radius: 13px;
-            overflow: hidden;
-        }
-
-        [data-testid="stAlert"] {
-            border-radius: 11px;
-        }
-
-        .cs-footer {
-            color: #5f7189;
-            text-align: center;
-            font-size: .62rem;
-            padding: 2.4rem 0 .2rem;
-            letter-spacing: .025em;
-        }
+        [data-testid="stExpander"] { border: 1px solid var(--cs-border); border-radius: 13px; overflow: hidden; background: var(--cs-surface); }
+        [data-testid="stDataFrame"] { border: 1px solid var(--cs-border); border-radius: 13px; overflow: hidden; }
+        [data-testid="stAlert"] { border-radius: 11px; }
+        .cs-footer { color: #5f7189; text-align: center; font-size: .62rem; padding: 2.4rem 0 .2rem; letter-spacing: .025em; }
 
         @media (max-width: 900px) {
             .block-container { padding: .85rem .85rem 3rem; }
             .cs-hero { border-radius: 16px; padding: 1.05rem; }
             .cs-module-bar { align-items: flex-start; flex-direction: column; gap: .22rem; }
             .cs-module-meta { white-space: normal; }
-            .cs-brand-logo { width: 52px; height: 52px; min-width: 52px; }
+            .cs-brand-logo { width: 52px; height: 52px; min-width: 52px; max-width: 52px; }
         }
         </style>
         """,
@@ -475,15 +384,14 @@ def inject_css() -> None:
 
 
 def render_brand() -> None:
-    logo_markup = ""
     if LOGO_PATH:
-        logo_markup = f'<img class="cs-brand-logo" src="{LOGO_PATH.as_uri()}" alt="Creative Studios logo">'
+        st.sidebar.image(str(LOGO_PATH), width=170)
     else:
-        logo_markup = '<div class="cs-brand-logo" aria-label="Creative Studios logo">CS</div>'
+        st.sidebar.markdown('<div class="cs-brand-logo">CS</div>', unsafe_allow_html=True)
 
     st.sidebar.markdown(
         '<div class="cs-brand-card">'
-        f'<div class="cs-brand-row">{logo_markup}'
+        '<div class="cs-brand-row">'
         '<div><div class="cs-brand-title">Creative Studios</div>'
         '<div class="cs-brand-subtitle">AEC Collaboration Platform</div></div></div>'
         '<div class="cs-brand-caption">Project delivery workspace</div>'
