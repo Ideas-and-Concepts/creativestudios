@@ -5,7 +5,7 @@ import importlib
 import os
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import quote, urlparse
+from urllib.parse import urlparse
 
 import streamlit as st
 
@@ -24,10 +24,10 @@ NAVIGATION = [
 ]
 
 MODULE_GROUPS = {
-    "Architecture": ["Projects", "Documents", "Architecture", "Drawings"],
+    "Workspace": ["Dashboard", "Projects", "Documents", "Reports", "Settings"],
+    "Architecture": ["Architecture", "Drawings"],
     "Engineering": ["Engineering", "MEP", "BOQ", "RFIs", "Approvals"],
-    "Construction": ["Procurement", "Construction", "Cost Control", "Tasks", "Reports"],
-    "Workspace": ["Dashboard", "Settings"],
+    "Construction": ["Procurement", "Construction", "Cost Control", "Tasks"],
 }
 
 MODULE_IMPORTS: dict[str, tuple[str, str]] = {
@@ -54,7 +54,12 @@ LOGO_PATH = next((p for p in (
     ASSETS_DIR / "creative_studios_logo.png", ASSETS_DIR / "logo.png",
 ) if p.is_file() and p.stat().st_size > 0), None)
 
-st.set_page_config(page_title="Creative Studios", page_icon=str(LOGO_PATH) if LOGO_PATH else "CS", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="Creative Studios",
+    page_icon=str(LOGO_PATH) if LOGO_PATH else "CS",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 
 def get_pwa_url() -> str:
@@ -72,6 +77,7 @@ def initialize_session_state() -> None:
     if not isinstance(st.session_state.get("database"), dict):
         st.session_state.database = load_memory()
     st.session_state.setdefault("navigation_nonce", 0)
+    st.session_state.setdefault("sidebar_module", st.session_state.active_module)
 
 
 def get_database(*, reload: bool = False) -> dict[str, Any]:
@@ -92,52 +98,63 @@ def inject_css() -> None:
     <style>
     :root{--bg:#f7f8fa;--panel:#fff;--text:#111827;--muted:#64748b;--border:#e5e7eb;--blue:#2563eb;--soft:#eff6ff}
     .stApp{background:var(--bg);color:var(--text)}
-    [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{display:none!important}
-    .block-container{max-width:1500px;padding:5.25rem 2rem 2.5rem}
-    header[data-testid="stHeader"]{background:transparent!important}
-    .cs-stream-logo{position:fixed;z-index:1000000;top:.78rem;left:max(1rem,calc(50% - min(650px,calc(50vw - 2rem))));width:50px;height:50px;padding:7px;background:#fff;border:1px solid #eef2f7;border-radius:50%;box-shadow:0 7px 22px rgba(15,23,42,.10);object-fit:contain}
-    .cs-stream-nav{position:fixed;z-index:999999;top:.85rem;left:50%;transform:translateX(-50%);width:min(1180px,calc(100vw - 2rem));height:50px;background:rgba(255,255,255,.98);border:1px solid var(--border);border-radius:10px;box-shadow:0 7px 24px rgba(15,23,42,.09);display:flex;align-items:center;padding:.35rem .45rem;backdrop-filter:blur(12px)}
-    .cs-stream-links{display:flex;align-items:center;justify-content:center;gap:2px;width:100%;overflow-x:auto;scrollbar-width:none}.cs-stream-links::-webkit-scrollbar{display:none}
-    .cs-stream-link{display:flex;align-items:center;justify-content:center;height:36px;padding:0 .62rem;border-radius:7px;text-decoration:none!important;color:#475569!important;font-size:.62rem;font-weight:700;white-space:nowrap}.cs-stream-link:hover{background:#f8fafc;color:#111827!important}.cs-stream-link.active{background:var(--soft);color:var(--blue)!important;box-shadow:inset 0 -2px 0 var(--blue)}
-    .cs-stream-actions{display:flex;align-items:center;gap:2px;margin-left:auto}.cs-stream-action{font-size:.75rem;color:#334155;padding:.45rem}.cs-stream-user{width:27px;height:27px;border:1px solid #dbe2ea;border-radius:50%;display:grid;place-items:center;font-size:.52rem;font-weight:800;color:#475569;background:#fff;margin-left:2px}
-    .cs-more{position:relative}.cs-more summary{list-style:none;cursor:pointer;height:36px;padding:0 .62rem;display:flex;align-items:center;border-radius:7px;color:#475569;font-size:.62rem;font-weight:700}.cs-more summary::-webkit-details-marker{display:none}.cs-more summary:hover,.cs-more[open] summary{background:#f8fafc;color:#111827}.cs-more-menu{position:absolute;right:0;top:40px;width:190px;padding:.35rem;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 16px 38px rgba(15,23,42,.14)}.cs-more-menu a{display:block;padding:.48rem .55rem;border-radius:6px;text-decoration:none!important;color:#334155!important;font-size:.6rem}.cs-more-menu a:hover{background:var(--soft);color:var(--blue)!important}
-    .cs-page-header,.cs-floating{display:none!important}
+    [data-testid="stSidebar"]{background:#fff;border-right:1px solid #e5e7eb}
+    [data-testid="stSidebar"]>div:first-child{padding-top:1rem}
+    [data-testid="stSidebar"] .stRadio>div{gap:3px}
+    [data-testid="stSidebar"] label[data-baseweb="radio"]{padding:.48rem .55rem;border-radius:7px}
+    [data-testid="stSidebar"] label[data-baseweb="radio"]:hover{background:#f8fafc}
+    [data-testid="stSidebar"] [aria-checked="true"] + div{color:#2563eb;font-weight:700}
+    .block-container{max-width:1500px;padding:2rem 2rem 2.5rem}
+    .cs-sidebar-brand{text-align:center;padding:.2rem .4rem 1rem}
+    .cs-sidebar-brand img{width:58px;height:58px;object-fit:contain;border:1px solid #eef2f7;border-radius:50%;padding:7px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.08)}
+    .cs-sidebar-title{font-size:.92rem;font-weight:800;color:#111827;margin-top:.55rem}.cs-sidebar-subtitle{font-size:.58rem;color:#64748b;margin-top:.15rem}
+    .cs-sidebar-section{font-size:.56rem;color:#94a3b8;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin:.8rem .35rem .25rem}
+    .cs-sidebar-status{border:1px solid #e5e7eb;border-radius:8px;padding:.55rem .6rem;margin-top:.8rem;background:#f8fafc;font-size:.58rem;color:#64748b}
+    .cs-page-header{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:1rem;padding-bottom:.9rem;border-bottom:1px solid var(--border)}
+    .cs-eyebrow{font-size:.58rem;color:#64748b;text-transform:uppercase;letter-spacing:.08em;font-weight:750}.cs-page-title{font-size:1.45rem;line-height:1.15;font-weight:780;letter-spacing:-.035em;margin:.2rem 0 0}.cs-page-copy{font-size:.68rem;color:#64748b;margin:.25rem 0 0}.cs-page-meta{font-size:.58rem;color:#64748b;border:1px solid var(--border);background:#fff;border-radius:999px;padding:.4rem .6rem}
     .cs-footer{margin-top:1.6rem;padding-top:.8rem;border-top:1px solid var(--border);color:#94a3b8;text-align:center;font-size:.56rem}
     .stButton>button{border:1px solid #dfe3e8;border-radius:7px;background:#fff;color:#374151;font-size:.68rem;font-weight:650;box-shadow:none}.stButton>button:hover{background:#f9fafb;border-color:#cbd5e1}.stButton>button[kind="primary"]{background:var(--blue);border-color:var(--blue);color:#fff}
-    @media(max-width:900px){.block-container{padding:4.7rem .65rem 2rem}.cs-stream-logo{left:.6rem;top:.6rem;width:43px;height:43px}.cs-stream-nav{left:58px;right:.6rem;transform:none;width:auto;top:.6rem;height:43px}.cs-stream-link{font-size:.57rem;padding:0 .5rem}.cs-stream-actions{display:none}}
+    @media(max-width:900px){.block-container{padding:1rem .75rem 2rem}.cs-page-header{display:block}.cs-page-meta{display:inline-block;margin-top:.55rem}}
     </style>
     """, unsafe_allow_html=True)
 
 
-def render_brand() -> None:
-    return None
-
-
 def render_sidebar(database: dict[str, Any]) -> None:
-    return None
-
-
-def render_pwa_links() -> None:
-    return None
-
-
-def render_floating_navigation(database: dict[str, Any]) -> None:
     order, labels = get_navigation(database)
     current = st.session_state.get("active_module", "Dashboard")
     if current not in order:
         current = "Dashboard"
         st.session_state.active_module = current
-    primary = [item for item in ["Dashboard", "Projects", "Documents", "Drawings", "RFIs", "Tasks", "Reports"] if item in order]
-    links = "".join(f'<a class="cs-stream-link {"active" if item == current else ""}" href="?module={quote(item)}">{labels.get(item, item)}</a>' for item in primary)
-    remaining = [item for item in order if item not in primary]
-    more_links = "".join(f'<a href="?module={quote(item)}">{labels.get(item, item)}</a>' for item in remaining)
-    more = f'<details class="cs-more"><summary>More</summary><div class="cs-more-menu">{more_links}</div></details>' if remaining else ""
-    logo_src = f"/assets/{LOGO_PATH.name}" if LOGO_PATH else ""
-    st.markdown(f'<img class="cs-stream-logo" src="{logo_src}" alt="Creative Studios"><nav class="cs-stream-nav"><div class="cs-stream-links">{links}{more}</div><div class="cs-stream-actions"><span class="cs-stream-action">⌕</span><span class="cs-stream-action">☼</span><span class="cs-stream-action">♧</span><span class="cs-stream-user">CS</span></div></nav>', unsafe_allow_html=True)
-    query_module = st.query_params.get("module")
-    if query_module in NAVIGATION and query_module != st.session_state.active_module:
-        st.session_state.active_module = query_module
-        st.session_state.navigation_nonce += 1
+
+    logo_html = ""
+    if LOGO_PATH:
+        logo_html = f'<img src="/app/static/{LOGO_PATH.name}" alt="Creative Studios">'
+    with st.sidebar:
+        if LOGO_PATH:
+            st.image(str(LOGO_PATH), width=58)
+        st.markdown('<div class="cs-sidebar-title">Creative Studios</div><div class="cs-sidebar-subtitle">AEC Collaboration Platform</div>', unsafe_allow_html=True)
+        st.divider()
+        for group, items in MODULE_GROUPS.items():
+            available = [item for item in items if item in order]
+            if not available:
+                continue
+            st.markdown(f'<div class="cs-sidebar-section">{group}</div>', unsafe_allow_html=True)
+            for item in available:
+                label = labels.get(item, item)
+                if st.button(label, key=f"nav_{item}", use_container_width=True, type="primary" if item == current else "secondary"):
+                    st.session_state.active_module = item
+                    st.session_state.sidebar_module = item
+                    st.session_state.navigation_nonce += 1
+                    st.rerun()
+        st.divider()
+        try:
+            backend = database_backend()
+            backend_label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
+        except Exception:
+            backend_label = "Database unavailable"
+        st.markdown(f'<div class="cs-sidebar-status"><strong>Data source</strong><br>{backend_label}</div>', unsafe_allow_html=True)
+        st.link_button("Open Web App", PWA_URL, use_container_width=True)
+        st.link_button("AI Workspace", AI_PWA_URL, use_container_width=True)
 
 
 def load_module_renderer(name: str) -> Callable[[dict[str, Any]], Any] | None:
@@ -171,12 +188,8 @@ def render_module(name: str, database: dict[str, Any]) -> None:
 
 def render_workspace_header(name: str, count: int) -> None:
     title = "Project Dashboard" if name == "Dashboard" else name
-    copy = "Welcome back, Creative Studios" if name == "Dashboard" else f"Manage {name.lower()} records and project workflow from the shared workspace."
+    copy = "Live project, design and delivery intelligence" if name == "Dashboard" else f"Manage {name.lower()} records and project workflow from the shared workspace."
     st.markdown(f'<div class="cs-page-header"><div><div class="cs-eyebrow">Creative Studios</div><h1 class="cs-page-title">{title}</h1><p class="cs-page-copy">{copy}</p></div><div class="cs-page-meta">{count} modules</div></div>', unsafe_allow_html=True)
-
-
-def render_system_status(database: dict[str, Any]) -> None:
-    return None
 
 
 def main() -> None:
@@ -187,9 +200,10 @@ def main() -> None:
         st.caption("Check DATABASE_URL in Streamlit Cloud Secrets and reboot the app.")
         st.exception(exc)
         return
+
     inject_css()
     database = get_database()
-    render_floating_navigation(database)
+    render_sidebar(database)
     order, _ = get_navigation(database)
     choice = st.session_state.get("active_module", "Dashboard")
     if choice not in order:
@@ -197,6 +211,7 @@ def main() -> None:
         st.session_state.active_module = choice
     render_workspace_header(choice, len(order))
     render_module(choice, database)
+
     try:
         backend = database_backend()
         label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
