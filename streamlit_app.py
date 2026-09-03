@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import streamlit as st
 
 from modules.database import database_backend, load_memory
+from modules.settings import get_page_configuration
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
@@ -41,7 +42,6 @@ MODULE_IMPORTS: dict[str, tuple[str, str]] = {
     "Settings": ("modules.settings", "render_settings_module"),
 }
 
-# Canonical Creative Studios logo. The hyphenated filename is the production asset.
 LOGO_PATH = next(
     (
         path
@@ -74,14 +74,19 @@ PWA_URL = get_pwa_url()
 
 
 def initialize_session_state() -> None:
-    if "active_module" not in st.session_state:
+    if "active_module" not in st.session_state or st.session_state.active_module not in NAVIGATION:
         st.session_state.active_module = "Dashboard"
-    if "navigation" not in st.session_state or st.session_state.navigation not in NAVIGATION:
-        st.session_state.navigation = st.session_state.active_module
-    if st.session_state.navigation not in NAVIGATION:
-        st.session_state.navigation = "Dashboard"
     if "database" not in st.session_state or not isinstance(st.session_state.database, dict):
         st.session_state.database = load_memory()
+
+
+def get_navigation(database: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
+    order, labels = get_page_configuration(database)
+    valid_order = [page for page in order if page in MODULE_IMPORTS]
+    for page in NAVIGATION:
+        if page not in valid_order:
+            valid_order.append(page)
+    return valid_order, labels
 
 
 def inject_css() -> None:
@@ -101,7 +106,6 @@ def inject_css() -> None:
             --cs-border: rgba(111, 155, 214, .20);
             --cs-border-strong: rgba(90, 169, 255, .38);
             --cs-surface: rgba(10, 16, 27, .90);
-            --cs-surface-strong: rgba(16, 25, 40, .97);
             --cs-input: #080f1a;
             --cs-shadow: 0 18px 50px rgba(0, 0, 0, .34);
         }
@@ -133,6 +137,15 @@ def inject_css() -> None:
         }
 
         [data-testid="stSidebar"] > div:first-child { padding-top: 1rem; }
+        [data-testid="stSidebar"] img {
+            width: 88px !important;
+            max-width: 88px !important;
+            height: auto !important;
+            margin-left: 0 !important;
+            margin-right: auto !important;
+            border-radius: 10px;
+            object-fit: contain;
+        }
         [data-testid="stSidebar"] .stRadio > div { gap: .18rem; }
         [data-testid="stSidebar"] .stRadio label {
             border-radius: 10px;
@@ -154,47 +167,47 @@ def inject_css() -> None:
         }
 
         .cs-brand-card {
-            padding: .72rem .65rem .78rem;
+            padding: .65rem .65rem .72rem;
             border: 1px solid var(--cs-border);
-            border-radius: 15px;
+            border-radius: 14px;
             background: linear-gradient(145deg, rgba(20,31,49,.88), rgba(6,10,17,.92));
             box-shadow: 0 10px 30px rgba(0,0,0,.20);
         }
-        .cs-brand-row { display: flex; align-items: center; gap: .78rem; }
+        .cs-brand-row { display: flex; align-items: center; gap: .65rem; }
         .cs-brand-title {
             font-family: 'Space Grotesk', 'Inter', sans-serif;
-            font-size: 1.08rem;
+            font-size: 1rem;
             line-height: 1.05;
             font-weight: 700;
             letter-spacing: -.035em;
             color: #f7fbff;
         }
         .cs-brand-subtitle {
-            margin-top: .28rem;
+            margin-top: .24rem;
             color: var(--cs-muted);
-            font-size: .68rem;
+            font-size: .64rem;
             line-height: 1.35;
         }
         .cs-brand-caption {
-            margin-top: .62rem;
+            margin-top: .55rem;
             color: var(--cs-muted-2);
-            font-size: .62rem;
+            font-size: .60rem;
             letter-spacing: .02em;
         }
         .cs-brand-logo {
             display: block;
-            width: 58px;
-            min-width: 58px;
-            max-width: 58px;
-            height: 58px;
+            width: 44px;
+            min-width: 44px;
+            max-width: 44px;
+            height: 44px;
             object-fit: contain;
-            border-radius: 13px;
+            border-radius: 10px;
             background: #ffffff;
-            padding: 3px;
-            box-shadow: 0 8px 24px rgba(47,128,237,.20);
+            padding: 2px;
+            box-shadow: 0 6px 18px rgba(47,128,237,.20);
         }
 
-        .cs-divider { height: 1px; background: var(--cs-border); margin: .9rem 0; }
+        .cs-divider { height: 1px; background: var(--cs-border); margin: .85rem 0; }
         .cs-section {
             color: #7f95b0;
             font-size: .61rem;
@@ -206,12 +219,12 @@ def inject_css() -> None:
         .cs-pwa-link {
             display: block;
             text-decoration: none !important;
-            padding: .62rem .72rem;
-            margin: .32rem 0;
+            padding: .60rem .70rem;
+            margin: .30rem 0;
             border: 1px solid var(--cs-border);
             border-radius: 10px;
             color: #dceaff !important;
-            font-size: .74rem;
+            font-size: .73rem;
             font-weight: 650;
             text-align: center;
             background: rgba(20, 36, 57, .42);
@@ -226,10 +239,10 @@ def inject_css() -> None:
         .cs-pwa-link:hover { transform: translateY(-1px); border-color: var(--cs-border-strong); }
         .cs-sidebar-note {
             color: #687b94;
-            font-size: .64rem;
+            font-size: .63rem;
             text-align: center;
             line-height: 1.5;
-            margin-top: .65rem;
+            margin-top: .62rem;
         }
 
         .cs-hero {
@@ -375,7 +388,7 @@ def inject_css() -> None:
             .cs-hero { border-radius: 16px; padding: 1.05rem; }
             .cs-module-bar { align-items: flex-start; flex-direction: column; gap: .22rem; }
             .cs-module-meta { white-space: normal; }
-            .cs-brand-logo { width: 52px; height: 52px; min-width: 52px; max-width: 52px; }
+            [data-testid="stSidebar"] img { width: 76px !important; max-width: 76px !important; }
         }
         </style>
         """,
@@ -385,7 +398,7 @@ def inject_css() -> None:
 
 def render_brand() -> None:
     if LOGO_PATH:
-        st.sidebar.image(str(LOGO_PATH), width=170)
+        st.sidebar.image(str(LOGO_PATH), width=88)
     else:
         st.sidebar.markdown('<div class="cs-brand-logo">CS</div>', unsafe_allow_html=True)
 
@@ -417,28 +430,31 @@ def get_database(*, reload: bool = False) -> dict[str, Any]:
     return st.session_state.database
 
 
-def render_sidebar() -> str:
+def render_sidebar(database: dict[str, Any]) -> str:
     render_brand()
     st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
     render_pwa_links()
     st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="cs-section">Workspace</div>', unsafe_allow_html=True)
 
+    order, labels = get_navigation(database)
     current = st.session_state.get("active_module", "Dashboard")
-    if current not in NAVIGATION:
-        current = "Dashboard"
-    navigation = st.session_state.get("navigation", current)
-    if navigation not in NAVIGATION:
-        navigation = current
-    st.session_state.navigation = navigation
+    if current not in order:
+        current = order[0] if order else "Dashboard"
 
-    choice = st.sidebar.radio(
+    options = [labels.get(page, page) for page in order]
+    label_to_page = {labels.get(page, page): page for page in order}
+    current_label = labels.get(current, current)
+    index = options.index(current_label) if current_label in options else 0
+
+    selected_label = st.sidebar.radio(
         "Workspace",
-        NAVIGATION,
-        index=NAVIGATION.index(navigation),
-        key="navigation",
+        options,
+        index=index,
+        key="navigation_choice",
         label_visibility="collapsed",
     )
+    choice = label_to_page.get(selected_label, current)
     st.session_state.active_module = choice
 
     col1, col2 = st.sidebar.columns(2)
@@ -469,13 +485,13 @@ def render_sidebar() -> str:
             unsafe_allow_html=True,
         )
     st.sidebar.markdown(
-        '<div class="cs-sidebar-note">Shared workspace data is available across the registered AEC modules.</div>',
+        '<div class="cs-sidebar-note">Changes are saved to the shared workspace before the page refreshes.</div>',
         unsafe_allow_html=True,
     )
     return choice
 
 
-def render_workspace_header(name: str) -> None:
+def render_workspace_header(name: str, module_count: int) -> None:
     try:
         backend = database_backend()
         backend_label = "Neon PostgreSQL" if backend == "neon" else "Local JSON"
@@ -501,7 +517,7 @@ def render_workspace_header(name: str) -> None:
             <div class="cs-status-row">
                 <span class="cs-pill"><span class="cs-dot"></span>Workspace online</span>
                 <span class="cs-pill"><span class="cs-dot {dot_class}"></span>{backend_label}</span>
-                <span class="cs-pill">{len(NAVIGATION)} modules</span>
+                <span class="cs-pill">{module_count} pages</span>
             </div>
         </section>''',
         unsafe_allow_html=True,
@@ -557,9 +573,11 @@ def main() -> None:
         return
 
     inject_css()
-    choice = render_sidebar()
-    render_workspace_header(choice)
-    render_module(choice, get_database())
+    database = get_database()
+    order, _ = get_navigation(database)
+    choice = render_sidebar(database)
+    render_workspace_header(choice, len(order))
+    render_module(choice, database)
     st.markdown(
         '<div class="cs-footer">Creative Studios · AEC Collaboration Platform · Shared workspace</div>',
         unsafe_allow_html=True,
