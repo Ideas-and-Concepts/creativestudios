@@ -52,15 +52,15 @@ def _analytics(documents: list[dict[str, Any]]) -> None:
     frame = pd.DataFrame(documents)
     if frame.empty:
         return
-    frame["status"] = frame.get("status", "Draft").fillna("Draft")
-    frame["document_type"] = frame.get("document_type", "Other").fillna("Other")
-    frame["discipline"] = frame.get("discipline", "Unspecified").replace("", "Unspecified").fillna("Unspecified")
+
+    frame["status"] = frame["status"].fillna("Draft") if "status" in frame.columns else pd.Series("Draft", index=frame.index)
+    frame["document_type"] = frame["document_type"].fillna("Other") if "document_type" in frame.columns else pd.Series("Other", index=frame.index)
+    frame["discipline"] = frame["discipline"].replace("", "Unspecified").fillna("Unspecified") if "discipline" in frame.columns else pd.Series("Unspecified", index=frame.index)
 
     total = len(frame)
     approved = int((frame["status"] == "Approved").sum())
     review = int((frame["status"] == "Under Review").sum())
-    archived = int((frame["status"] == "Archived").sum())
-    project_count = int(frame.get("project_id", pd.Series(dtype=object)).replace("", pd.NA).dropna().nunique())
+    project_count = int(frame["project_id"].replace("", pd.NA).dropna().nunique()) if "project_id" in frame.columns else 0
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total documents", total)
     c2.metric("Approved", approved)
