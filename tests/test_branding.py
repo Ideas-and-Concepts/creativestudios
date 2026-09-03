@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import streamlit_app
+from modules.settings import PAGE_KEYS, get_page_configuration
 
 
 def test_branding_asset_exists():
@@ -23,6 +24,7 @@ def test_sidebar_branding_configuration():
     assert "#030509" in source
     assert "green" not in source.lower()
     assert "#00" not in source.lower()
+    assert "width=88" in source
     assert "unsafe_allow_html=True" in source
 
 
@@ -39,3 +41,23 @@ def test_navigation_contains_current_modules():
         "Construction",
     }
     assert expected.issubset(set(streamlit_app.NAVIGATION))
+
+
+def test_page_configuration_preserves_all_registered_pages():
+    order, labels = get_page_configuration({"settings": {}})
+    assert order == PAGE_KEYS
+    assert set(labels) == set(PAGE_KEYS)
+
+
+def test_page_configuration_accepts_persistent_custom_order_and_labels():
+    database = {
+        "settings": {
+            "page_order": ["Settings", "Projects", "Dashboard"],
+            "page_labels": {"Settings": "Workspace Admin", "Projects": "Jobs"},
+        }
+    }
+    order, labels = get_page_configuration(database)
+    assert order[:3] == ["Settings", "Projects", "Dashboard"]
+    assert set(order) == set(PAGE_KEYS)
+    assert labels["Settings"] == "Workspace Admin"
+    assert labels["Projects"] == "Jobs"
