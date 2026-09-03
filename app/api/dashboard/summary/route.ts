@@ -22,13 +22,37 @@ const numeric = (value: unknown) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+const clampProgress = (value: unknown) => {
+  const n = numeric(value);
+  return Math.max(0, Math.min(100, n));
+};
+
+function commercialMetrics(budget: number, committed: number, actual: number, earnedValue: number) {
+  const forecast = actual > 0 && earnedValue > 0
+    ? budget / (earnedValue / actual)
+    : Math.max(actual, committed);
+  const variance = budget - forecast;
+  const cpi = actual > 0 ? earnedValue / actual : null;
+
+  return {
+    budget,
+    committed,
+    actual,
+    earnedValue,
+    forecast,
+    variance,
+    cpi: cpi == null ? null : Math.round(cpi * 100) / 100,
+    budgetUtilisation: budget > 0 ? Math.round((actual / budget) * 1000) / 10 : 0,
+  };
+}
+
 export async function GET() {
   try {
     const db = getDb();
 
     // A BOQ item can be linked to more than one construction activity.
     // For EVM, value each BOQ item once using the highest linked activity
-    // progress, capped at 100%, rather than summing duplicate BOQ values.
+    // progress, capped at 100%, rather than multiplying its value by every activity.
     const progressByBoqItem = db
       .select({
         boqItemId: constructionActivities.boqItemId,
@@ -53,6 +77,10 @@ export async function GET() {
       committedCost,
       actualCost,
       earnedValue,
+      boqByProject,
+      committedByProject,
+      actualByProject,
+      earnedValueByProject,
     ] = await Promise.all([
       db.select({ value: count() }).from(projects),
       db.select({ value: count() }).from(drawings),
@@ -88,11 +116,38 @@ export async function GET() {
       })
         .from(boqItems)
         .leftJoin(progressByBoqItem, eq(progressByBoqItem.boqItemId, boqItems.id)),
+      db.select({
+        projectId: boqItems.projectId,
+        total: sql<string>`coalesce(sum(${boqItems.amount}), 0)`,
+      })
+        .from(boqItems)
+        .groupBy(boqItems.projectId),
+      db.select({
+        projectId: purchaseOrders.projectId,
+        total: sql<string>`coalesce(sum(${purchaseOrders.totalAmount}), 0)`,
+      })
+        .from(purchaseOrders)
+        .where(and(ne(purchaseOrders.status, "draft"), ne(purchaseOrders.status, "cancelled")))
+        .groupBy(purchaseOrders.projectId),
+      db.select({
+        projectId: costControl.projectId,
+        total: sql<string>`coalesce(sum(${costControl.amount}), 0)`,
+      })
+        .from(costControl)
+        .where(eq(costControl.costType, "Actual Cost"))
+        .groupBy(costControl.projectId),
+      db.select({
+        projectId: boqItems.projectId,
+        value: sql<string>`coalesce(sum(${boqItems.amount} * coalesce(${progressByBoqItem.progress}, 0) / 100.0), 0)`,
+      })
+        .from(boqItems)
+        .leftJoin(progressByBoqItem, eq(progressByBoqItem.boqItemId, boqItems.id))
+        .groupBy(boqItems.projectId),
     ]);
 
     const optionalProgress = (value: unknown) => {
       const n = Number(value);
-      return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : null;
+      return Number.isFinite(n) ? clampProgress(n) : null;
     };
 
     const domainProgress = {
@@ -110,9 +165,28 @@ export async function GET() {
     const committed = numeric(committedCost[0]?.total);
     const actual = numeric(actualCost[0]?.total);
     const ev = numeric(earnedValue[0]?.value);
-    const forecast = actual > 0 && ev > 0 ? budget / (ev / actual) : Math.max(actual, committed);
-    const variance = budget - forecast;
-    const cpi = actual > 0 ? ev / actual : null;
+
+    const commercial = commercialMetrics(budget, committed, actual, ev);
+
+    const budgetMap = new Map(boqByProject.map(row => [row.projectId, numeric(row.total)]));
+    const committedMap = new Map(committedByProject.map(row => [row.projectId, numeric(row.total)]));
+    const actualMap = new Map(actualByProject.map(row => [row.projectId, numeric(row.total)]));
+    const earnedValueMap = new Map(earnedValueByProject.map(row => [row.projectId, numeric(row.value)]));
+
+    const commercialByProject = projectsCount.length
+      ? projectProgressRows.map(row => {
+          const projectId = row.projectId;
+          return {
+            projectId,
+            ...commercialMetrics(
+              budgetMap.get(projectId) ?? 0,
+              committedMap.get(projectId) ?? 0,
+              actualMap.get(projectId) ?? 0,
+              earnedValueMap.get(projectId) ?? 0,
+            ),
+          };
+        })
+      : [];
 
     return NextResponse.json({
       data: {
@@ -125,19 +199,11 @@ export async function GET() {
         domainProgress,
         projectProgress: projectProgressRows.map((row) => ({
           projectId: row.projectId,
-          progress: row.progress == null ? 0 : Math.max(0, Math.min(100, Math.round(Number(row.progress)))),
+          progress: row.progress == null ? 0 : Math.round(clampProgress(row.progress)),
           activityCount: Number(row.activityCount ?? 0),
         })),
-        commercial: {
-          budget,
-          committed,
-          actual,
-          earnedValue: ev,
-          forecast,
-          variance,
-          cpi: cpi == null ? null : Math.round(cpi * 100) / 100,
-          budgetUtilisation: budget > 0 ? Math.round((actual / budget) * 1000) / 10 : 0,
-        },
+        commercial,
+        commercialByProject,
       },
     });
   } catch (error) {
