@@ -14,6 +14,8 @@ const projectUpdate = z.object({
   location: z.string().trim().max(200).optional().nullable(),
   description: z.string().trim().max(2000).optional().nullable(),
   status: z.enum(["planning", "active", "on_hold", "completed", "cancelled"]),
+  startDate: z.string().datetime().optional().nullable(),
+  targetEndDate: z.string().datetime().optional().nullable(),
 });
 
 type RouteContext = {
@@ -62,11 +64,32 @@ export async function PUT(request: Request, { params }: RouteContext) {
     );
   }
 
+  if (
+    parsed.data.startDate &&
+    parsed.data.targetEndDate &&
+    new Date(parsed.data.targetEndDate) < new Date(parsed.data.startDate)
+  ) {
+    return NextResponse.json(
+      { error: "Target end date cannot be earlier than the start date." },
+      { status: 400 },
+    );
+  }
+
   try {
     const db = getDb();
     const [project] = await db
       .update(projects)
-      .set({ ...parsed.data, updatedAt: new Date() })
+      .set({
+        code: parsed.data.code,
+        name: parsed.data.name,
+        clientName: parsed.data.clientName ?? null,
+        location: parsed.data.location ?? null,
+        description: parsed.data.description ?? null,
+        status: parsed.data.status,
+        startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
+        targetEndDate: parsed.data.targetEndDate ? new Date(parsed.data.targetEndDate) : null,
+        updatedAt: new Date(),
+      })
       .where(eq(projects.id, id))
       .returning();
 
