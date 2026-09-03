@@ -41,13 +41,13 @@ export async function GET() {
         value: Number(engineering[0]?.value ?? 0) + Number(mep[0]?.value ?? 0) + Number(construction[0]?.value ?? 0),
       })),
       db.select({ value: sql<string>`coalesce(sum(${boqItems.amount}), 0)` }).from(boqItems),
-      db.select({ value: sql<number>`coalesce(avg(${architectureWorks.progress}), 0)` }).from(architectureWorks),
-      db.select({ value: sql<number>`coalesce(avg(${engineeringWorks.progress}), 0)` }).from(engineeringWorks),
-      db.select({ value: sql<number>`coalesce(avg(${mepWorks.progress}), 0)` }).from(mepWorks),
-      db.select({ value: sql<number>`coalesce(avg(${constructionActivities.progress}), 0)` }).from(constructionActivities),
+      db.select({ value: sql<number | null>`avg(${architectureWorks.progress})` }).from(architectureWorks),
+      db.select({ value: sql<number | null>`avg(${engineeringWorks.progress})` }).from(engineeringWorks),
+      db.select({ value: sql<number | null>`avg(${mepWorks.progress})` }).from(mepWorks),
+      db.select({ value: sql<number | null>`avg(${constructionActivities.progress})` }).from(constructionActivities),
       db.select({
         projectId: projects.id,
-        progress: sql<number>`coalesce(avg(${constructionActivities.progress}), 0)`,
+        progress: sql<number | null>`avg(${constructionActivities.progress})`,
         activityCount: count(constructionActivities.id),
       })
         .from(projects)
@@ -55,14 +55,19 @@ export async function GET() {
         .groupBy(projects.id),
     ]);
 
-    const domainProgress = {
-      architecture: Number(architectureProgress[0]?.value ?? 0),
-      engineering: Number(engineeringProgress[0]?.value ?? 0),
-      mep: Number(mepProgress[0]?.value ?? 0),
-      construction: Number(constructionProgress[0]?.value ?? 0),
+    const optionalProgress = (value: unknown) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : null;
     };
 
-    const domainValues = Object.values(domainProgress).filter((value) => Number.isFinite(value));
+    const domainProgress = {
+      architecture: optionalProgress(architectureProgress[0]?.value),
+      engineering: optionalProgress(engineeringProgress[0]?.value),
+      mep: optionalProgress(mepProgress[0]?.value),
+      construction: optionalProgress(constructionProgress[0]?.value),
+    };
+
+    const domainValues = Object.values(domainProgress).filter((value): value is number => value !== null);
     const averageProgress = domainValues.length
       ? Math.round(domainValues.reduce((sum, value) => sum + value, 0) / domainValues.length)
       : 0;
@@ -78,7 +83,7 @@ export async function GET() {
         domainProgress,
         projectProgress: projectProgressRows.map((row) => ({
           projectId: row.projectId,
-          progress: Math.max(0, Math.min(100, Math.round(Number(row.progress ?? 0)))),
+          progress: row.progress == null ? 0 : Math.max(0, Math.min(100, Math.round(Number(row.progress)))),
           activityCount: Number(row.activityCount ?? 0),
         })),
       },
