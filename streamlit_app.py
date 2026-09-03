@@ -1,4 +1,9 @@
-"""Creative Studios Streamlit workspace."""
+"""Creative Studios Streamlit workspace.
+
+The Streamlit entry point owns the application shell, persistent navigation,
+database lifecycle, responsive navigation and safe module loading.
+Domain CRUD remains inside the individual modules.
+"""
 from __future__ import annotations
 
 import importlib
@@ -67,7 +72,9 @@ st.set_page_config(
 def get_pwa_url() -> str:
     candidate = os.getenv("CREATIVE_STUDIOS_PWA_URL", "").strip() or DEFAULT_PWA_URL
     parsed = urlparse(candidate)
-    return candidate if parsed.scheme in {"http", "https"} and parsed.netloc else DEFAULT_PWA_URL
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        return candidate
+    return DEFAULT_PWA_URL
 
 
 PWA_URL = get_pwa_url()
@@ -78,9 +85,12 @@ def initialize_session_state() -> None:
         st.session_state.active_module = "Dashboard"
     if "database" not in st.session_state or not isinstance(st.session_state.database, dict):
         st.session_state.database = load_memory()
+    if "navigation_nonce" not in st.session_state:
+        st.session_state.navigation_nonce = 0
 
 
 def get_navigation(database: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
+    """Return persisted page order while guaranteeing all registered pages exist."""
     order, labels = get_page_configuration(database)
     valid_order = [page for page in order if page in MODULE_IMPORTS]
     for page in NAVIGATION:
@@ -99,11 +109,9 @@ def inject_css() -> None:
             --cs-black: #050505;
             --cs-sidebar: #08090b;
             --cs-panel: #0d0f12;
-            --cs-panel-2: #111419;
             --cs-input: #0a0c0f;
             --cs-blue: #2f80ed;
             --cs-blue-hover: #3b8ef3;
-            --cs-blue-dark: #1558b0;
             --cs-text: #f5f7fa;
             --cs-text-2: #c5cbd4;
             --cs-muted: #8b95a3;
@@ -112,375 +120,134 @@ def inject_css() -> None:
             --cs-border-strong: #315f98;
         }
 
-        html, body, [class*="css"] {
-            font-family: 'Inter', 'Segoe UI', sans-serif;
-        }
-
-        .stApp {
-            background: var(--cs-black);
-            color: var(--cs-text);
-        }
-
-        .block-container {
-            max-width: 1500px;
-            padding: 1.25rem 2rem 3.5rem;
-        }
-
-        [data-testid="stHeader"] {
-            background: var(--cs-black);
-        }
+        html, body, [class*="css"] { font-family: 'Inter', 'Segoe UI', sans-serif; }
+        .stApp { background: var(--cs-black); color: var(--cs-text); }
+        .block-container { max-width: 1540px; padding: 1rem 1.5rem 3.5rem; }
+        [data-testid="stHeader"] { background: var(--cs-black); }
 
         [data-testid="stSidebar"] {
-            min-width: 278px;
-            max-width: 278px;
+            min-width: 245px;
+            max-width: 245px;
             background: var(--cs-sidebar);
             border-right: 1px solid var(--cs-border);
         }
-
-        [data-testid="stSidebar"] > div:first-child {
-            padding: .9rem .8rem 1rem;
-        }
-
+        [data-testid="stSidebar"] > div:first-child { padding: .8rem .72rem 1rem; }
         [data-testid="stSidebar"] img {
             display: block !important;
-            width: 78px !important;
-            max-width: 78px !important;
+            width: 74px !important;
+            max-width: 74px !important;
             height: auto !important;
             margin-left: auto !important;
             margin-right: auto !important;
             border-radius: 8px;
             object-fit: contain;
         }
-
-        [data-testid="stSidebar"] .stRadio > div {
-            gap: .12rem;
-        }
-
-        [data-testid="stSidebar"] .stRadio label {
-            border-radius: 6px;
-            padding: .46rem .62rem;
-            color: var(--cs-text-2);
-            font-size: .77rem;
-            font-weight: 500;
-            border-left: 2px solid transparent;
-            transition: background .14s ease, color .14s ease, border-color .14s ease;
-        }
-
-        [data-testid="stSidebar"] .stRadio label:hover {
-            background: #101419;
-            color: #ffffff;
-        }
-
-        [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
-            background: #101923;
-            color: #ffffff;
-            border-left-color: var(--cs-blue);
-        }
-
         .cs-brand-card {
-            margin-top: .55rem;
-            padding: .8rem .55rem .75rem;
+            margin-top: .5rem;
+            padding: .78rem .5rem .72rem;
             text-align: center;
             border-top: 1px solid var(--cs-border);
             border-bottom: 1px solid var(--cs-border);
         }
-
         .cs-brand-title {
             font-family: 'Space Grotesk', 'Inter', sans-serif;
-            font-size: 1rem;
+            font-size: .98rem;
             line-height: 1.1;
             font-weight: 700;
             letter-spacing: -.03em;
             color: #ffffff;
         }
-
-        .cs-brand-subtitle {
-            margin-top: .28rem;
-            color: var(--cs-muted);
-            font-size: .61rem;
-            line-height: 1.35;
-        }
-
-        .cs-brand-caption {
-            margin-top: .5rem;
-            color: var(--cs-muted-2);
-            font-size: .58rem;
-            letter-spacing: .02em;
-        }
-
+        .cs-brand-subtitle { margin-top: .27rem; color: var(--cs-muted); font-size: .60rem; line-height: 1.35; }
+        .cs-brand-caption { margin-top: .48rem; color: var(--cs-muted-2); font-size: .57rem; }
         .cs-brand-logo {
-            display: block;
-            width: 44px;
-            height: 44px;
-            margin: 0 auto;
-            padding: 2px;
-            object-fit: contain;
-            border-radius: 7px;
-            background: #ffffff;
+            display: block; width: 42px; height: 42px; margin: 0 auto; padding: 2px;
+            object-fit: contain; border-radius: 7px; background: #ffffff;
         }
-
-        .cs-divider {
-            height: 1px;
-            background: var(--cs-border);
-            margin: .75rem 0;
-        }
-
+        .cs-divider { height: 1px; background: var(--cs-border); margin: .72rem 0; }
         .cs-section {
-            color: var(--cs-muted-2);
-            font-size: .59rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .13em;
-            margin: .7rem 0 .4rem;
+            color: var(--cs-muted-2); font-size: .57rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .13em; margin: .65rem 0 .38rem;
         }
-
         .cs-pwa-link {
-            display: block;
-            text-decoration: none !important;
-            padding: .55rem .6rem;
-            margin: .28rem 0;
-            border: 1px solid var(--cs-border);
-            border-radius: 6px;
-            color: var(--cs-text-2) !important;
-            font-size: .69rem;
-            font-weight: 600;
-            text-align: center;
-            background: #0c0f13;
-            transition: background .14s ease, border-color .14s ease, color .14s ease;
+            display: block; text-decoration: none !important; padding: .52rem .55rem; margin: .26rem 0;
+            border: 1px solid var(--cs-border); border-radius: 6px; color: var(--cs-text-2) !important;
+            font-size: .66rem; font-weight: 600; text-align: center; background: #0c0f13;
         }
+        .cs-pwa-link.primary { color: #ffffff !important; background: var(--cs-blue); border-color: var(--cs-blue); }
+        .cs-pwa-link:hover { color: #ffffff !important; background: #151a21; border-color: var(--cs-border-strong); }
+        .cs-pwa-link.primary:hover { background: var(--cs-blue-hover); border-color: var(--cs-blue-hover); }
+        .cs-sidebar-note { color: var(--cs-muted-2); font-size: .57rem; text-align: center; line-height: 1.45; margin-top: .55rem; }
 
-        .cs-pwa-link.primary {
-            color: #ffffff !important;
-            background: var(--cs-blue);
-            border-color: var(--cs-blue);
+        .cs-nav-shell { border-bottom: 1px solid var(--cs-border); padding: .15rem 0 .55rem; margin-bottom: .7rem; }
+        .cs-nav-label {
+            color: var(--cs-muted-2); font-size: .56rem; font-weight: 700;
+            letter-spacing: .13em; text-transform: uppercase; margin: 0 0 .4rem .05rem;
         }
-
-        .cs-pwa-link:hover {
-            color: #ffffff !important;
-            background: #121820;
-            border-color: var(--cs-border-strong);
+        [data-testid="stRadio"] > div[role="radiogroup"] { gap: .25rem; flex-wrap: wrap; }
+        [data-testid="stRadio"] label {
+            min-height: 2rem; padding: .38rem .62rem; border: 1px solid var(--cs-border);
+            border-radius: 6px; background: #0b0d10; color: var(--cs-text-2); font-size: .65rem;
+            font-weight: 600; transition: background .14s ease, border-color .14s ease, color .14s ease;
         }
-
-        .cs-pwa-link.primary:hover {
-            background: var(--cs-blue-hover);
-            border-color: var(--cs-blue-hover);
-        }
-
-        .cs-sidebar-note {
-            color: var(--cs-muted-2);
-            font-size: .59rem;
-            text-align: center;
-            line-height: 1.45;
-            margin-top: .58rem;
-        }
+        [data-testid="stRadio"] label:hover { background: #12161c; color: #ffffff; border-color: #2a313a; }
+        [data-testid="stRadio"] label[data-checked="true"] { background: var(--cs-blue); color: #ffffff; border-color: var(--cs-blue); }
 
         .cs-hero {
-            border: 1px solid var(--cs-border);
-            border-radius: 8px;
-            padding: 1.35rem 1.45rem;
-            margin-bottom: 1.1rem;
-            background: var(--cs-panel);
+            border: 1px solid var(--cs-border); border-left: 3px solid var(--cs-blue); border-radius: 7px;
+            padding: 1.15rem 1.3rem; margin-bottom: .9rem; background: var(--cs-panel);
         }
-
-        .cs-eyebrow {
-            color: var(--cs-blue);
-            font-size: .61rem;
-            font-weight: 700;
-            letter-spacing: .15em;
-            text-transform: uppercase;
-            margin-bottom: .45rem;
-        }
-
+        .cs-eyebrow { color: var(--cs-blue); font-size: .58rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; margin-bottom: .38rem; }
         .cs-hero-title {
-            font-family: 'Space Grotesk', 'Inter', sans-serif;
-            font-size: clamp(1.45rem, 2.7vw, 2.15rem);
-            font-weight: 700;
-            letter-spacing: -.045em;
-            line-height: 1.05;
-            margin: 0;
-            color: #ffffff;
+            font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: clamp(1.35rem, 2.4vw, 2rem);
+            font-weight: 700; letter-spacing: -.045em; line-height: 1.05; margin: 0; color: #ffffff;
         }
-
-        .cs-hero-copy {
-            max-width: 850px;
-            color: var(--cs-muted);
-            font-size: .8rem;
-            line-height: 1.6;
-            margin: .58rem 0 0;
-        }
-
-        .cs-status-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .42rem;
-            margin-top: .82rem;
-        }
-
+        .cs-hero-copy { max-width: 900px; color: var(--cs-muted); font-size: .77rem; line-height: 1.55; margin: .5rem 0 0; }
+        .cs-status-row { display: flex; flex-wrap: wrap; gap: .38rem; margin-top: .7rem; }
         .cs-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: .38rem;
-            border: 1px solid var(--cs-border);
-            border-radius: 5px;
-            padding: .28rem .5rem;
-            font-size: .61rem;
-            font-weight: 600;
-            background: #101318;
-            color: var(--cs-text-2);
+            display: inline-flex; align-items: center; gap: .34rem; border: 1px solid var(--cs-border);
+            border-radius: 5px; padding: .25rem .46rem; font-size: .58rem; font-weight: 600;
+            background: #101318; color: var(--cs-text-2);
         }
-
-        .cs-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--cs-blue);
-        }
-
-        .cs-dot.neutral {
-            background: var(--cs-muted-2);
-        }
-
+        .cs-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cs-blue); }
+        .cs-dot.neutral { background: var(--cs-muted-2); }
         .cs-module-bar {
-            display: flex;
-            align-items: end;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: .1rem 0 .68rem;
-            border-bottom: 1px solid var(--cs-border);
-            margin-bottom: .95rem;
+            display: flex; align-items: end; justify-content: space-between; gap: 1rem;
+            padding: .05rem 0 .62rem; border-bottom: 1px solid var(--cs-border); margin-bottom: .85rem;
         }
-
         .cs-module-title {
-            font-family: 'Space Grotesk', 'Inter', sans-serif;
-            font-size: 1.05rem;
-            font-weight: 600;
-            letter-spacing: -.025em;
-            margin: 0;
-            color: #ffffff;
+            font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 1rem; font-weight: 600;
+            letter-spacing: -.025em; color: #ffffff;
         }
+        .cs-module-meta { color: var(--cs-muted-2); font-size: .58rem; white-space: nowrap; }
 
-        .cs-module-meta {
-            color: var(--cs-muted-2);
-            font-size: .61rem;
-            white-space: nowrap;
+        [data-testid="stMetric"] { border: 1px solid var(--cs-border); border-radius: 7px; padding: .7rem .8rem; background: var(--cs-panel); box-shadow: none; }
+        [data-testid="stMetricLabel"] { font-size: .59rem !important; font-weight: 600 !important; color: var(--cs-muted) !important; }
+        [data-testid="stMetricValue"] { font-family: 'Space Grotesk', 'Inter', sans-serif; font-weight: 700 !important; letter-spacing: -.035em; color: #ffffff !important; }
+        .stButton > button { min-height: 2.15rem; border-radius: 6px; border: 1px solid #2a3038; font-weight: 600; background: #0d1014; color: var(--cs-text-2); box-shadow: none; }
+        .stButton > button:hover { background: #151a21; border-color: var(--cs-border-strong); color: #ffffff; }
+        .stButton > button[kind="primary"] { background: var(--cs-blue); border-color: var(--cs-blue); color: #ffffff; }
+        .stButton > button[kind="primary"]:hover { background: var(--cs-blue-hover); border-color: var(--cs-blue-hover); }
+        [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input, [data-testid="stDateInput"] input, [data-testid="stTextArea"] textarea {
+            border-radius: 6px; background: var(--cs-input); color: var(--cs-text); border-color: var(--cs-border); font-size: .74rem;
         }
-
-        [data-testid="stMetric"] {
-            border: 1px solid var(--cs-border);
-            border-radius: 7px;
-            padding: .78rem .9rem;
-            background: var(--cs-panel);
-            box-shadow: none;
+        [data-testid="stSelectbox"] > div, [data-testid="stMultiSelect"] > div {
+            border-radius: 6px; background: var(--cs-input); color: var(--cs-text); border-color: var(--cs-border); font-size: .74rem;
         }
-
-        [data-testid="stMetricLabel"] {
-            font-size: .62rem !important;
-            font-weight: 600 !important;
-            color: var(--cs-muted) !important;
-        }
-
-        [data-testid="stMetricValue"] {
-            font-family: 'Space Grotesk', 'Inter', sans-serif;
-            font-weight: 700 !important;
-            letter-spacing: -.035em;
-            color: #ffffff !important;
-        }
-
-        .stButton > button {
-            min-height: 2.25rem;
-            border-radius: 6px;
-            border: 1px solid #2a3038;
-            font-weight: 600;
-            background: #0d1014;
-            color: var(--cs-text-2);
-            box-shadow: none;
-            transition: background .14s ease, border-color .14s ease, color .14s ease;
-        }
-
-        .stButton > button:hover {
-            background: #151a21;
-            border-color: var(--cs-border-strong);
-            color: #ffffff;
-        }
-
-        .stButton > button[kind="primary"] {
-            background: var(--cs-blue);
-            border-color: var(--cs-blue);
-            color: #ffffff;
-            box-shadow: none;
-        }
-
-        .stButton > button[kind="primary"]:hover {
-            background: var(--cs-blue-hover);
-            border-color: var(--cs-blue-hover);
-        }
-
-        [data-testid="stTextInput"] input,
-        [data-testid="stNumberInput"] input,
-        [data-testid="stDateInput"] input,
-        [data-testid="stTextArea"] textarea {
-            border-radius: 6px;
-            background: var(--cs-input);
-            color: var(--cs-text);
-            border-color: var(--cs-border);
-            font-size: .76rem;
-        }
-
-        [data-testid="stSelectbox"] > div,
-        [data-testid="stMultiSelect"] > div {
-            border-radius: 6px;
-            background: var(--cs-input);
-            color: var(--cs-text);
-            border-color: var(--cs-border);
-            font-size: .76rem;
-        }
-
-        [data-testid="stExpander"] {
-            border: 1px solid var(--cs-border);
-            border-radius: 7px;
-            overflow: hidden;
-            background: var(--cs-panel);
-            box-shadow: none;
-        }
-
-        [data-testid="stDataFrame"] {
-            border: 1px solid var(--cs-border);
-            border-radius: 7px;
-            overflow: hidden;
-        }
-
-        [data-testid="stAlert"] {
-            border-radius: 6px;
-        }
-
-        .cs-footer {
-            color: #555d68;
-            text-align: center;
-            font-size: .58rem;
-            padding: 2.2rem 0 .2rem;
-            letter-spacing: .02em;
-        }
+        [data-testid="stExpander"] { border: 1px solid var(--cs-border); border-radius: 7px; overflow: hidden; background: var(--cs-panel); box-shadow: none; }
+        [data-testid="stDataFrame"] { border: 1px solid var(--cs-border); border-radius: 7px; overflow: hidden; }
+        [data-testid="stAlert"] { border-radius: 6px; }
+        .cs-empty-state { border: 1px dashed #2a3038; border-radius: 7px; padding: 1.2rem; color: var(--cs-muted); background: #090b0e; }
+        .cs-footer { color: #555d68; text-align: center; font-size: .56rem; padding: 2rem 0 .2rem; letter-spacing: .02em; }
 
         @media (max-width: 900px) {
-            .block-container {
-                padding: .8rem .75rem 2.8rem;
-            }
-            .cs-hero {
-                padding: 1rem;
-                border-radius: 7px;
-            }
-            .cs-module-bar {
-                align-items: flex-start;
-                flex-direction: column;
-                gap: .2rem;
-            }
-            .cs-module-meta {
-                white-space: normal;
-            }
-            [data-testid="stSidebar"] img {
-                width: 72px !important;
-                max-width: 72px !important;
-            }
+            .block-container { padding: .7rem .65rem 2.5rem; }
+            [data-testid="stSidebar"] { min-width: 220px; max-width: 220px; }
+            [data-testid="stSidebar"] img { width: 68px !important; max-width: 68px !important; }
+            .cs-hero { padding: .95rem; }
+            .cs-module-bar { align-items: flex-start; flex-direction: column; gap: .18rem; }
+            .cs-module-meta { white-space: normal; }
+            [data-testid="stRadio"] > div[role="radiogroup"] { gap: .2rem; }
+            [data-testid="stRadio"] label { font-size: .60rem; padding: .34rem .48rem; }
         }
         </style>
         """,
@@ -490,7 +257,7 @@ def inject_css() -> None:
 
 def render_brand() -> None:
     if LOGO_PATH:
-        st.sidebar.image(str(LOGO_PATH), width=78)
+        st.sidebar.image(str(LOGO_PATH), width=74)
     else:
         st.sidebar.markdown('<div class="cs-brand-logo">CS</div>', unsafe_allow_html=True)
 
@@ -521,43 +288,25 @@ def get_database(*, reload: bool = False) -> dict[str, Any]:
     return st.session_state.database
 
 
-def render_sidebar(database: dict[str, Any]) -> str:
+def render_sidebar(database: dict[str, Any]) -> None:
     render_brand()
     st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
     render_pwa_links()
     st.sidebar.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="cs-section">Workspace</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="cs-section">Workspace tools</div>', unsafe_allow_html=True)
 
-    order, labels = get_navigation(database)
-    current = st.session_state.get("active_module", "Dashboard")
-    if current not in order:
-        current = order[0] if order else "Dashboard"
-
-    options = [labels.get(page, page) for page in order]
-    label_to_page = {labels.get(page, page): page for page in order}
-    current_label = labels.get(current, current)
-    index = options.index(current_label) if current_label in options else 0
-
-    selected_label = st.sidebar.radio(
-        "Workspace",
-        options,
-        index=index,
-        key="navigation_choice",
-        label_visibility="collapsed",
-    )
-    choice = label_to_page.get(selected_label, current)
-    st.session_state.active_module = choice
-
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
+    c1, c2 = st.sidebar.columns(2)
+    with c1:
         if st.button("Refresh", use_container_width=True, key="refresh_database"):
             try:
                 get_database(reload=True)
+                st.session_state.navigation_nonce += 1
                 st.rerun()
             except Exception as exc:
                 st.sidebar.error("Database refresh failed.")
-                st.sidebar.exception(exc)
-    with col2:
+                with st.sidebar.expander("Technical details"):
+                    st.exception(exc)
+    with c2:
         if st.button("Top", use_container_width=True, key="top_workspace"):
             st.rerun()
 
@@ -576,9 +325,36 @@ def render_sidebar(database: dict[str, Any]) -> str:
             unsafe_allow_html=True,
         )
     st.sidebar.markdown(
-        '<div class="cs-sidebar-note">Changes are saved to the shared workspace before the page refreshes.</div>',
+        '<div class="cs-sidebar-note">Edits are retained in the shared workspace. Refresh reloads the current saved state.</div>',
         unsafe_allow_html=True,
     )
+
+
+def render_navigation(database: dict[str, Any]) -> str:
+    order, labels = get_navigation(database)
+    current = st.session_state.get("active_module", "Dashboard")
+    if current not in order:
+        current = order[0] if order else "Dashboard"
+
+    label_map = {page: labels.get(page, page) for page in order}
+    reverse_map = {label: page for page, label in label_map.items()}
+    options = list(label_map.values())
+    current_label = label_map.get(current, current)
+
+    st.markdown(
+        '<div class="cs-nav-shell"><div class="cs-nav-label">Workspace navigation</div></div>',
+        unsafe_allow_html=True,
+    )
+    selected_label = st.radio(
+        "Workspace navigation",
+        options,
+        index=options.index(current_label) if current_label in options else 0,
+        horizontal=True,
+        key=f"navigation_choice_{st.session_state.navigation_nonce}",
+        label_visibility="collapsed",
+    )
+    choice = reverse_map.get(selected_label, current)
+    st.session_state.active_module = choice
     return choice
 
 
@@ -593,7 +369,7 @@ def render_workspace_header(name: str, module_count: int) -> None:
 
     if name == "Dashboard":
         title = "AEC Project Workspace"
-        copy = "A connected workspace for projects, technical design, documentation, procurement, construction and cost control."
+        copy = "Projects, technical design, documentation, procurement, construction and cost control in one connected workspace."
         eyebrow = "Creative Studios"
     else:
         title = name
@@ -613,12 +389,8 @@ def render_workspace_header(name: str, module_count: int) -> None:
         </section>''',
         unsafe_allow_html=True,
     )
-
     st.markdown(
-        f'''<div class="cs-module-bar">
-            <div><div class="cs-module-title">{name}</div></div>
-            <div class="cs-module-meta">Creative Studios workspace</div>
-        </div>''',
+        f'''<div class="cs-module-bar"><div class="cs-module-title">{name}</div><div class="cs-module-meta">Shared workspace</div></div>''',
         unsafe_allow_html=True,
     )
 
@@ -653,6 +425,20 @@ def render_module(name: str, database: dict[str, Any]) -> None:
             st.exception(exc)
 
 
+def render_system_status(database: dict[str, Any]) -> None:
+    """Show live counts from the current shared database snapshot."""
+    def count(key: str) -> int:
+        value = database.get(key, [])
+        return len(value) if isinstance(value, list) else 0
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Projects", count("projects"))
+    c2.metric("Documents", count("documents"))
+    c3.metric("Drawings", count("drawings"))
+    c4.metric("Tasks", count("tasks"))
+    c5.metric("RFIs", count("rfis"))
+
+
 def main() -> None:
     try:
         initialize_session_state()
@@ -666,8 +452,11 @@ def main() -> None:
     inject_css()
     database = get_database()
     order, _ = get_navigation(database)
-    choice = render_sidebar(database)
+    render_sidebar(database)
+    choice = render_navigation(database)
     render_workspace_header(choice, len(order))
+    if choice != "Settings":
+        render_system_status(database)
     render_module(choice, database)
     st.markdown(
         '<div class="cs-footer">Creative Studios · AEC Collaboration Platform · Shared workspace</div>',
