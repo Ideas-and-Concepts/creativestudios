@@ -56,7 +56,7 @@ export async function GET() {
     const progressByBoqItem = db
       .select({
         boqItemId: constructionActivities.boqItemId,
-        progress: sql<number>`least(100, greatest(0, max(coalesce(${constructionActivities.progress}, 0))))`,
+        progress: sql<number>`least(100, greatest(0, max(coalesce(${constructionActivities.progress}, 0))))`.as("progress"),
       })
       .from(constructionActivities)
       .where(isNotNull(constructionActivities.boqItemId))
@@ -81,6 +81,8 @@ export async function GET() {
       committedByProject,
       actualByProject,
       earnedValueByProject,
+      drawingsByProject,
+      activeWorksByProject,
     ] = await Promise.all([
       db.select({ value: count() }).from(projects),
       db.select({ value: count() }).from(drawings),
@@ -99,7 +101,7 @@ export async function GET() {
       db.select({ value: sql<number | null>`avg(${constructionActivities.progress})` }).from(constructionActivities),
       db.select({
         projectId: projects.id,
-        progress: sql<number | null>`avg(${constructionActivities.progress})`,
+        progress: sql<number | null>`case when coalesce(sum(${constructionActivities.plannedQuantity}), 0) > 0 then least(100, greatest(0, (sum(coalesce(${constructionActivities.actualQuantity}, 0)) / sum(${constructionActivities.plannedQuantity})) * 100)) else null end`.as("progress"),
         activityCount: count(constructionActivities.id),
       })
         .from(projects)
@@ -143,6 +145,11 @@ export async function GET() {
         .from(boqItems)
         .leftJoin(progressByBoqItem, eq(progressByBoqItem.boqItemId, boqItems.id))
         .groupBy(boqItems.projectId),
+      db.select({ projectId: drawings.projectId, total: count() }).from(drawings).groupBy(drawings.projectId),
+      db.select({
+        projectId: constructionActivities.projectId,
+        total: count(),
+      }).from(constructionActivities).where(eq(constructionActivities.status, "in_progress")).groupBy(constructionActivities.projectId),
     ]);
 
     const optionalProgress = (value: unknown) => {
@@ -172,21 +179,26 @@ export async function GET() {
     const committedMap = new Map(committedByProject.map(row => [row.projectId, numeric(row.total)]));
     const actualMap = new Map(actualByProject.map(row => [row.projectId, numeric(row.total)]));
     const earnedValueMap = new Map(earnedValueByProject.map(row => [row.projectId, numeric(row.value)]));
+    const drawingsMap = new Map(drawingsByProject.map(row => [row.projectId, Number(row.total ?? 0)]));
+    const activeWorksMap = new Map(activeWorksByProject.map(row => [row.projectId, Number(row.total ?? 0)]));
 
-    const commercialByProject = projectsCount.length
-      ? projectProgressRows.map(row => {
-          const projectId = row.projectId;
-          return {
-            projectId,
-            ...commercialMetrics(
-              budgetMap.get(projectId) ?? 0,
-              committedMap.get(projectId) ?? 0,
-              actualMap.get(projectId) ?? 0,
-              earnedValueMap.get(projectId) ?? 0,
-            ),
-          };
-        })
-      : [];
+    const projectMetrics = projectProgressRows.map(row => {
+      const projectId = row.projectId;
+      return {
+        projectId,
+        progress: row.progress == null ? null : Math.round(clampProgress(row.progress)),
+        activityCount: Number(row.activityCount ?? 0),
+        drawings: drawingsMap.get(projectId) ?? 0,
+        activeWorks: activeWorksMap.get(projectId) ?? 0,
+        boqValue: budgetMap.get(projectId) ?? 0,
+        commercial: commercialMetrics(
+          budgetMap.get(projectId) ?? 0,
+          committedMap.get(projectId) ?? 0,
+          actualMap.get(projectId) ?? 0,
+          earnedValueMap.get(projectId) ?? 0,
+        ),
+      };
+    });
 
     return NextResponse.json({
       data: {
@@ -202,8 +214,9 @@ export async function GET() {
           progress: row.progress == null ? 0 : Math.round(clampProgress(row.progress)),
           activityCount: Number(row.activityCount ?? 0),
         })),
+        projectMetrics,
         commercial,
-        commercialByProject,
+        commercialByProject: projectMetrics.map(row => ({ projectId: row.projectId, ...row.commercial })),
       },
     });
   } catch (error) {
