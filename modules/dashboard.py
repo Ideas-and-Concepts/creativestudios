@@ -39,10 +39,11 @@ def _label(value: str) -> str:
 
 
 def _progress(row: dict[str, Any]) -> float:
-    for key in ("progress", "completion", "percent_complete"):
+    """Return only recorded progress, with completion as the sole status fallback."""
+    for key in ("progress", "completion", "percent_complete", "percentComplete"):
         if row.get(key) is not None:
             return max(0.0, min(100.0, _number(row.get(key))))
-    return {"completed": 100, "active": 100, "on_hold": 0, "planning": 0, "cancelled": 0}.get(_status(row, "planning"), 0)
+    return 100.0 if _status(row, "planning") == "completed" else 0.0
 
 
 def _project_name(row: dict[str, Any]) -> str:
@@ -106,7 +107,7 @@ def render_dashboard(database: dict[str, Any]) -> None:
     open_rfis = sum(_status(r) not in {"closed", "completed"} for r in rfis)
     active_works = sum(_status(r) == "in_progress" for r in construction + engineering + mep)
     work_rows = construction + engineering + mep
-    work_progress = round(sum(_number(r.get("progress")) for r in work_rows) / len(work_rows)) if work_rows else 0
+    work_progress = round(sum(_progress(r) for r in work_rows) / len(work_rows)) if work_rows else 0
     approved_documents = sum(bool(r.get("is_approved") or r.get("isApproved")) for r in documents)
     procurement_value = sum(_number(r.get("total"), _number(r.get("grand_total"), _number(r.get("amount")))) for r in procurement)
 
@@ -139,8 +140,8 @@ def render_dashboard(database: dict[str, Any]) -> None:
     with right:
         st.markdown('<div class="cs-dash-panel"><div class="cs-dash-panel-title">Workstream progress</div><div class="cs-dash-panel-note">Average progress from recorded work items</div>', unsafe_allow_html=True)
         design_rows = engineering + mep
-        design_progress = round(sum(_number(r.get("progress")) for r in design_rows) / len(design_rows)) if design_rows else 0
-        construction_progress = round(sum(_number(r.get("progress")) for r in construction) / len(construction)) if construction else 0
+        design_progress = round(sum(_progress(r) for r in design_rows) / len(design_rows)) if design_rows else 0
+        construction_progress = round(sum(_progress(r) for r in construction) / len(construction)) if construction else 0
         frame = pd.DataFrame({"Workstream": ["Design & engineering", "Construction"], "Progress": [design_progress, construction_progress]})
         fig = px.bar(frame, x="Progress", y="Workstream", orientation="h", range_x=[0,100], text="Progress")
         fig.update_traces(marker_color=BLUE, texttemplate="%{text}%", textposition="outside")
@@ -214,10 +215,13 @@ def render_dashboard(database: dict[str, Any]) -> None:
     if project_scope:
         rows = []
         all_boq = _records(database, "boq_items") or _records(database, "boq")
+        all_construction = _records(database, "construction_activities")
         for project in project_scope[:15]:
             pid = str(project.get("id"))
             project_boq = sum(_number(r.get("amount"), _number(r.get("quantity")) * _number(r.get("rate"))) for r in all_boq if str(r.get("project_id") or r.get("projectId")) == pid)
-            rows.append({"Project": _project_name(project), "Code": project.get("code") or "", "Status": _label(_status(project, "planning")), "Progress": round(_progress(project)), "BOQ Value": project_boq})
+            project_work = [r for r in all_construction if str(r.get("project_id") or r.get("projectId")) == pid]
+            project_progress = round(sum(_progress(r) for r in project_work) / len(project_work)) if project_work else (100 if _status(project, "planning") == "completed" else 0)
+            rows.append({"Project": _project_name(project), "Code": project.get("code") or "", "Status": _label(_status(project, "planning")), "Progress": project_progress, "BOQ Value": project_boq})
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, column_config={"Progress": st.column_config.ProgressColumn("Progress", min_value=0, max_value=100, format="%d%%"), "BOQ Value": st.column_config.NumberColumn("BOQ Value", format="$%,.0f")})
     else:
         st.markdown('<div class="cs-empty">No projects recorded yet.</div>', unsafe_allow_html=True)
