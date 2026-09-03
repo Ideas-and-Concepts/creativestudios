@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { and, count, eq, isNotNull, ne, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import {
@@ -25,6 +25,20 @@ const numeric = (value: unknown) => {
 export async function GET() {
   try {
     const db = getDb();
+
+    // A BOQ item can be linked to more than one construction activity.
+    // For EVM, value each BOQ item once using the highest linked activity
+    // progress, capped at 100%, rather than summing duplicate BOQ values.
+    const progressByBoqItem = db
+      .select({
+        boqItemId: constructionActivities.boqItemId,
+        progress: sql<number>`least(100, greatest(0, max(coalesce(${constructionActivities.progress}, 0))))`,
+      })
+      .from(constructionActivities)
+      .where(isNotNull(constructionActivities.boqItemId))
+      .groupBy(constructionActivities.boqItemId)
+      .as("progress_by_boq_item");
+
     const [
       projectsCount,
       drawingsCount,
@@ -70,10 +84,10 @@ export async function GET() {
         .from(costControl)
         .where(eq(costControl.costType, "Actual Cost")),
       db.select({
-        value: sql<string>`coalesce(sum(${boqItems.amount} * coalesce(${constructionActivities.progress}, 0) / 100.0), 0)`,
+        value: sql<string>`coalesce(sum(${boqItems.amount} * coalesce(${progressByBoqItem.progress}, 0) / 100.0), 0)`,
       })
-        .from(constructionActivities)
-        .innerJoin(boqItems, eq(constructionActivities.boqItemId, boqItems.id)),
+        .from(boqItems)
+        .leftJoin(progressByBoqItem, eq(progressByBoqItem.boqItemId, boqItems.id)),
     ]);
 
     const optionalProgress = (value: unknown) => {
