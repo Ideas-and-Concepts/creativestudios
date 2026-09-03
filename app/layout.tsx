@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 
 import AecNavigation from "@/components/AecNavigation";
 import "./globals.css";
+import "./shell-overrides.css";
 
 export const metadata: Metadata = {
   title: "Creative Studios",
