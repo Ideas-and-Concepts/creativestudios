@@ -1,0 +1,12 @@
+/* Shared shell geometry for the dashboard-style navigation. */
+main:not(.cs-dashboard-page) {
+  margin-left: 250px;
+  padding-top: 64px;
+}
+
+@media (max-width: 900px) {
+  main:not(.cs-dashboard-page) {
+    margin-left: 0;
+    padding-top: 64px;
+  }
+}
