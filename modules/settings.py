@@ -78,6 +78,8 @@ def _save_settings(database: dict[str, Any], new_settings: dict[str, Any], messa
     database["settings"] = new_settings
     try:
         if save_memory(database):
+            st.session_state.pop("navigation_choice", None)
+            st.session_state.pop("settings_page_editor_label", None)
             st.success(message)
             st.rerun()
         database["settings"] = previous
@@ -140,9 +142,17 @@ def render_page_editor(database: dict[str, Any]) -> None:
         return
 
     if save_page:
-        labels[selected_page] = new_label.strip() or selected_page
-        _save_settings(database, {**settings, "page_order": order, "page_labels": labels}, "Page name saved.")
-        return
+        cleaned_label = new_label.strip() or selected_page
+        duplicate = next(
+            (page for page in order if page != selected_page and labels.get(page, page).strip().casefold() == cleaned_label.casefold()),
+            None,
+        )
+        if duplicate:
+            st.error("Each page must have a unique display name.")
+        else:
+            labels[selected_page] = cleaned_label
+            _save_settings(database, {**settings, "page_order": order, "page_labels": labels}, "Page name saved.")
+            return
 
     if st.button("Reset Page Arrangement", use_container_width=True):
         _save_settings(
