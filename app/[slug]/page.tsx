@@ -127,7 +127,10 @@ export default function WorkspaceModule() {
 
   if (!definition) return <main className="content standalone"><div className="workspace-card"><h1>Module not found</h1><Link href="/">Return to Dashboard</Link></div></main>;
 
-  return <main className="content standalone">
+  const isVercelColourModule = ["reports", "architecture", "tasks"].includes(slug ?? "");
+  const pageClassName = `content standalone${isVercelColourModule ? " vercel-colour-module" : ""}`;
+
+  return <main className={pageClassName}>
     <header className="topbar"><div><div className="eyebrow">Creative Studios</div><h1>{definition.title}</h1><p>{definition.description}</p></div><Link className="secondary-button" href="/">Dashboard</Link></header>
     <section className="kpi-grid">{cards.map((card) => <div className="kpi-card" key={card}><span>{card}</span><strong>{definition.kind === "settings" ? "Ready" : definition.kind === "cost" || definition.kind === "reports" ? "Live" : rows.length}</strong></div>)}</section>
     {definition.kind !== "cost" && definition.kind !== "reports" && definition.kind !== "settings" && <>
