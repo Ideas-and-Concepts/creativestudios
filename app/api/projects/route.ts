@@ -44,11 +44,14 @@ export async function POST(request: Request) {
 
   try {
     const db = getDb();
+    const { startDate, targetEndDate, ...projectData } = parsed.data;
     const [project] = await db
       .insert(projects)
       .values({
-        ...parsed.data,
+        ...projectData,
         status: parsed.data.status ?? "planning",
+        startDate: startDate ? new Date(startDate) : null,
+        targetEndDate: targetEndDate ? new Date(targetEndDate) : null,
       })
       .returning();
 
