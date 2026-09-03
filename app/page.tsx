@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Module = { name: string; description: string; href: string; group: string };
-type Summary = { projects: number; drawings: number; boqItems: number; activeWorks: number; boqValue?: number; averageProgress?: number };
+type Summary = { projects: number; drawings: number; boqItems: number; activeWorks: number; boqValue?: number; averageProgress?: number; domainProgress?: { architecture?: number; engineering?: number; mep?: number; construction?: number }; projectProgress?: { projectId: string; progress: number; activityCount: number }[] };
 type Project = { id: string; code?: string; name?: string; status?: string; description?: string | null };
 type Document = { id: string; title?: string; documentType?: string; revision?: string | null; createdAt?: string; projectId?: string | null; isApproved?: boolean };
 type Task = { id: string; title?: string; status?: string; priority?: string; createdAt?: string };
@@ -31,7 +31,7 @@ const defaultModules: Module[] = [
   { name: "Settings", description: "Workspace preferences and configuration.", href: "/settings", group: "System" },
 ];
 
-const emptySummary: Summary = { projects: 0, drawings: 0, boqItems: 0, activeWorks: 0, boqValue: 0, averageProgress: 0 };
+const emptySummary: Summary = { projects: 0, drawings: 0, boqItems: 0, activeWorks: 0, averageProgress: 0, domainProgress: {}, projectProgress: [] };
 
 async function readJson<T>(response: Response): Promise<T | null> {
   const text = await response.text();
@@ -100,17 +100,21 @@ export default function Home() {
   const projectStatusCounts = useMemo(() => projects.reduce<Record<string, number>>((acc, p) => { const key = p.status || "planning"; acc[key] = (acc[key] || 0) + 1; return acc; }, {}), [projects]);
   const taskStatusCounts = useMemo(() => tasks.reduce<Record<string, number>>((acc, t) => { const key = t.status || "open"; acc[key] = (acc[key] || 0) + 1; return acc; }, {}), [tasks]);
   const rfiStatusCounts = useMemo(() => rfis.reduce<Record<string, number>>((acc, r) => { const key = r.status || "open"; acc[key] = (acc[key] || 0) + 1; return acc; }, {}), [rfis]);
+  const projectProgressMap = useMemo(() => new Map((summary.projectProgress || []).map((row) => [row.projectId, row])), [summary.projectProgress]);
   const activeTasks = tasks.filter((t) => ["open", "in_progress", "review"].includes((t.status || "").toLowerCase())).length;
   const openRfis = rfis.filter((r) => !["closed", "completed"].includes((r.status || "").toLowerCase())).length;
   const completedTasks = tasks.filter((t) => ["completed", "closed"].includes((t.status || "").toLowerCase())).length;
   const approvedDocuments = filteredDocuments.filter((d) => d.isApproved).length;
   const workProgress = Math.max(0, Math.min(100, Number(summary.averageProgress || 0)));
+  const domainProgress = summary.domainProgress || {};
+  const designProgress = Math.round((Number(domainProgress.architecture || 0) + Number(domainProgress.engineering || 0)) / 2);
+  const constructionSignal = Math.round(Number(domainProgress.construction || 0));
   const visibleModules = modules.filter((m) => m.name !== "Dashboard");
 
   const kpis = [
     ["Projects", summary.projects, "Portfolio", "/projects"],
     ["Active Work", summary.activeWorks, "Execution", "/construction"],
-    ["Work Progress", `${workProgress}%`, "Design + site", "/reports"],
+    ["Work Progress", `${workProgress}%`, "Live work records", "/reports"],
     ["BOQ Value", summary.boqValue ? `$${Number(summary.boqValue).toLocaleString()}` : "$0", `${summary.boqItems} items`, "/boq"],
     ["Drawings", summary.drawings, "Controlled register", "/drawings"],
     ["Documents", filteredDocuments.length, `${approvedDocuments} approved`, "/documents"],
@@ -132,10 +136,7 @@ export default function Home() {
             <p>One operating view across projects, design, documentation, construction, commercial control and workflow.</p>
           </div>
           <div className="cs-actions">
-            <select className="cs-select" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} aria-label="Project filter">
-              <option>All Projects</option>
-              {projects.map((p) => <option key={p.id}>{p.name || p.code || "Untitled"}</option>)}
-            </select>
+            <select className="cs-select" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} aria-label="Project filter"><option>All Projects</option>{projects.map((p) => <option key={p.id}>{p.name || p.code || "Untitled"}</option>)}</select>
             <button className="cs-button" onClick={() => void refresh()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button>
             <Link className="cs-link" href="/reports">Reports</Link>
             <a className="cs-link" href={STREAMLIT_CLOUD_URL} target="_blank" rel="noreferrer">AI Workspace</a>
@@ -143,62 +144,30 @@ export default function Home() {
           </div>
         </header>
 
-        <section className="cs-kpis">
-          {kpis.map(([title, value, note, href]) => <Link href={href} className="cs-kpi" key={title} style={{ textDecoration: "none", color: "inherit" }}><div className="cs-kpi-label">{title}</div><div className="cs-kpi-value">{value}</div><div className="cs-kpi-note">{note}</div></Link>)}
-        </section>
+        <section className="cs-kpis">{kpis.map(([title, value, note, href]) => <Link href={href} className="cs-kpi" key={title} style={{ textDecoration: "none", color: "inherit" }}><div className="cs-kpi-label">{title}</div><div className="cs-kpi-value">{value}</div><div className="cs-kpi-note">{note}</div></Link>)}</section>
 
         <div className="cs-layout">
           <section className="cs-panel">
-            <div className="cs-panel-head"><div><div className="cs-panel-title">Delivery health</div><div className="cs-panel-note">Current portfolio signals, not placeholder estimates</div></div><span className="cs-pill info">{workProgress}% average work progress</span></div>
+            <div className="cs-panel-head"><div><div className="cs-panel-title">Delivery health</div><div className="cs-panel-note">Calculated from live work records</div></div><span className="cs-pill info">{workProgress}% portfolio work progress</span></div>
             <div className="cs-health-grid">
-              {[['Overall delivery', workProgress, 'Average live work progress'], ['Design & engineering', Math.max(0, Math.min(100, workProgress)), 'Engineering and MEP signal'], ['Construction', Math.max(0, Math.min(100, workProgress)), 'Site execution signal']].map(([name, value, note]) => <div className="cs-health-card" key={String(name)}><div className="cs-ring" style={{ "--value": `${Number(value)}%` } as React.CSSProperties}><span className="cs-ring-label">{Number(value)}%</span></div><div className="cs-health-name">{name}</div><div className="cs-health-note">{note}</div></div>)}
+              {[['Overall delivery', workProgress, 'Average across architecture, engineering, MEP and construction'], ['Design & engineering', designProgress, 'Architecture + engineering work records'], ['Construction', constructionSignal, 'Construction activity progress']].map(([name, value, note]) => <div className="cs-health-card" key={String(name)}><div className="cs-ring" style={{ "--value": `${Number(value)}%` } as React.CSSProperties}><span className="cs-ring-label">{Number(value)}%</span></div><div className="cs-health-name">{name}</div><div className="cs-health-note">{note}</div></div>)}
             </div>
           </section>
 
-          <section className="cs-panel">
-            <div className="cs-panel-head"><div><div className="cs-panel-title">Workflow pulse</div><div className="cs-panel-note">Where attention is concentrated</div></div></div>
-            <div className="cs-status-list">
-              {[['Active tasks', activeTasks, 'info'], ['Open RFIs', openRfis, openRfis ? 'warning' : 'positive'], ['Completed tasks', completedTasks, 'positive'], ['Documents approved', approvedDocuments, 'positive']].map(([name, value, kind]) => <div className="cs-status-row" key={String(name)}><span className="cs-status-left"><i className={`cs-status-dot ${kind}`} />{name}</span><strong>{value}</strong></div>)}
-            </div>
-          </section>
+          <section className="cs-panel"><div className="cs-panel-head"><div><div className="cs-panel-title">Workflow pulse</div><div className="cs-panel-note">Where attention is concentrated</div></div></div><div className="cs-status-list">{[['Active tasks', activeTasks, 'info'], ['Open RFIs', openRfis, openRfis ? 'warning' : 'positive'], ['Completed tasks', completedTasks, 'positive'], ['Documents approved', approvedDocuments, 'positive']].map(([name, value, kind]) => <div className="cs-status-row" key={String(name)}><span className="cs-status-left"><i className={`cs-status-dot ${kind}`} />{name}</span><strong>{value}</strong></div>)}</div></section>
         </div>
 
         <div className="cs-layout2">
-          <section className="cs-panel">
-            <div className="cs-panel-head"><div><div className="cs-panel-title">Project portfolio</div><div className="cs-panel-note">Live status distribution and delivery progress</div></div><Link href="/projects" className="cs-link">Open register</Link></div>
-            {projects.length ? <div className="cs-portfolio"><table className="cs-table"><thead><tr><th>Project</th><th>Code</th><th>Status</th><th>Progress signal</th></tr></thead><tbody>{projects.slice(0, 10).map((p) => { const selected = selectedProject?.id === p.id; const progress = selected ? workProgress : (p.status === 'completed' ? 100 : p.status === 'active' ? workProgress : 0); return <tr key={p.id}><td className="cs-project-name">{p.name || "Untitled"}</td><td>{p.code || ""}</td><td><span className={`cs-pill ${statusClass(p.status)}`}>{label(p.status)}</span></td><td><div className="cs-progress-cell"><div className="cs-mini-track"><div className="cs-mini-fill" style={{ width: `${progress}%` }} /></div><span>{progress}%</span></div></td></tr>; })}</tbody></table></div> : <div className="cs-empty">Create a project to start portfolio intelligence.</div>}
-          </section>
+          <section className="cs-panel"><div className="cs-panel-head"><div><div className="cs-panel-title">Project portfolio</div><div className="cs-panel-note">Actual construction progress where activities exist</div></div><Link href="/projects" className="cs-link">Open register</Link></div>{projects.length ? <div className="cs-portfolio"><table className="cs-table"><thead><tr><th>Project</th><th>Code</th><th>Status</th><th>Progress</th><th>Activities</th></tr></thead><tbody>{projects.slice(0, 10).map((p) => { const metric = projectProgressMap.get(p.id); const progress = metric?.activityCount ? metric.progress : p.status === "completed" ? 100 : 0; return <tr key={p.id}><td className="cs-project-name">{p.name || "Untitled"}</td><td>{p.code || ""}</td><td><span className={`cs-pill ${statusClass(p.status)}`}>{label(p.status)}</span></td><td><div className="cs-progress-cell"><div className="cs-mini-track"><div className="cs-mini-fill" style={{ width: `${progress}%` }} /></div><span>{progress}%</span></div></td><td>{metric?.activityCount ?? 0}</td></tr>; })}</tbody></table></div> : <div className="cs-empty">Create a project to start portfolio intelligence.</div>}</section>
 
-          <section className="cs-panel">
-            <div className="cs-panel-head"><div><div className="cs-panel-title">Attention queue</div><div className="cs-panel-note">Open items that may require action</div></div></div>
-            <div className="cs-alerts">
-              {rfis.filter((r) => !["closed", "completed"].includes((r.status || "").toLowerCase())).slice(0, 4).map((r) => <Link className="cs-alert" href="/rfis" key={`rfi-${r.id}`}><div className="cs-alert-top"><span className="cs-alert-title">{r.rfiNumber || "RFI"}: {r.subject || "Open information request"}</span><span className="cs-pill warning">{label(r.status)}</span></div><div className="cs-alert-meta">RFI requires review or response</div></Link>)}
-              {tasks.filter((t) => !["completed", "closed"].includes((t.status || "").toLowerCase())).slice(0, 4).map((t) => <Link className="cs-alert" href="/tasks" key={`task-${t.id}`}><div className="cs-alert-top"><span className="cs-alert-title">{t.title || "Untitled task"}</span><span className={`cs-pill ${statusClass(t.status)}`}>{label(t.status)}</span></div><div className="cs-alert-meta">{t.priority ? `Priority: ${label(t.priority)}` : "Open project action"}</div></Link>)}
-              {!openRfis && !activeTasks && <div className="cs-empty">No open workflow items. The queue is clear.</div>}
-            </div>
-          </section>
+          <section className="cs-panel"><div className="cs-panel-head"><div><div className="cs-panel-title">Attention queue</div><div className="cs-panel-note">Open items that may require action</div></div></div><div className="cs-alerts">{rfis.filter((r) => !["closed", "completed"].includes((r.status || "").toLowerCase())).slice(0, 4).map((r) => <Link className="cs-alert" href="/rfis" key={`rfi-${r.id}`}><div className="cs-alert-top"><span className="cs-alert-title">{r.rfiNumber || "RFI"}: {r.subject || "Open information request"}</span><span className="cs-pill warning">{label(r.status)}</span></div><div className="cs-alert-meta">RFI requires review or response</div></Link>)}{tasks.filter((t) => !["completed", "closed"].includes((t.status || "").toLowerCase())).slice(0, 4).map((t) => <Link className="cs-alert" href="/tasks" key={`task-${t.id}`}><div className="cs-alert-top"><span className="cs-alert-title">{t.title || "Untitled task"}</span><span className={`cs-pill ${statusClass(t.status)}`}>{label(t.status)}</span></div><div className="cs-alert-meta">{t.priority ? `Priority: ${label(t.priority)}` : "Open project action"}</div></Link>)}{!openRfis && !activeTasks && <div className="cs-empty">No open workflow items. The queue is clear.</div>}</div></section>
         </div>
 
-        <div className="cs-layout2">
-          <section className="cs-panel">
-            <div className="cs-panel-head"><div><div className="cs-panel-title">Project status mix</div><div className="cs-panel-note">Portfolio composition</div></div></div>
-            <div className="cs-bars">{Object.entries(projectStatusCounts).length ? Object.entries(projectStatusCounts).map(([key, value]) => { const total = Math.max(projects.length, 1); const pct = Math.round(value / total * 100); return <div className="cs-bar-row" key={key}><span>{label(key)}</span><div className="cs-track"><div className="cs-fill" style={{ width: `${pct}%` }} /></div><strong>{value}</strong></div>; }) : <div className="cs-empty">No project status data yet.</div>}</div>
-          </section>
-          <section className="cs-panel">
-            <div className="cs-panel-head"><div><div className="cs-panel-title">Workflow distribution</div><div className="cs-panel-note">Tasks and RFIs by current status</div></div></div>
-            <div className="cs-bars">{[...Object.entries(taskStatusCounts).map(([k,v]) => [`Task · ${label(k)}`, v] as const), ...Object.entries(rfiStatusCounts).map(([k,v]) => [`RFI · ${label(k)}`, v] as const)].slice(0, 8).map(([name, value]) => { const max = Math.max(...[...Object.values(taskStatusCounts), ...Object.values(rfiStatusCounts), 1]); return <div className="cs-bar-row" key={name}><span>{name}</span><div className="cs-track"><div className="cs-fill" style={{ width: `${Math.round(value / max * 100)}%` }} /></div><strong>{value}</strong></div>; })}</div>
-          </section>
-        </div>
+        <div className="cs-layout2"><section className="cs-panel"><div className="cs-panel-head"><div><div className="cs-panel-title">Project status mix</div><div className="cs-panel-note">Portfolio composition</div></div></div><div className="cs-bars">{Object.entries(projectStatusCounts).length ? Object.entries(projectStatusCounts).map(([key, value]) => { const total = Math.max(projects.length, 1); const pct = Math.round(value / total * 100); return <div className="cs-bar-row" key={key}><span>{label(key)}</span><div className="cs-track"><div className="cs-fill" style={{ width: `${pct}%` }} /></div><strong>{value}</strong></div>; }) : <div className="cs-empty">No project status data yet.</div>}</div></section><section className="cs-panel"><div className="cs-panel-head"><div><div className="cs-panel-title">Workflow distribution</div><div className="cs-panel-note">Tasks and RFIs by current status</div></div></div><div className="cs-bars">{[...Object.entries(taskStatusCounts).map(([k,v]) => [`Task · ${label(k)}`, v] as const), ...Object.entries(rfiStatusCounts).map(([k,v]) => [`RFI · ${label(k)}`, v] as const)].slice(0, 8).map(([name, value]) => { const max = Math.max(...[...Object.values(taskStatusCounts), ...Object.values(rfiStatusCounts), 1]); return <div className="cs-bar-row" key={name}><span>{name}</span><div className="cs-track"><div className="cs-fill" style={{ width: `${Math.round(value / max * 100)}%` }} /></div><strong>{value}</strong></div>; })}</div></section></div>
 
-        <section className="cs-panel">
-          <div className="cs-panel-head"><div><div className="cs-panel-title">Recent controlled documents</div><div className="cs-panel-note">Latest records available in the selected scope</div></div><Link href="/documents" className="cs-link">Open documents</Link></div>
-          {filteredDocuments.length ? <div className="cs-docs"><table className="cs-table"><thead><tr><th>Document</th><th>Type</th><th>Revision</th><th>Date</th><th>Status</th></tr></thead><tbody>{filteredDocuments.slice(0, 10).map((d) => <tr key={d.id}><td className="cs-project-name">{d.title || "Untitled document"}</td><td>{d.documentType || "Document"}</td><td>{d.revision || "A"}</td><td>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : ""}</td><td><span className={`cs-pill ${d.isApproved ? "positive" : "neutral"}`}>{d.isApproved ? "Approved" : "Draft"}</span></td></tr>)}</tbody></table></div> : <div className="cs-empty">No controlled documents have been recorded.</div>}
-        </section>
+        <section className="cs-panel"><div className="cs-panel-head"><div><div className="cs-panel-title">Recent controlled documents</div><div className="cs-panel-note">Latest records available in the selected scope</div></div><Link href="/documents" className="cs-link">Open documents</Link></div>{filteredDocuments.length ? <div className="cs-docs"><table className="cs-table"><thead><tr><th>Document</th><th>Type</th><th>Revision</th><th>Date</th><th>Status</th></tr></thead><tbody>{filteredDocuments.slice(0, 10).map((d) => <tr key={d.id}><td className="cs-project-name">{d.title || "Untitled document"}</td><td>{d.documentType || "Document"}</td><td>{d.revision || "A"}</td><td>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : ""}</td><td><span className={`cs-pill ${d.isApproved ? "positive" : "neutral"}`}>{d.isApproved ? "Approved" : "Draft"}</span></td></tr>)}</tbody></table></div> : <div className="cs-empty">No controlled documents have been recorded.</div>}</section>
 
-        <section className="cs-panel">
-          <div className="cs-panel-head"><div><div className="cs-panel-title">Workspace map</div><div className="cs-panel-note">Navigate directly into the operating areas behind the dashboard</div></div></div>
-          <div className="cs-module-grid">{visibleModules.slice(0, 16).map((module) => <Link href={module.href} className="cs-module" key={module.href}><div className="cs-module-name">{module.name}</div><div className="cs-module-desc">{module.description}</div></Link>)}</div>
-        </section>
+        <section className="cs-panel"><div className="cs-panel-head"><div><div className="cs-panel-title">Workspace map</div><div className="cs-panel-note">Navigate directly into the operating areas behind the dashboard</div></div></div><div className="cs-module-grid">{visibleModules.slice(0, 16).map((module) => <Link href={module.href} className="cs-module" key={module.href}><div className="cs-module-name">{module.name}</div><div className="cs-module-desc">{module.description}</div></Link>)}</div></section>
 
         <footer className="cs-footer"><span>{lastUpdated ? `Last refreshed ${lastUpdated.toLocaleTimeString()}` : "Waiting for live data"}{loading ? " · Refreshing" : ""}</span><span><Link href="/reports">Open Reports</Link> · <a href={STREAMLIT_CLOUD_URL} target="_blank" rel="noreferrer">Open AI Workspace</a></span></footer>
       </div>
