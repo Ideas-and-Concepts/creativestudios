@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Project={id:string;code:string;name:string};
-type Option={id:string;label?:string;title?:string;drawingNumber?:string;itemCode?:string;activityCode?:string;name?:string};
+type Option={id:string;label?:string;title?:string;drawingNumber?:string;itemCode?:string;activityCode?:string;name?:string;description?:string;subject?:string};
 type Rfi={id:string;projectId:string;rfiNumber:string;subject:string;question:string;response?:string|null;status:string;raisedBy?:string|null;assignedTo?:string|null;priority?:string|null;dueDate?:string|null;responseDate?:string|null;drawingId?:string|null;boqItemId?:string|null;constructionActivityId?:string|null;notes?:string|null;reference?:string|null;createdAt?:string};
 const statuses=["Open","Under Review","Answered","Closed","Cancelled"],priorities=["Low","Medium","High","Critical"];
 async function json(r:Response){const t=await r.text();try{return t?JSON.parse(t):{}}catch{return {}}}
