@@ -11,6 +11,8 @@ from typing import Any
 
 from modules.database import database_backend, get_records, get_relational_projects
 
+SHARED_PROJECT_KEY = "cs_selected_project_id"
+
 
 def get_projects(database: dict[str, Any]) -> list[dict[str, Any]]:
     """Return canonical project records from the active shared backend."""
@@ -40,22 +42,58 @@ def project_map(database: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {str(project.get("id")): project for project in project_options(database)}
 
 
+def get_selected_project_id() -> str | None:
+    """Return the shared project selection stored in Streamlit session state."""
+    import streamlit as st
+
+    value = st.session_state.get(SHARED_PROJECT_KEY)
+    return str(value) if value not in (None, "", "all") else None
+
+
+def set_selected_project_id(project_id: Any | None) -> None:
+    """Update the shared project selection for all modules in this session."""
+    import streamlit as st
+
+    st.session_state[SHARED_PROJECT_KEY] = None if project_id in (None, "", "all") else str(project_id)
+
+
 def select_project(
     database: dict[str, Any],
     label: str = "Project",
     key: str | None = None,
-) -> Any | None:
-    """Render a shared project selector and return the canonical project ID."""
+    include_all: bool = True,
+) -> str | None:
+    """Render the shared project selector and persist its canonical project ID."""
     import streamlit as st
 
     projects = project_options(database)
     if not projects:
+        set_selected_project_id(None)
         st.warning("No projects found. Create a project first in Projects.")
         return None
 
-    labels = [project_label(project) for project in projects]
-    selected = st.selectbox(label, labels, key=key)
-    return projects[labels.index(selected)].get("id")
+    by_id = {str(project.get("id")): project for project in projects}
+    options = ([None] if include_all else []) + list(by_id)
+    current = get_selected_project_id()
+    if current not in options:
+        current = None if include_all else next(iter(by_id), None)
+        set_selected_project_id(current)
+
+    def format_option(value: Any) -> str:
+        if value is None:
+            return "All Projects"
+        return project_label(by_id[str(value)])
+
+    widget_key = key or "cs_shared_project_selector"
+    selected = st.selectbox(
+        label,
+        options,
+        index=options.index(current) if current in options else 0,
+        format_func=format_option,
+        key=widget_key,
+    )
+    set_selected_project_id(selected)
+    return get_selected_project_id()
 
 
 def filter_project_records(
@@ -64,5 +102,5 @@ def filter_project_records(
 ) -> list[dict[str, Any]]:
     """Filter records to one canonical project ID."""
     if project_id is None:
-        return []
+        return records
     return [record for record in records if str(record.get("project_id")) == str(project_id)]
