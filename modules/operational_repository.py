@@ -6,31 +6,13 @@ from typing import Any
 from modules.database import _neon_connect, _rows_as_dicts
 
 _REPOSITORIES = {
-    "tasks": (
-        "tasks",
-        ("project_id", "title", "description", "status", "priority", "due_date"),
-        "id,project_id,title,description,status,priority,due_date,created_at,updated_at",
-    ),
-    "rfis": (
-        "rfis",
-        ("project_id", "rfi_number", "subject", "question", "response", "status", "raised_by", "assigned_to", "priority", "due_date", "response_date", "drawing_id", "boq_item_id", "construction_activity_id", "notes", "reference"),
-        "id,project_id,rfi_number,subject,question,response,status,raised_by,assigned_to,priority,due_date,response_date,drawing_id,boq_item_id,construction_activity_id,notes,reference,created_at,updated_at",
-    ),
-    "approvals": (
-        "approvals",
-        ("project_id", "subject", "approval_type", "approval_number", "status", "requested_by", "reviewer", "due_date", "submitted_at", "decided_at", "document_id", "drawing_id", "rfi_id", "comments"),
-        "id,project_id,subject,approval_type,approval_number,status,requested_by,reviewer,due_date,submitted_at,decided_at,document_id,drawing_id,rfi_id,comments,created_at,updated_at",
-    ),
-    "cost_control": (
-        "cost_control",
-        ("project_id", "cost_code", "description", "cost_type", "amount", "status", "notes"),
-        "id,project_id,cost_code,description,cost_type,amount,status,notes,created_at,updated_at",
-    ),
-    "construction": (
-        "construction_activities",
-        ("project_id", "boq_item_id", "activity_code", "name", "discipline", "contractor", "status", "progress", "planned_quantity", "actual_quantity", "unit", "planned_start", "planned_end", "actual_start", "actual_end", "notes"),
-        "id,project_id,boq_item_id,activity_code,name,discipline,contractor,status,progress,planned_quantity,actual_quantity,unit,planned_start,planned_end,actual_start,actual_end,notes,created_at,updated_at",
-    ),
+    "tasks": ("tasks", ("project_id", "title", "description", "status", "priority", "due_date"), "id,project_id,title,description,status,priority,due_date,created_at,updated_at"),
+    "rfis": ("rfis", ("project_id", "rfi_number", "subject", "question", "response", "status", "raised_by", "assigned_to", "priority", "due_date", "response_date", "drawing_id", "boq_item_id", "construction_activity_id", "notes", "reference"), "id,project_id,rfi_number,subject,question,response,status,raised_by,assigned_to,priority,due_date,response_date,drawing_id,boq_item_id,construction_activity_id,notes,reference,created_at,updated_at"),
+    "approvals": ("approvals", ("project_id", "subject", "approval_type", "approval_number", "status", "requested_by", "reviewer", "due_date", "submitted_at", "decided_at", "document_id", "drawing_id", "rfi_id", "comments"), "id,project_id,subject,approval_type,approval_number,status,requested_by,reviewer,due_date,submitted_at,decided_at,document_id,drawing_id,rfi_id,comments,created_at,updated_at"),
+    "cost_control": ("cost_control", ("project_id", "cost_code", "description", "cost_type", "amount", "status", "notes"), "id,project_id,cost_code,description,cost_type,amount,status,notes,created_at,updated_at"),
+    "construction": ("construction_activities", ("project_id", "boq_item_id", "activity_code", "name", "discipline", "contractor", "status", "progress", "planned_quantity", "actual_quantity", "unit", "planned_start", "planned_end", "actual_start", "actual_end", "notes"), "id,project_id,boq_item_id,activity_code,name,discipline,contractor,status,progress,planned_quantity,actual_quantity,unit,planned_start,planned_end,actual_start,actual_end,notes,created_at,updated_at"),
+    "engineering_works": ("engineering_works", ("project_id", "category", "description", "status", "progress", "notes"), "id,project_id,category,description,status,progress,notes,created_at,updated_at"),
+    "mep_works": ("mep_works", ("project_id", "drawing_id", "discipline", "category", "description", "specification", "status", "progress", "notes"), "id,project_id,drawing_id,discipline,category,description,specification,status,progress,notes,created_at,updated_at"),
 }
 
 
@@ -72,6 +54,9 @@ def create_relational_record(collection: str, values: dict[str, Any]) -> dict[st
     required |= {"subject", "approval_type"} if collection == "approvals" else set()
     required |= {"cost_code", "description", "cost_type"} if collection == "cost_control" else set()
     required |= {"activity_code", "name"} if collection == "construction" else set()
+    required |= {"category", "description"} if collection in {"engineering_works", "mep_works"} else set()
+    if collection == "construction":
+        required |= {"activity_code", "name"}
     missing = required - set(clean)
     if missing:
         raise ValueError(f"Missing required {collection} fields: {', '.join(sorted(missing))}")
@@ -81,6 +66,8 @@ def create_relational_record(collection: str, values: dict[str, Any]) -> dict[st
         "approvals": {"status": "pending"},
         "cost_control": {"status": "draft", "amount": 0},
         "construction": {"status": "planned", "progress": 0, "planned_quantity": 0, "actual_quantity": 0},
+        "engineering_works": {"status": "planned", "progress": 0},
+        "mep_works": {"status": "planned", "progress": 0},
     }[collection]
     for key, value in defaults.items():
         clean.setdefault(key, value)
@@ -88,10 +75,7 @@ def create_relational_record(collection: str, values: dict[str, Any]) -> dict[st
     placeholders = ",".join(["%s"] * len(columns))
     with _neon_connect() as connection:
         with connection.cursor() as cursor:
-            cursor.execute(
-                f"INSERT INTO {table} ({','.join(columns)}) VALUES ({placeholders}) RETURNING {select}",
-                [clean[c] for c in columns],
-            )
+            cursor.execute(f"INSERT INTO {table} ({','.join(columns)}) VALUES ({placeholders}) RETURNING {select}", [clean[c] for c in columns])
             rows = _rows_as_dicts(cursor)
         connection.commit()
     return rows[0]
@@ -105,10 +89,7 @@ def update_relational_record(collection: str, record_id: Any, values: dict[str, 
     assignments = ", ".join(f"{field}=%s" for field in clean)
     with _neon_connect() as connection:
         with connection.cursor() as cursor:
-            cursor.execute(
-                f"UPDATE {table} SET {assignments},updated_at=now() WHERE id=%s RETURNING {select}",
-                [*clean.values(), str(record_id)],
-            )
+            cursor.execute(f"UPDATE {table} SET {assignments},updated_at=now() WHERE id=%s RETURNING {select}", [*clean.values(), str(record_id)])
             rows = _rows_as_dicts(cursor)
         connection.commit()
     return rows[0] if rows else None
