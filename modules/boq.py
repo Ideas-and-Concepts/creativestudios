@@ -5,8 +5,8 @@ from datetime import datetime
 from typing import Any
 import pandas as pd
 import streamlit as st
-from modules.database import database_backend, get_records, next_id, save_memory
-from modules.project_context import filter_project_records, project_label, project_options
+from modules.database import database_backend, get_records, next_id, save_memory, get_relational_drawings
+from modules.project_context import filter_project_records, project_label, project_options, select_project
 from modules.boq_repository import create_relational_boq_item, delete_relational_boq_item, get_relational_boq_items, update_relational_boq_item
 CATEGORIES=["Preliminaries","Earthworks","Foundations","Concrete","Reinforcement","Formwork","Columns","Beams","Slabs","Masonry","Walls","Doors","Windows","Roofing","Finishes","Civil Works","Plumbing","Electrical","Mechanical","External Works","Other"]
 ELEMENTS=["Building","Substructure","Superstructure","Architecture","Structure","Civil","MEP","External Works","Other"]
@@ -25,10 +25,10 @@ def _records(db,project_id,drawing_id=None):
 def _duplicate_code(records,code,record_id=None):return bool(code and any(str(r.get("item_code","")).strip().lower()==code.lower() and str(r.get("id"))!=str(record_id) for r in records))
 def render_boq_module(database:dict[str,Any])->None:
     st.title("Bill of Quantities");st.caption("Project-linked quantities, construction elements and cost planning.")
-    projects=project_options(database)
-    if not projects:st.warning("Create a project first in Projects.");return
-    labels=[project_label(p) for p in projects];selected=st.selectbox("Project",labels,key="boq_project");project_id=projects[labels.index(selected)]["id"]
-    all_drawings=[r for r in get_records("drawings",database) if str(r.get("project_id"))==str(project_id)]
+    project_id=select_project(database,label="Project",key="cs_boq_project")
+    if not project_id:return
+    if database_backend()=="neon":all_drawings=[r for r in get_relational_drawings(str(project_id))]
+    else:all_drawings=filter_project_records(get_records("drawings",database),project_id)
     drawing_labels=["All drawings"]+[f"{d.get('drawing_number','')} | {d.get('title','')}" for d in all_drawings];drawing_choice=st.selectbox("Drawing filter",drawing_labels,key="boq_drawing_filter")
     drawing_id=None if drawing_choice=="All drawings" else all_drawings[drawing_labels.index(drawing_choice)-1].get("id")
     records=_records(database,project_id,drawing_id);total=sum(_amount(r.get("quantity"),r.get("rate")) for r in records);quantity=sum(_num(r.get("quantity")) for r in records)
