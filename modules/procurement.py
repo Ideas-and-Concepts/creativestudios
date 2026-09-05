@@ -29,36 +29,29 @@ def boq_for_project(db, project_id):
         return get_relational_boq_items(str(project_id))
     return [r for r in get_records("boq", db) if str(r.get("project_id")) == str(project_id)]
 def render_procurement_module(database: dict[str, Any]) -> None:
-    st.title("Procurement")
-    st.caption("Suppliers, BOQ-linked purchasing and controlled purchase orders.")
+    st.title("Procurement"); st.caption("Suppliers, BOQ-linked purchasing and controlled purchase orders.")
     project_id = select_project(database, label="Project", key="cs_procurement_project")
     if not project_id: return
-    supplier_rows = suppliers(database)
-    order_rows = orders(database, project_id)
-    boq_rows = boq_for_project(database, project_id)
+    supplier_rows = suppliers(database); order_rows = orders(database, project_id); boq_rows = boq_for_project(database, project_id)
     committed = sum(money(o.get("total_amount", o.get("amount", 0))) for o in order_rows if o.get("status") != "cancelled")
     ordered = sum(money(o.get("total_amount", o.get("amount", 0))) for o in order_rows if o.get("status") == "ordered")
     received = sum(money(o.get("total_amount", o.get("amount", 0))) for o in order_rows if o.get("status") == "received")
-    c1,c2,c3,c4=st.columns(4); c1.metric("Purchase Orders",len(order_rows)); c2.metric("Committed",f"{committed:,.2f}"); c3.metric("Ordered",f"{ordered:,.2f}"); c4.metric("Received",f"{received:,.2f")
+    c1,c2,c3,c4=st.columns(4); c1.metric("Purchase Orders",len(order_rows)); c2.metric("Committed",f"{committed:,.2f}"); c3.metric("Ordered",f"{ordered:,.2f}"); c4.metric("Received",f"{received:,.2f}")
     orders_tab, suppliers_tab = st.tabs(["Purchase Orders", "Suppliers"])
     with orders_tab:
-        query=st.text_input("Search purchase orders",key="procurement_search").strip().lower()
-        status=st.selectbox("Status",["All"]+STATUSES,key="procurement_status",format_func=lambda x:"All" if x=="All" else STATUS_LABELS[x])
+        query=st.text_input("Search purchase orders",key="procurement_search").strip().lower(); status=st.selectbox("Status",["All"]+STATUSES,key="procurement_status",format_func=lambda x:"All" if x=="All" else STATUS_LABELS[x])
         visible=[o for o in order_rows if (not query or query in str(o).lower()) and (status=="All" or o.get("status")==status)]
-        if visible:
-            st.dataframe(pd.DataFrame([{ "PO Number":o.get("po_number",""),"Supplier":o.get("supplier_name",o.get("supplier","")),"Status":STATUS_LABELS.get(o.get("status"),o.get("status","")),"Subtotal":float(money(o.get("subtotal",o.get("amount",0)))),"Total":float(money(o.get("total_amount",o.get("amount",0)))),"Expected":str(o.get("expected_delivery_date",o.get("expected_delivery","")) or "") } for o in visible]),use_container_width=True,hide_index=True)
+        if visible: st.dataframe(pd.DataFrame([{ "PO Number":o.get("po_number",""),"Supplier":o.get("supplier_name",o.get("supplier","")),"Status":STATUS_LABELS.get(o.get("status"),o.get("status","")),"Subtotal":float(money(o.get("subtotal",o.get("amount",0)))),"Total":float(money(o.get("total_amount",o.get("amount",0)))),"Expected":str(o.get("expected_delivery_date",o.get("expected_delivery","")) or "") } for o in visible]),use_container_width=True,hide_index=True)
         else: st.info("No purchase orders match the selected project and filters.")
         active=[s for s in supplier_rows if s.get("is_active",True)]
         if not active: st.info("Add an active supplier before creating a purchase order.")
         else:
             with st.form("purchase_order_add",clear_on_submit=True):
-                supplier_labels=[f"{s.get('code','')} | {s.get('name','')}" for s in active]
-                supplier_choice=st.selectbox("Supplier",supplier_labels); po_number=st.text_input("PO Number"); po_status=st.selectbox("Status",STATUSES,format_func=lambda x:STATUS_LABELS[x]); order_date=st.date_input("Order Date",datetime.now().date()); expected=st.date_input("Expected Delivery Date",None); tax_rate=st.number_input("Tax Rate (%)",min_value=0.0,value=0.0,format="%.2f"); notes=st.text_area("Notes")
+                supplier_labels=[f"{s.get('code','')} | {s.get('name','')}" for s in active]; supplier_choice=st.selectbox("Supplier",supplier_labels); po_number=st.text_input("PO Number"); po_status=st.selectbox("Status",STATUSES,format_func=lambda x:STATUS_LABELS[x]); order_date=st.date_input("Order Date",datetime.now().date()); expected=st.date_input("Expected Delivery Date",None); tax_rate=st.number_input("Tax Rate (%)",min_value=0.0,value=0.0,format="%.2f"); notes=st.text_area("Notes")
                 st.markdown("**Order Items**"); count=st.number_input("Number of items",1,20,1,1); boq_options=[("No BOQ link",None)]+[(f"{b.get('item_code','')} | {b.get('description','')}",b.get('id')) for b in boq_rows]; item_forms=[]
                 for i in range(int(count)):
                     a,b=st.columns(2)
-                    with a:
-                        link=st.selectbox(f"BOQ Item {i+1}",[x[0] for x in boq_options],key=f"po_boq_{i}"); description=st.text_input(f"Description {i+1}",key=f"po_desc_{i}"); quantity=st.number_input(f"Quantity {i+1}",min_value=0.0,value=1.0,key=f"po_qty_{i}")
+                    with a: link=st.selectbox(f"BOQ Item {i+1}",[x[0] for x in boq_options],key=f"po_boq_{i}"); description=st.text_input(f"Description {i+1}",key=f"po_desc_{i}"); quantity=st.number_input(f"Quantity {i+1}",min_value=0.0,value=1.0,key=f"po_qty_{i}")
                     with b: unit=st.text_input(f"Unit {i+1}",value="No.",key=f"po_unit_{i}"); rate=st.number_input(f"Unit Rate {i+1}",min_value=0.0,value=0.0,key=f"po_rate_{i}")
                     item_forms.append((link,description,quantity,unit,rate))
                 submit=st.form_submit_button("Create Purchase Order",use_container_width=True)
