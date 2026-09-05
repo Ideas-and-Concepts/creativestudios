@@ -1,0 +1,142 @@
+.vercel-colour-module {
+  --governance-bg: #05070B;
+  --governance-surface: #0B1018;
+  --governance-surface-2: #111827;
+  --governance-text: #F8FAFC;
+  --governance-muted: #94A3B8;
+  --governance-border: #1E293B;
+  background: var(--governance-bg) !important;
+  color: var(--governance-text) !important;
+  min-height: 100vh;
+}
+
+.vercel-colour-module .eyebrow,
+.vercel-colour-module p,
+.vercel-colour-module .section-label,
+.vercel-colour-module .kpi-card span,
+.vercel-colour-module small,
+.vercel-colour-module .panel-note,
+.vercel-colour-module .audit-event-meta,
+.vercel-colour-module .audit-event-details {
+  color: var(--governance-muted) !important;
+}
+
+.vercel-colour-module h1,
+.vercel-colour-module h2,
+.vercel-colour-module strong,
+.vercel-colour-module label {
+  color: var(--governance-text) !important;
+}
+
+.vercel-colour-module .workspace-card,
+.vercel-colour-module .kpi-card,
+.vercel-colour-module .settings-card,
+.vercel-colour-module .audit-event {
+  background: var(--governance-surface) !important;
+  border-color: var(--governance-border) !important;
+  color: var(--governance-text) !important;
+  box-shadow: none !important;
+}
+
+.vercel-colour-module input,
+.vercel-colour-module select,
+.vercel-colour-module textarea,
+.vercel-colour-module .settings-option,
+.vercel-colour-module .settings-links a,
+.vercel-colour-module .rfi-track,
+.vercel-colour-module .rfi-attention div {
+  background: var(--governance-surface-2) !important;
+  color: var(--governance-text) !important;
+  border-color: var(--governance-border) !important;
+}
+
+.vercel-colour-module input::placeholder,
+.vercel-colour-module textarea::placeholder {
+  color: #64748B !important;
+}
+
+.vercel-colour-module .secondary-button {
+  background: transparent !important;
+  color: var(--governance-text) !important;
+  border-color: var(--governance-border) !important;
+}
+
+.vercel-colour-module .secondary-button:hover,
+.vercel-colour-module .settings-links a:hover {
+  background: var(--governance-surface-2) !important;
+  border-color: #475569 !important;
+  color: var(--governance-text) !important;
+}
+
+.vercel-colour-module .primary-button {
+  background: var(--governance-text) !important;
+  color: #0F172A !important;
+  border-color: var(--governance-text) !important;
+}
+
+.vercel-colour-module .status,
+.vercel-colour-module .rfi-pill {
+  background: var(--governance-surface-2) !important;
+  color: var(--governance-muted) !important;
+  border-color: var(--governance-border) !important;
+}
+
+.vercel-colour-module .status.ready {
+  color: var(--governance-text) !important;
+}
+
+.vercel-colour-module .rfi-pill.info {
+  color: #93C5FD !important;
+  background: #172554 !important;
+}
+
+.vercel-colour-module .rfi-pill.positive {
+  color: #86EFAC !important;
+  background: #052E16 !important;
+}
+
+.vercel-colour-module .rfi-pill.warning {
+  color: #FDE68A !important;
+  background: #422006 !important;
+}
+
+.vercel-colour-module .rfi-track {
+  background: #1E293B !important;
+}
+
+.vercel-colour-module .rfi-track i {
+  background: #60A5FA !important;
+}
+
+.vercel-colour-module .audit-event:hover,
+.vercel-colour-module .settings-links a:hover {
+  box-shadow: none !important;
+}
+
+.vercel-colour-module .audit-empty {
+  background: var(--governance-surface-2) !important;
+  border-color: var(--governance-border) !important;
+  color: var(--governance-muted) !important;
+}
+
+.vercel-colour-module table th {
+  background: var(--governance-surface-2) !important;
+  color: var(--governance-muted) !important;
+}
+
+.vercel-colour-module table td {
+  border-color: var(--governance-border) !important;
+  color: var(--governance-text) !important;
+}
+
+.vercel-colour-module .settings-note {
+  background: #172554 !important;
+  border-color: #1D4ED8 !important;
+  color: #BFDBFE !important;
+}
+
+@media (max-width: 800px) {
+  .vercel-colour-module {
+    min-height: auto;
+  }
+}

@@ -1,7 +1,6 @@
 """Creative Studios Cost Control and Earned Value Management module."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 import streamlit as st
@@ -15,6 +14,7 @@ from modules.module_utils import (
     save_new_record,
     save_updated_record,
 )
+from modules.project_controls import calculate_evm
 
 COST_TYPES = ["Budget", "Committed Cost", "Actual Cost", "Forecast", "Variation"]
 STATUSES = ["Draft", "Active", "Approved", "Closed"]
@@ -27,98 +27,8 @@ def _amount(record: dict[str, Any]) -> float:
         return 0.0
 
 
-def _number(value: Any) -> float:
-    try:
-        return float(value or 0)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _value(record: dict[str, Any], *keys: str) -> Any:
-    for key in keys:
-        if key in record and record.get(key) not in (None, ""):
-            return record.get(key)
-    return None
-
-
-def _date(value: Any) -> datetime | None:
-    if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    text = str(value or "").strip()
-    if not text:
-        return None
-    try:
-        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
-        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-    except ValueError:
-        return None
-
-
 def _index(options: list[str], value: Any, default: int = 0) -> int:
     return options.index(value) if value in options else default
-
-
-def _planned_value(amount: float, start: datetime | None, end: datetime | None, as_of: datetime) -> float:
-    if amount <= 0 or start is None or end is None or end <= start:
-        return 0.0
-    if as_of <= start:
-        return 0.0
-    if as_of >= end:
-        return amount
-    return amount * ((as_of - start).total_seconds() / (end - start).total_seconds())
-
-
-def _earned_value(project_boq: list[dict[str, Any]], project_construction: list[dict[str, Any]], actual_cost: float) -> dict[str, Any]:
-    """Calculate a transparent EVM snapshot from the existing project data spine.
-
-    BAC comes from BOQ amounts. EV uses BOQ-linked construction activity value and
-    physical progress. PV uses a linear time-phased baseline for activities with
-    BOQ value plus planned start/finish dates. Actual Cost is explicitly sourced
-    from Actual Cost records, never procurement commitments.
-    """
-    as_of = datetime.now(timezone.utc)
-    bac = sum(_number(_value(item, "amount")) for item in project_boq)
-    pv = 0.0
-    ev = 0.0
-    covered = 0
-
-    boq_by_id = {str(_value(item, "id")): _number(_value(item, "amount")) for item in project_boq if _value(item, "id") is not None}
-    boq_by_code = {str(_value(item, "item_code", "itemCode")): _number(_value(item, "amount")) for item in project_boq if _value(item, "item_code", "itemCode")}
-
-    for activity in project_construction:
-        boq_id = _value(activity, "boq_item_id", "boqItemId")
-        activity_amount = boq_by_id.get(str(boq_id), 0.0) if boq_id is not None else 0.0
-        if activity_amount <= 0:
-            code = _value(activity, "boq_item_code", "boqItemCode", "item_code", "itemCode")
-            activity_amount = boq_by_code.get(str(code), 0.0) if code else 0.0
-        if activity_amount <= 0:
-            continue
-        progress = max(0.0, min(100.0, _number(_value(activity, "progress"))))
-        ev += activity_amount * progress / 100.0
-        start = _date(_value(activity, "planned_start", "plannedStart"))
-        end = _date(_value(activity, "planned_end", "plannedEnd"))
-        if start and end and end > start:
-            pv += _planned_value(activity_amount, start, end, as_of)
-            covered += 1
-
-    cv = ev - actual_cost
-    sv = ev - pv
-    cpi = ev / actual_cost if actual_cost > 0 else None
-    spi = ev / pv if pv > 0 else None
-    eac = bac / cpi if cpi and cpi > 0 else bac
-    etc = max(0.0, eac - actual_cost)
-    vac = bac - eac
-    physical = min(100.0, max(0.0, ev / bac * 100.0)) if bac > 0 else 0.0
-    financial = min(100.0, max(0.0, actual_cost / bac * 100.0)) if bac > 0 else 0.0
-
-    return {
-        "bac": bac, "pv": pv, "ev": ev, "ac": actual_cost,
-        "cv": cv, "sv": sv, "cpi": cpi, "spi": spi,
-        "eac": eac, "etc": etc, "vac": vac,
-        "physical": physical, "financial": financial,
-        "covered": covered, "activities": len(project_construction),
-        "as_of": as_of,
-    }
 
 
 def _performance_label(value: float | None) -> str:
@@ -127,11 +37,16 @@ def _performance_label(value: float | None) -> str:
     return "On target" if value >= 1.0 else "Needs attention"
 
 
-def _render_evm(boq: list[dict[str, Any]], construction: list[dict[str, Any]], actual_cost: float) -> None:
-    evm = _earned_value(boq, construction, actual_cost)
+def _render_evm(
+    boq: list[dict[str, Any]],
+    construction: list[dict[str, Any]],
+    costs: list[dict[str, Any]],
+    site_logs: list[dict[str, Any]],
+) -> None:
+    evm = calculate_evm(boq, construction, costs, site_logs)
     st.divider()
     st.subheader("Earned Value Management")
-    st.caption("Project Controls: BAC, PV, EV and AC connect the BOQ baseline, construction programme and recorded actual costs.")
+    st.caption("Project Controls: BOQ baseline → construction activity → site progress → actual cost.")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("BAC · Budget at Completion", f"{evm['bac']:,.2f}")
@@ -146,16 +61,22 @@ def _render_evm(boq: list[dict[str, Any]], construction: list[dict[str, Any]], a
     c4.metric("SPI", "N/A" if evm["spi"] is None else f"{evm['spi']:.3f}", _performance_label(evm["spi"]))
     c5.metric("VAC · Variance at Completion", f"{evm['vac']:,.2f}")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("EAC · Estimate at Completion", f"{evm['eac']:,.2f}")
     c2.metric("ETC · Estimate to Complete", f"{evm['etc']:,.2f}")
-    c3.metric("Physical Progress", f"{evm['physical']:.1f}%")
-    c4.metric("Financial Progress", f"{evm['financial']:.1f}%")
+    c3.metric("TCPI · BAC", "N/A" if evm["tcpi_bac"] is None else f"{evm['tcpi_bac']:.3f}")
+    c4.metric("TCPI · EAC", "N/A" if evm["tcpi_eac"] is None else f"{evm['tcpi_eac']:.3f}")
+    c5.metric("Site Logs", f"{evm['site_logs']:,}")
 
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Physical Progress", f"{evm['physical']:.1f}%")
+    c2.metric("Financial Progress", f"{evm['financial']:.1f}%")
+    c3.metric("Baseline Coverage", f"{evm['covered']} / {evm['baseline_items']}")
     st.progress(min(1.0, max(0.0, evm["physical"] / 100.0)), text=f"Physical progress {evm['physical']:.1f}%")
     st.caption(
-        f"PV baseline coverage: {evm['covered']} of {evm['activities']} construction activities have both a BOQ value and planned start/finish dates. "
-        "PV is linearly time-phased between those dates. Procurement commitments are not treated as actual cost."
+        f"{evm['covered']} BOQ-linked baselines have usable planned start/finish dates. "
+        "Each BOQ item is valued once, preventing duplicate earned value when several activities share one BOQ item. "
+        "Site logs can update physical progress when activity quantities and units are usable."
     )
 
 
@@ -171,6 +92,7 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
     items = project_records(records, project_id)
     boq = project_records(ensure_collection(database, "boq"), project_id)
     construction = project_records(ensure_collection(database, "construction"), project_id)
+    site_logs = project_records(ensure_collection(database, "site_progress_logs"), project_id)
     totals = {
         cost_type: sum(_amount(record) for record in items if record.get("cost_type") == cost_type)
         for cost_type in COST_TYPES
@@ -184,7 +106,7 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
     c5.metric("Variation", f"{totals['Variation']:,.2f}")
     st.caption(f"Budget remaining after actual cost: {totals['Budget'] - totals['Actual Cost']:,.2f}")
 
-    _render_evm(boq, construction, totals["Actual Cost"])
+    _render_evm(boq, construction, items, site_logs)
 
     search = st.text_input("Search costs", placeholder="Cost code or description", key="cost_control_search")
     status_filter = st.selectbox("Status", ["All"] + STATUSES, key="cost_control_status_filter")
@@ -212,7 +134,6 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
                     status = st.selectbox("Status", STATUSES, index=_index(STATUSES, record.get("status")))
                     notes = st.text_area("Notes", value=str(record.get("notes", "")))
                     submitted = st.form_submit_button("Save Changes", use_container_width=True)
-
                 if submitted:
                     if not code.strip() or not description.strip():
                         st.error("Cost Code and Description are required.")
@@ -232,7 +153,6 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
                             st.error("Unable to save the cost record.")
                             with st.expander("Technical details"):
                                 st.exception(exc)
-
                 if st.button("Delete Record", key=f"cost_delete_{record_id}", use_container_width=True):
                     try:
                         if remove_record(database, "cost_control", record_id):
@@ -255,7 +175,6 @@ def render_cost_control_module(database: dict[str, Any]) -> None:
         status = st.selectbox("Status", STATUSES)
         notes = st.text_area("Notes")
         submitted = st.form_submit_button("Add Cost Record", use_container_width=True)
-
     if submitted:
         if not code.strip() or not description.strip():
             st.error("Cost Code and Description are required.")
