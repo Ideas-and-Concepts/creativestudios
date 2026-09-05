@@ -15,13 +15,22 @@ type Evm = {
   eac: number;
   etc: number;
   vac: number;
+  tcpiBac: number | null;
+  tcpiEac: number | null;
   physicalProgress: number;
   financialProgress: number;
   baselineCoverage: number;
   activitiesCount: number;
+  baselineItems: number;
+  siteLogs: number;
 };
 
-const empty: Evm = { asOf: "", bac: 0, pv: 0, ev: 0, ac: 0, cv: 0, sv: 0, cpi: null, spi: null, eac: 0, etc: 0, vac: 0, physicalProgress: 0, financialProgress: 0, baselineCoverage: 0, activitiesCount: 0 };
+const empty: Evm = {
+  asOf: "", bac: 0, pv: 0, ev: 0, ac: 0, cv: 0, sv: 0, cpi: null, spi: null,
+  eac: 0, etc: 0, vac: 0, tcpiBac: null, tcpiEac: null, physicalProgress: 0,
+  financialProgress: 0, baselineCoverage: 0, activitiesCount: 0, baselineItems: 0, siteLogs: 0,
+};
+
 const money = (value: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 const ratio = (value: number | null) => value === null ? "N/A" : value.toFixed(3);
 const health = (value: number | null) => value === null ? "No baseline" : value >= 1 ? "On target" : "Needs attention";
@@ -51,7 +60,7 @@ export default function EarnedValuePanel({ projectId }: { projectId: string }) {
   return (
     <section className="workspace-card" style={{ marginBottom: "24px" }}>
       <div className="list-toolbar">
-        <div><div className="section-label">Project Controls</div><h2>Earned Value Management</h2><p>Schedule and cost performance derived from BOQ, construction progress and approved actual-cost records.</p></div>
+        <div><div className="section-label">Project Controls</div><h2>Earned Value Management</h2><p>Schedule and cost performance derived from the BOQ baseline, construction progress, site progress logs and approved actual-cost records.</p></div>
         <strong>{loading ? "Calculating..." : data.asOf ? `As of ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(data.asOf))}` : "Live"}</strong>
       </div>
       {error ? <div className="project-alert error" role="status">{error}</div> : <>
@@ -71,11 +80,18 @@ export default function EarnedValuePanel({ projectId }: { projectId: string }) {
         <div className="project-stats" style={{ marginTop: "12px" }}>
           <div className="project-stat"><span>EAC</span><strong>{money(data.eac)}</strong></div>
           <div className="project-stat"><span>ETC</span><strong>{money(data.etc)}</strong></div>
-          <div className="project-stat"><span>Physical Progress</span><strong>{data.physicalProgress.toFixed(1)}%</strong></div>
-          <div className="project-stat"><span>Financial Progress</span><strong>{data.financialProgress.toFixed(1)}%</strong></div>
+          <div className="project-stat"><span>TCPI to BAC</span><strong>{ratio(data.tcpiBac)}</strong></div>
+          <div className="project-stat"><span>TCPI to EAC</span><strong>{ratio(data.tcpiEac)}</strong></div>
           <div className="project-stat"><span>Performance</span><strong>{health(data.cpi)} / {health(data.spi)}</strong></div>
         </div>
-        <p style={{ marginTop: "14px" }}>Baseline coverage: {data.baselineCoverage} of {data.activitiesCount} construction activities have a BOQ value and planned start/finish dates. PV uses a linear time-phased baseline for those activities. Commitments are not treated as actual cost.</p>
+        <div className="project-stats" style={{ marginTop: "12px" }}>
+          <div className="project-stat"><span>Physical Progress</span><strong>{data.physicalProgress.toFixed(1)}%</strong></div>
+          <div className="project-stat"><span>Financial Progress</span><strong>{data.financialProgress.toFixed(1)}%</strong></div>
+          <div className="project-stat"><span>Baseline Items</span><strong>{data.baselineItems}</strong></div>
+          <div className="project-stat"><span>Site Logs</span><strong>{data.siteLogs}</strong></div>
+          <div className="project-stat"><span>Activities</span><strong>{data.activitiesCount}</strong></div>
+        </div>
+        <p style={{ marginTop: "14px" }}>Baseline coverage: {data.baselineCoverage} BOQ-linked baseline items have usable planned start/finish dates. Each BOQ item is valued once even when multiple construction activities reference it. Site quantities are used only when their units are compatible with the activity. Commitments are not treated as actual cost.</p>
       </>}
     </section>
   );
