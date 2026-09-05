@@ -4,6 +4,7 @@ import AecNavigation from "@/components/AecNavigation";
 import "./globals.css";
 import "./shell-overrides.css";
 import "./governance.css";
+import "./workspace-system.css";
 
 export const metadata: Metadata = {
   title: "Creative Studios",
