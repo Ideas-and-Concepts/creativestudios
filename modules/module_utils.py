@@ -7,7 +7,7 @@ from typing import Any
 import streamlit as st
 
 from modules.database import add_record, delete_record, update_record
-from modules.project_context import filter_project_records, project_label, project_options
+from modules.project_context import filter_project_records, project_label, project_options, select_project
 
 
 def now_iso() -> str:
@@ -29,15 +29,23 @@ def ensure_collection(database: dict[str, Any], collection: str) -> list[dict[st
 
 
 def project_selector(database: dict[str, Any], key: str) -> tuple[Any | None, list[dict[str, Any]]]:
+    """Render the shared project selector and return its canonical ID plus projects.
+
+    All legacy Streamlit modules keep their existing widget keys while sharing
+    the canonical ``cs_selected_project_id`` session-state value.
+    """
     projects = project_options(database)
     if not projects:
         st.warning("Create a project first in Projects.")
         return None, []
 
-    labels = [project_label(project) for project in projects]
-    selected = st.selectbox("Project", labels, key=key)
-    project = projects[labels.index(selected)]
-    return project.get("id"), projects
+    project_id = select_project(
+        database,
+        label="Project",
+        key=key,
+        include_all=False,
+    )
+    return project_id, projects
 
 
 def project_id_of(record: dict[str, Any]) -> Any | None:
